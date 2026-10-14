@@ -44,6 +44,7 @@ export default function Home() {
                 <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start">
                   <Link
                     href="/dashboard"
+                    style={{ backgroundColor: "#059669", color: "#ffffff" }}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500 sm:w-auto"
                   >
                     Entrar al Dashboard
