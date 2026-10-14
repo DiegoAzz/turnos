@@ -11,6 +11,8 @@ function addMinutes(timeStr: string, minutes: number): string {
   return `${String(newHours).padStart(2, "0")}:${String(newMins).padStart(2, "0")}`;
 }
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
