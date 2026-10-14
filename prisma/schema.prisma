@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Business {
+  id                     String         @id @default(cuid())
+  name                   String
+  slug                   String         @unique
+  email                  String         @unique
+  phone                  String?
+  description            String?
+  address                String?
+  currency               String         @default("USD")
+  plan                   String         @default("FREE") // "FREE" | "PRO"
+  stripeCustomerId       String?
+  stripeSubscriptionId   String?
+  stripeCurrentPeriodEnd DateTime?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  services     Service[]
+  appointments Appointment[]
+  workingHours WorkingHour[]
+}
+
+model Service {
+  id              String        @id @default(cuid())
+  businessId      String
+  business        Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  durationMinutes Int           @default(30)
+  price           Float         @default(0)
+  active          Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  appointments Appointment[]
+}
+
+model WorkingHour {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int      // 0 = Domingo, 1 = Lunes, ..., 6 = Sabado
+  openTime   String   @default("09:00") // Formato "HH:mm"
+  closeTime  String   @default("19:00") // Formato "HH:mm"
+  isClosed   Boolean  @default(false)
+
+  @@unique([businessId, dayOfWeek])
+}
+
+model Appointment {
+  id           String    @id @default(cuid())
+  businessId   String
+  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  serviceId    String
+  service      Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  clientName   String
+  clientPhone  String
+  clientEmail  String?
+  clientNotes  String?
+  date         DateTime  // Dia de la cita (UTC midnight o fecha seleccionada)
+  startTime    String    // "14:30"
+  endTime      String    // "15:00"
+  status       String    @default("CONFIRMED") // "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"
+  reminderSent Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}

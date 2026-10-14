@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  /* Configuración optimizada para Coolify / Docker y producción */
+  output: "standalone",
   turbopack: {
     rules: {
       "*.css": {
