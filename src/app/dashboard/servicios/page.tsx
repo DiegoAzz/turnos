@@ -1,14 +1,12 @@
-import { prisma } from "@/lib/prisma";
+import { getCurrentBusiness } from "@/lib/current-business";
 import ServiciosManager from "./ServiciosManager";
 
 export const dynamic = "force-dynamic";
 
 export default async function ServiciosPage() {
-  const business = await prisma.business.findFirst({
-    include: {
-      services: {
-        orderBy: { createdAt: "desc" },
-      },
+  const business = await getCurrentBusiness({
+    services: {
+      orderBy: { createdAt: "desc" },
     },
   });
 
@@ -25,7 +23,7 @@ export default async function ServiciosPage() {
         </div>
       </div>
 
-      <ServiciosManager initialServices={business.services} business={business} />
+      <ServiciosManager initialServices={business.services || []} business={business} />
     </div>
   );
 }

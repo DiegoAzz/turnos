@@ -17,6 +17,8 @@ model Business {
   address                String?
   currency               String         @default("USD")
   plan                   String         @default("FREE") // "FREE" | "PRO"
+  active                 Boolean        @default(true)
+  adminPin               String         @default("1234")
   stripeCustomerId       String?
   stripeSubscriptionId   String?
   stripeCurrentPeriodEnd DateTime?

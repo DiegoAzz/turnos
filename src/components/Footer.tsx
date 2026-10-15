@@ -21,11 +21,14 @@ export default function Footer() {
           </p>
 
           <div className="flex items-center gap-4 text-sm font-medium">
-            <Link href="/dashboard" className="text-gray-600 hover:text-emerald-600">
-              Panel de Control
+            <Link href="/login" className="text-gray-600 hover:text-emerald-600">
+              Acceso Negocios
             </Link>
-            <Link href="/p/barberia-elite" className="text-gray-600 hover:text-emerald-600">
-              Ejemplo de Cliente
+            <Link href="/dashboard" className="text-gray-600 hover:text-emerald-600">
+              Panel
+            </Link>
+            <Link href="/admin/login" className="text-xs text-slate-400 hover:text-emerald-600 font-semibold">
+              👑 Super Admin
             </Link>
           </div>
         </div>

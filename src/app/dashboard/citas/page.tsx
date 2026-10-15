@@ -1,15 +1,13 @@
-import { prisma } from "@/lib/prisma";
+import { getCurrentBusiness } from "@/lib/current-business";
 import DashboardClientActions from "../DashboardClientActions";
 
 export const dynamic = "force-dynamic";
 
 export default async function CitasPage() {
-  const business = await prisma.business.findFirst({
-    include: {
-      appointments: {
-        include: { service: true },
-        orderBy: [{ date: "desc" }, { startTime: "asc" }],
-      },
+  const business = await getCurrentBusiness({
+    appointments: {
+      include: { service: true },
+      orderBy: [{ date: "desc" }, { startTime: "asc" }],
     },
   });
 
@@ -28,7 +26,7 @@ export default async function CitasPage() {
 
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <DashboardClientActions
-          initialAppointments={business.appointments}
+          initialAppointments={business.appointments || []}
           business={business}
         />
       </div>

@@ -32,6 +32,13 @@ export async function GET(
       );
     }
 
+    if (!business.active) {
+      return NextResponse.json(
+        { error: "Este establecimiento se encuentra temporalmente inactivo.", inactive: true },
+        { status: 403 }
+      );
+    }
+
     let bookedSlots: string[] = [];
 
     if (dateQuery) {

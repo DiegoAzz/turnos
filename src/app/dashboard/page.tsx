@@ -13,16 +13,16 @@ import {
 } from "lucide-react";
 import DashboardClientActions from "./DashboardClientActions";
 
+import { getCurrentBusiness } from "@/lib/current-business";
+
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const business = await prisma.business.findFirst({
-    include: {
-      services: true,
-      appointments: {
-        include: { service: true },
-        orderBy: { startTime: "asc" },
-      },
+  const business = await getCurrentBusiness({
+    services: true,
+    appointments: {
+      include: { service: true },
+      orderBy: { startTime: "asc" },
     },
   });
 
@@ -35,16 +35,16 @@ export default async function DashboardPage() {
     );
   }
 
-  const appointments = business.appointments;
+  const appointments: any[] = business.appointments || [];
 
   // Métricas
   const totalCitas = appointments.length;
   const ingresosEstimados = appointments
-    .filter((a) => a.status !== "CANCELLED")
-    .reduce((sum, a) => sum + (a.service?.price || 0), 0);
+    .filter((a: any) => a.status !== "CANCELLED")
+    .reduce((sum: number, a: any) => sum + (a.service?.price || 0), 0);
 
-  const confirmadas = appointments.filter((a) => a.status === "CONFIRMED").length;
-  const recordatoriosEnviados = appointments.filter((a) => a.reminderSent).length;
+  const confirmadas = appointments.filter((a: any) => a.status === "CONFIRMED").length;
+  const recordatoriosEnviados = appointments.filter((a: any) => a.reminderSent).length;
 
   return (
     <div className="space-y-8">

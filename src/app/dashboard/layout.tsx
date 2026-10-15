@@ -6,9 +6,13 @@ import {
   Scissors,
   CreditCard,
   ExternalLink,
-  Sparkles,
+  ShieldCheck,
+  AlertTriangle,
+  LogOut,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
+import BusinessSwitcher from "@/components/BusinessSwitcher";
 
 export const dynamic = "force-dynamic";
 
@@ -17,12 +21,79 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Obtenemos el negocio principal o demo
-  const business = await prisma.business.findFirst({
+  const cookieStore = await cookies();
+  const selectedSlug = cookieStore.get("selected_business_slug")?.value;
+  const adminSession = cookieStore.get("turnos_admin_session")?.value;
+  const isAdmin = adminSession === "authenticated";
+
+  // Obtenemos todos los negocios disponibles
+  const allBusinesses = await prisma.business.findMany({
     orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, slug: true, plan: true, active: true },
   });
 
-  const isPro = business?.plan === "PRO";
+  let business = null;
+  if (selectedSlug) {
+    business = await prisma.business.findUnique({
+      where: { slug: selectedSlug },
+    });
+  }
+
+  if (!business && allBusinesses.length > 0) {
+    business = await prisma.business.findFirst({
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
+  // Si no hay ningún negocio en el sistema
+  if (!business) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl border border-gray-200 text-center max-w-md shadow-sm">
+          <Calendar className="h-12 w-12 text-emerald-600 mx-auto mb-3" />
+          <h2 className="text-xl font-bold text-gray-900">No hay negocios registrados</h2>
+          <p className="text-sm text-gray-500 mt-2">
+            Entra al panel de Super Admin para dar de alta tu primera empresa.
+          </p>
+          <Link
+            href="/admin"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-emerald-600 text-white px-5 py-2.5 font-bold text-sm shadow hover:bg-emerald-500 transition"
+          >
+            <ShieldCheck className="h-4 w-4" />
+            <span>Ir al Super Admin</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Si la empresa está suspendida y no es el Super Admin
+  if (!business.active && !isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl border border-red-200 text-center max-w-md shadow-lg">
+          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-3" />
+          <h2 className="text-xl font-bold text-gray-900">Cuenta Suspendida</h2>
+          <p className="text-sm text-gray-600 mt-2">
+            El acceso para <strong>{business.name}</strong> ha sido temporalmente suspendido por facturación o mantenimiento.
+          </p>
+          <p className="text-xs text-gray-400 mt-4">
+            Por favor, ponte en contacto con el administrador del servicio para reactivar tu cuenta.
+          </p>
+          <div className="mt-6">
+            <Link
+              href="/login"
+              className="text-xs text-emerald-600 font-semibold hover:underline"
+            >
+              Iniciar sesión con otra cuenta
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const isPro = business.plan === "PRO";
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -42,36 +113,12 @@ export default async function DashboardLayout({
             </div>
           </div>
 
-          {/* NEGOCIO Y PLAN STATUS */}
-          <div className="p-4 border-b border-gray-100">
-            <div className="rounded-xl bg-gray-50 p-3 border border-gray-200/80">
-              <p className="text-xs text-gray-400 font-medium">Negocio conectado:</p>
-              <h3 className="text-sm font-bold text-gray-900 truncate">
-                {business?.name || "Mi Negocio"}
-              </h3>
-              <div className="mt-2 flex items-center justify-between">
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                    isPro
-                      ? "bg-emerald-100 text-emerald-800"
-                      : "bg-gray-200 text-gray-700"
-                  }`}
-                >
-                  <Sparkles className="h-3 w-3" />
-                  {isPro ? "Plan Pro" : "Plan Gratuito"}
-                </span>
-
-                <Link
-                  href={`/p/${business?.slug || "barberia-elite"}`}
-                  target="_blank"
-                  className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-700"
-                >
-                  Ver Link
-                  <ExternalLink className="h-3 w-3" />
-                </Link>
-              </div>
-            </div>
-          </div>
+          {/* NEGOCIO Y SELECTOR MULTIEMPRESA */}
+          <BusinessSwitcher
+            currentBusiness={business}
+            allBusinesses={allBusinesses}
+            isAdmin={isAdmin}
+          />
 
           {/* MENU LINKS */}
           <nav className="p-4 space-y-1">
@@ -107,7 +154,25 @@ export default async function DashboardLayout({
         </div>
 
         {/* FOOTER DEL SIDEBAR */}
-        <div className="p-4 border-t border-gray-100">
+        <div className="p-4 border-t border-gray-100 space-y-2">
+          {isAdmin ? (
+            <Link
+              href="/admin"
+              className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 text-white py-2 text-xs font-bold hover:bg-slate-800 transition"
+            >
+              <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
+              <span>👑 Volver a Super Admin</span>
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span>Cambiar de Negocio</span>
+            </Link>
+          )}
+
           <Link
             href="/"
             className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition"
@@ -124,12 +189,9 @@ export default async function DashboardLayout({
             Turno<span className="text-emerald-600">Ya</span>
           </span>
           <div className="flex items-center gap-2">
-            <Link
-              href="/dashboard/suscripcion"
-              className="text-xs rounded-lg bg-emerald-50 px-2.5 py-1 font-bold text-emerald-700"
-            >
-              {isPro ? "Pro" : "Free"}
-            </Link>
+            <span className="text-xs rounded-lg bg-emerald-50 px-2.5 py-1 font-bold text-emerald-700">
+              {business.name}
+            </span>
           </div>
         </header>
 

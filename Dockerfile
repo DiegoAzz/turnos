@@ -46,8 +46,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
-RUN chown -R nextjs:nodejs /app && chmod -R 777 /app
-
 USER nextjs
 
 EXPOSE 3000

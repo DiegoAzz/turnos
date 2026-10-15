@@ -50,11 +50,17 @@ export default function Navbar() {
 
         <div className="flex items-center gap-3">
           <Link
+            href="/login"
+            className="text-sm font-semibold text-gray-700 hover:text-emerald-600 px-3 py-2 transition"
+          >
+            Acceso Negocio
+          </Link>
+          <Link
             href="/dashboard"
             style={{ backgroundColor: "#111827", color: "#ffffff" }}
             className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
           >
-            Ir al Dashboard →
+            Panel →
           </Link>
         </div>
       </div>

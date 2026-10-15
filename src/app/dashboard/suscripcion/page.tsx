@@ -1,12 +1,10 @@
-import { prisma } from "@/lib/prisma";
+import { getCurrentBusiness } from "@/lib/current-business";
 import SubscriptionManager from "./SubscriptionManager";
 
 export const dynamic = "force-dynamic";
 
 export default async function SuscripcionPage() {
-  const business = await prisma.business.findFirst({
-    orderBy: { createdAt: "asc" },
-  });
+  const business = await getCurrentBusiness();
 
   if (!business) return null;
 
