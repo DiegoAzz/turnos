@@ -13,12 +13,15 @@ import {
   Save,
   RefreshCw,
   ExternalLink,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 export default function AdminPaymentSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
+  const [showIntegritySecret, setShowIntegritySecret] = useState(false);
 
   const [paymentMode, setPaymentMode] = useState<"MANUAL" | "GATEWAY" | "HYBRID">("MANUAL");
   const [wompiPublicKey, setWompiPublicKey] = useState("");
@@ -41,6 +44,7 @@ export default function AdminPaymentSettings() {
         const data = await res.json();
         setPaymentMode(data.paymentMode || "MANUAL");
         setWompiPublicKey(data.wompiPublicKey || "");
+        if (data.wompiIntegritySecret) setWompiIntegritySecret(data.wompiIntegritySecret);
         setWompiSandbox(data.wompiSandbox ?? true);
         setNequiNumber(data.nequiNumber || "300 123 4567");
         setDaviplataNumber(data.daviplataNumber || "300 123 4567");
@@ -342,18 +346,44 @@ export default function AdminPaymentSettings() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Secreto de Integridad de Wompi (Integrity Secret)
-            </label>
-            <input
-              type="password"
-              value={wompiIntegritySecret}
-              onChange={(e) => setWompiIntegritySecret(e.target.value)}
-              className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-white font-mono focus:border-emerald-500 focus:outline-none"
-              placeholder="prod_integrity_... o test_integrity_..."
-            />
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-slate-300">
+                Secreto de Integridad de Wompi (Integrity Secret)
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowIntegritySecret(!showIntegritySecret)}
+                className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-emerald-400 transition"
+              >
+                {showIntegritySecret ? (
+                  <>
+                    <EyeOff className="h-3.5 w-3.5" />
+                    <span>Ocultar</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-3.5 w-3.5" />
+                    <span>Ver texto completo</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <div className="relative">
+              <input
+                type={showIntegritySecret ? "text" : "password"}
+                value={wompiIntegritySecret}
+                onChange={(e) => setWompiIntegritySecret(e.target.value.trim())}
+                className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-white font-mono focus:border-emerald-500 focus:outline-none pr-10"
+                placeholder="test_integrity_... o prod_integrity_..."
+              />
+            </div>
+            {wompiIntegritySecret && !wompiIntegritySecret.startsWith("test_integrity_") && !wompiIntegritySecret.startsWith("prod_integrity_") && (
+              <p className="mt-1.5 text-xs text-rose-400 font-semibold bg-rose-500/10 border border-rose-500/30 p-2 rounded-lg">
+                ⚠️ Atención: La clave ingresada no parece ser un Secreto de Integridad. Debe empezar obligatoriamente por <code className="bg-rose-950/60 px-1 py-0.5 rounded">test_integrity_</code> o <code className="bg-rose-950/60 px-1 py-0.5 rounded">prod_integrity_</code>. Asegúrate de no haber copiado el &quot;Secreto de Eventos&quot;.
+              </p>
+            )}
             <p className="mt-1 text-[11px] text-slate-500">
-              Se utiliza para firmar digitalmente cada pago y garantizar que nadie pueda alterar los montos.
+              ⚠️ <strong>Importante:</strong> En el panel de Wompi, haz clic dentro del campo de Integridad y presiona <kbd className="bg-slate-800 text-slate-300 px-1 rounded">Ctrl + A</kbd> para asegurarte de copiar la clave completa sin recortar caracteres.
             </p>
           </div>
 

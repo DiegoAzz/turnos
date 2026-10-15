@@ -9,11 +9,13 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const settings = await getPlatformSettings();
+    const isAdmin = await verifyAdmin();
 
-    // Retornamos sin secretos para consumo público/dashboard
+    // Retornamos configuración (el secreto de integridad solo se expone al superadmin verificado)
     return NextResponse.json({
       paymentMode: settings.paymentMode, // "MANUAL", "GATEWAY", "HYBRID"
       wompiPublicKey: settings.wompiPublicKey,
+      wompiIntegritySecret: isAdmin ? (settings.wompiIntegritySecret || "") : undefined,
       wompiSandbox: settings.wompiSandbox,
       nequiNumber: settings.nequiNumber,
       daviplataNumber: settings.daviplataNumber,
@@ -78,7 +80,9 @@ export async function PATCH(req: NextRequest) {
       dataToUpdate.paymentMode = paymentMode;
     }
     if (typeof wompiPublicKey === "string") dataToUpdate.wompiPublicKey = wompiPublicKey.trim();
-    if (typeof wompiIntegritySecret === "string") dataToUpdate.wompiIntegritySecret = wompiIntegritySecret.trim();
+    if (typeof wompiIntegritySecret === "string" && wompiIntegritySecret.trim() !== "") {
+      dataToUpdate.wompiIntegritySecret = wompiIntegritySecret.trim();
+    }
     if (typeof wompiSandbox === "boolean") dataToUpdate.wompiSandbox = wompiSandbox;
     if (typeof nequiNumber === "string") dataToUpdate.nequiNumber = nequiNumber.trim();
     if (typeof daviplataNumber === "string") dataToUpdate.daviplataNumber = daviplataNumber.trim();
