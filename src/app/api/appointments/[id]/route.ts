@@ -16,6 +16,15 @@ export async function PATCH(
     const dataToUpdate: any = {};
     if (status) dataToUpdate.status = status;
     if (typeof reminderSent === "boolean") dataToUpdate.reminderSent = reminderSent;
+    if (body.date) {
+      const dateStr = typeof body.date === "string" ? body.date : new Date(body.date).toISOString();
+      const pureDate = dateStr.slice(0, 10);
+      dataToUpdate.date = new Date(`${pureDate}T00:00:00.000Z`);
+      dataToUpdate.reminderSent = false; // Reset recordatorio para la nueva fecha
+    }
+    if (body.startTime) dataToUpdate.startTime = body.startTime;
+    if (body.endTime) dataToUpdate.endTime = body.endTime;
+    if (body.clientNotes !== undefined) dataToUpdate.clientNotes = body.clientNotes;
 
     const appointment = await prisma.appointment.update({
       where: { id },

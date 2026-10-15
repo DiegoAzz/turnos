@@ -176,24 +176,27 @@ export default async function DashboardLayout({
           {isAdmin ? (
             <Link
               href="/admin"
-              className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 text-white py-2 text-xs font-bold hover:bg-slate-800 transition"
+              style={{ backgroundColor: "#0f172a", color: "#ffffff" }}
+              className="flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-xs font-bold shadow-md hover:bg-slate-800 transition border border-slate-700"
             >
-              <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
-              <span>👑 Volver a Super Admin</span>
+              <ShieldCheck className="h-4 w-4 text-amber-400 shrink-0" />
+              <span style={{ color: "#ffffff" }} className="font-bold">Volver a Super Admin</span>
             </Link>
           ) : (
             <Link
               href="/login"
-              className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition"
+              style={{ color: "#4b5563", backgroundColor: "#ffffff" }}
+              className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2 text-xs font-semibold hover:bg-gray-100 transition"
             >
-              <LogOut className="h-3.5 w-3.5" />
+              <LogOut className="h-3.5 w-3.5 text-gray-500" />
               <span>Cambiar de Negocio</span>
             </Link>
           )}
 
           <Link
             href="/"
-            className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition"
+            style={{ color: "#4b5563", backgroundColor: "#f9fafb" }}
+            className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2 text-xs font-semibold hover:bg-gray-100 transition"
           >
             ← Volver a la Landing
           </Link>

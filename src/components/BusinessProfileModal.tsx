@@ -31,6 +31,7 @@ export default function BusinessProfileModal({
   const [address, setAddress] = useState(business.address || "");
   const [phone, setPhone] = useState(business.phone || "");
   const [logoUrl, setLogoUrl] = useState(business.logoUrl || "");
+  const [currency, setCurrency] = useState(business.currency || "COP");
   const [liveStatus, setLiveStatus] = useState(business.liveStatus || "OPEN");
   const [statusMessage, setStatusMessage] = useState(business.statusMessage || "");
 
@@ -85,6 +86,7 @@ export default function BusinessProfileModal({
           address: address.trim() || null,
           phone: phone.trim() || null,
           logoUrl: logoUrl.trim() || null,
+          currency: currency.trim() || "COP",
           liveStatus,
           statusMessage: statusMessage.trim() || null,
         }),
@@ -276,6 +278,32 @@ export default function BusinessProfileModal({
               onChange={(e) => setDescription(e.target.value)}
               className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
             />
+          </div>
+
+          {/* PAÍS Y MONEDA DE LATINOAMÉRICA */}
+          <div>
+            <label className="block text-xs font-bold text-gray-800 mb-1">
+              País y Moneda de tus Precios (Latinoamérica)
+            </label>
+            <select
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+              className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs text-gray-900 font-bold focus:outline-none focus:border-emerald-500"
+            >
+              <option value="COP">🇨🇴 Colombia - Peso colombiano (COP $)</option>
+              <option value="USD">🇺🇸 Internacional / Dólar (USD $)</option>
+              <option value="MXN">🇲🇽 México - Peso mexicano (MXN $)</option>
+              <option value="PEN">🇵🇪 Perú - Sol peruano (PEN S/)</option>
+              <option value="ARS">🇦🇷 Argentina - Peso argentino (ARS $)</option>
+              <option value="CLP">🇨🇱 Chile - Peso chileno (CLP $)</option>
+              <option value="BOB">🇧🇴 Bolivia - Boliviano (BOB Bs)</option>
+              <option value="DOP">🇩🇴 Rep. Dominicana - Peso dominicano (DOP RD$)</option>
+              <option value="GTQ">🇬🇹 Guatemala - Quetzal (GTQ Q)</option>
+              <option value="CRC">🇨🇷 Costa Rica - Colón (CRC ₡)</option>
+            </select>
+            <p className="mt-1 text-[11px] text-gray-400">
+              Todos los precios de tus citas, servicios y productos se mostrarán con el símbolo y formato de tu país.
+            </p>
           </div>
 
           {/* ESTADO EN VIVO RÁPIDO */}

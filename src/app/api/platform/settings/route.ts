@@ -29,6 +29,10 @@ export async function GET() {
       independientePriceCOP: settings.independientePriceCOP,
       partnerFirstMonthRate: settings.partnerFirstMonthRate ?? 0.50,
       partnerRecurringRate: settings.partnerRecurringRate ?? 0.20,
+      defaultFranchiseEntryFeeUSD: settings.defaultFranchiseEntryFeeUSD ?? 99,
+      defaultFranchiseEntryFeeCOP: settings.defaultFranchiseEntryFeeCOP ?? 400000,
+      defaultFranchiseFeeUSD: settings.defaultFranchiseFeeUSD ?? 29,
+      defaultFranchiseFeeCOP: settings.defaultFranchiseFeeCOP ?? 100000,
       hasWompiConfigured: Boolean(settings.wompiPublicKey && settings.wompiPublicKey.trim()),
     });
   } catch (error) {
@@ -90,6 +94,10 @@ export async function PATCH(req: NextRequest) {
     if (typeof independientePriceCOP === "number") dataToUpdate.independientePriceCOP = independientePriceCOP;
     if (typeof partnerFirstMonthRate === "number") dataToUpdate.partnerFirstMonthRate = partnerFirstMonthRate;
     if (typeof partnerRecurringRate === "number") dataToUpdate.partnerRecurringRate = partnerRecurringRate;
+    if (typeof body.defaultFranchiseEntryFeeUSD === "number") dataToUpdate.defaultFranchiseEntryFeeUSD = body.defaultFranchiseEntryFeeUSD;
+    if (typeof body.defaultFranchiseEntryFeeCOP === "number") dataToUpdate.defaultFranchiseEntryFeeCOP = body.defaultFranchiseEntryFeeCOP;
+    if (typeof body.defaultFranchiseFeeUSD === "number") dataToUpdate.defaultFranchiseFeeUSD = body.defaultFranchiseFeeUSD;
+    if (typeof body.defaultFranchiseFeeCOP === "number") dataToUpdate.defaultFranchiseFeeCOP = body.defaultFranchiseFeeCOP;
 
     const updated = await prisma.platformSettings.upsert({
       where: { id: "global" },

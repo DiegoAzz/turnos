@@ -19,6 +19,7 @@ import {
   Wallet,
   Clock,
   ShieldCheck,
+  Crown,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -288,6 +289,105 @@ export default function PartnerPortalPage() {
             </p>
           </div>
         </div>
+
+        {/* BLOQUE DE FRANQUICIA SAAS / MARCA BLANCA */}
+        {partner?.isFranchise ? (
+          // Vista para Franquiciado Oficial Activo
+          <div className="rounded-2xl border-2 border-amber-500 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-6 text-white shadow-xl mb-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10">
+              <Crown className="h-32 w-32 text-amber-400" />
+            </div>
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs px-3 py-0.5 flex items-center gap-1 shadow">
+                    <Crown className="h-3.5 w-3.5" />
+                    <span>Franquicia Oficial Activa</span>
+                  </span>
+                  {partner.franchiseCityCountry && (
+                    <span className="text-xs text-amber-300 font-bold">📍 {partner.franchiseCityCountry}</span>
+                  )}
+                </div>
+                <h3 className="text-xl font-black text-white">
+                  {partner.franchiseName || "Tu Franquicia TurnoYa"}
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 max-w-xl">
+                  Eres dueño comercial de la plataforma en tu territorio. Cobras el 100% directamente a tus clientes y cuentas con respaldo tecnológico continuo.
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-4 text-xs">
+                  <div className="bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-800">
+                    <span className="text-slate-400 block text-[10px]">Cuota de Inscripción:</span>
+                    <span className="font-bold text-amber-400">
+                      {partner.franchiseEntryFeePaid ? "✓ Pagada y Habilitada" : "⚠️ Pendiente de Pago"}
+                    </span>
+                  </div>
+                  <div className="bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-800">
+                    <span className="text-slate-400 block text-[10px]">Mensualidad de Tecnología:</span>
+                    <span className="font-bold text-emerald-400">
+                      ${partner.franchiseMonthlyFee || 29} {partner.franchiseFeeCurrency || "USD"} / mes
+                    </span>
+                  </div>
+                  <div className="bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-800">
+                    <span className="text-slate-400 block text-[10px]">Próximo Corte de Mensualidad:</span>
+                    <span className="font-bold text-white">
+                      {partner.franchiseDueDate ? new Date(partner.franchiseDueDate).toLocaleDateString("es-ES") : "Al día"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="shrink-0 flex flex-col gap-2">
+                <a
+                  href={`https://wa.me/573001234567?text=${encodeURIComponent(
+                    `Hola, soy ${partner.name} de la franquicia "${partner.franchiseName || "Oficial"}". Deseo reportar el pago de mi mensualidad de franquicia.`
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs text-center shadow-lg transition flex items-center justify-center gap-1.5"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  <span>Reportar Pago a Central</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Invitación para dar el salto a Dueño de Franquicia
+          <div className="rounded-2xl border-2 border-amber-400/80 bg-gradient-to-r from-amber-950/40 via-slate-900 to-amber-950/30 p-6 text-white shadow-xl mb-8 relative overflow-hidden">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-amber-500 text-slate-950 font-black text-[11px] px-3 py-0.5 flex items-center gap-1 shadow">
+                    <Crown className="h-3.5 w-3.5" />
+                    <span>¡Oportunidad de Escalamiento!</span>
+                  </span>
+                  <span className="text-xs text-amber-300 font-bold">Sé dueño de tu propia empresa SaaS</span>
+                </div>
+                <h3 className="text-lg font-black text-white pt-1">
+                  ¿Quieres tener tu propia Franquicia de TurnoYa en tu ciudad o país?
+                </h3>
+                <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                  En lugar de solo ganar una comisión por referido, <strong>conviértete en Franquiciado Oficial</strong>: sé el dueño de la plataforma en tu territorio, cobra el 100% de lo que pagan los negocios directamente en tu cuenta y páganos únicamente una inscripción única ($99 USD / $400.000 COP) y una mensualidad fija de servidores ($29 USD / $100.000 COP/mes).
+                </p>
+              </div>
+
+              <div className="shrink-0">
+                <a
+                  href={`https://wa.me/573001234567?text=${encodeURIComponent(
+                    `¡Hola! Soy ${partner?.name} (Embajador código: ${partner?.referralCode}). Estoy interesado en escalar y adquirir mi propia Franquicia SaaS de TurnoYa (Inscripción + Mensualidad) en mi ciudad. ¿Cómo podemos coordinarlo?`
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs shadow-lg transition"
+                >
+                  <Crown className="h-4 w-4" />
+                  <span>Solicitar mi Franquicia Oficial →</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* KITS DE PROSPECCIÓN WHATSAPP LISTOS PARA ENVIAR */}
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm mb-8">

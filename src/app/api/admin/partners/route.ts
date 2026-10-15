@@ -42,11 +42,12 @@ export async function GET() {
       },
     });
 
-    // Obtener configuración global de comisiones
+    // Obtener configuración global de comisiones y franquicias
+    let settings: any = null;
     let globalFirstMonthRate = 0.50;
     let globalRecurringRate = 0.20;
     try {
-      const settings = await prisma.platformSettings.findUnique({ where: { id: "global" } });
+      settings = await prisma.platformSettings.findUnique({ where: { id: "global" } });
       if (settings) {
         globalFirstMonthRate = settings.partnerFirstMonthRate ?? 0.50;
         globalRecurringRate = settings.partnerRecurringRate ?? 0.20;
@@ -77,6 +78,17 @@ export async function GET() {
         totalReferred: p._count.referredBusinesses,
         activePayingClients,
         pendingPayoutRequests: p.payouts,
+        // Campos de Franquicia SaaS
+        isFranchise: p.isFranchise,
+        franchiseName: p.franchiseName,
+        franchiseCityCountry: p.franchiseCityCountry,
+        franchiseEntryFee: p.franchiseEntryFee,
+        franchiseEntryFeePaid: p.franchiseEntryFeePaid,
+        franchiseMonthlyFee: p.franchiseMonthlyFee,
+        franchiseFeeCurrency: p.franchiseFeeCurrency,
+        franchiseStatus: p.franchiseStatus,
+        franchiseDueDate: p.franchiseDueDate,
+        franchiseNotes: p.franchiseNotes,
       };
     });
 
@@ -84,6 +96,10 @@ export async function GET() {
       partners: data,
       globalFirstMonthRate,
       globalRecurringRate,
+      defaultFranchiseEntryFeeUSD: settings?.defaultFranchiseEntryFeeUSD ?? 99,
+      defaultFranchiseEntryFeeCOP: settings?.defaultFranchiseEntryFeeCOP ?? 400000,
+      defaultFranchiseFeeUSD: settings?.defaultFranchiseFeeUSD ?? 29,
+      defaultFranchiseFeeCOP: settings?.defaultFranchiseFeeCOP ?? 100000,
     });
   } catch (error) {
     console.error("Error al listar embajadores:", error);
@@ -138,6 +154,28 @@ export async function PATCH(req: NextRequest) {
       if (status === "ACTIVE") {
         dataToUpdate.approvedAt = new Date();
       }
+    }
+
+    // Actualizaciones de Franquicia SaaS / Marca Blanca
+    if (typeof body.isFranchise === "boolean") dataToUpdate.isFranchise = body.isFranchise;
+    if (body.franchiseName !== undefined) dataToUpdate.franchiseName = body.franchiseName ? body.franchiseName.trim() : null;
+    if (body.franchiseCityCountry !== undefined) dataToUpdate.franchiseCityCountry = body.franchiseCityCountry ? body.franchiseCityCountry.trim() : null;
+    if (typeof body.franchiseEntryFee === "number") dataToUpdate.franchiseEntryFee = body.franchiseEntryFee;
+    if (typeof body.franchiseEntryFeePaid === "boolean") dataToUpdate.franchiseEntryFeePaid = body.franchiseEntryFeePaid;
+    if (typeof body.franchiseMonthlyFee === "number") dataToUpdate.franchiseMonthlyFee = body.franchiseMonthlyFee;
+    if (body.franchiseFeeCurrency) dataToUpdate.franchiseFeeCurrency = body.franchiseFeeCurrency;
+    if (body.franchiseStatus) dataToUpdate.franchiseStatus = body.franchiseStatus;
+    if (body.franchiseDueDate !== undefined) {
+      dataToUpdate.franchiseDueDate = body.franchiseDueDate ? new Date(body.franchiseDueDate) : null;
+    }
+    if (body.franchiseNotes !== undefined) dataToUpdate.franchiseNotes = body.franchiseNotes;
+
+    // Registrar pago mensual de franquicia (extender fecha de corte por 30 días)
+    if (body.registerMonthlyPayment) {
+      const nextDate = new Date();
+      nextDate.setDate(nextDate.getDate() + 30);
+      dataToUpdate.franchiseDueDate = nextDate;
+      dataToUpdate.franchiseStatus = "ACTIVE";
     }
 
     const updated = await prisma.partner.update({

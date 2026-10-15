@@ -24,6 +24,8 @@ import {
   UserCheck,
   Trash2,
   X,
+  Crown,
+  Building2,
 } from "lucide-react";
 
 interface PartnerAdmin {
@@ -45,13 +47,24 @@ interface PartnerAdmin {
   totalReferred: number;
   activePayingClients: number;
   pendingPayoutRequests: any[];
+  // Campos Franquicia SaaS
+  isFranchise?: boolean;
+  franchiseName?: string | null;
+  franchiseCityCountry?: string | null;
+  franchiseEntryFee?: number;
+  franchiseEntryFeePaid?: boolean;
+  franchiseMonthlyFee?: number;
+  franchiseFeeCurrency?: string;
+  franchiseStatus?: string;
+  franchiseDueDate?: string | null;
+  franchiseNotes?: string | null;
 }
 
 export default function AdminPartnersManager() {
   const [partners, setPartners] = useState<PartnerAdmin[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "ACTIVE">("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "ACTIVE" | "FRANCHISE">("ALL");
 
   // Configuración de comisiones globales (2 niveles)
   const [globalFirstMonthRateInput, setGlobalFirstMonthRateInput] = useState("50");
@@ -61,6 +74,18 @@ export default function AdminPartnersManager() {
   const [editingPartnerRates, setEditingPartnerRates] = useState<PartnerAdmin | null>(null);
   const [partnerFirstMonthInput, setPartnerFirstMonthInput] = useState("50");
   const [partnerRecurringInput, setPartnerRecurringInput] = useState("20");
+
+  // Modal para administrar Franquicia SaaS (Inscripción + Mensualidad)
+  const [editingFranchisePartner, setEditingFranchisePartner] = useState<PartnerAdmin | null>(null);
+  const [franchiseEnabled, setFranchiseEnabled] = useState(false);
+  const [franchiseName, setFranchiseName] = useState("");
+  const [franchiseCityCountry, setFranchiseCityCountry] = useState("");
+  const [franchiseEntryFee, setFranchiseEntryFee] = useState("99");
+  const [franchiseEntryFeePaid, setFranchiseEntryFeePaid] = useState(false);
+  const [franchiseMonthlyFee, setFranchiseMonthlyFee] = useState("29");
+  const [franchiseFeeCurrency, setFranchiseFeeCurrency] = useState("USD");
+  const [franchiseStatus, setFranchiseStatus] = useState("ACTIVE");
+  const [franchiseNotes, setFranchiseNotes] = useState("");
 
   // Modal simulación
   const [simulateAmount, setSimulateAmount] = useState(60000);
@@ -259,6 +284,90 @@ export default function AdminPartnersManager() {
     }
   };
 
+  // Abrir modal de Franquicia SaaS (Inscripción + Mensualidad)
+  const handleOpenFranchiseModal = (p: PartnerAdmin) => {
+    setEditingFranchisePartner(p);
+    setFranchiseEnabled(Boolean(p.isFranchise));
+    setFranchiseName(p.franchiseName || `Franquicia ${p.name}`);
+    setFranchiseCityCountry(p.franchiseCityCountry || "");
+    setFranchiseEntryFee(String(p.franchiseEntryFee ?? 99));
+    setFranchiseEntryFeePaid(Boolean(p.franchiseEntryFeePaid));
+    setFranchiseMonthlyFee(String(p.franchiseMonthlyFee ?? 29));
+    setFranchiseFeeCurrency(p.franchiseFeeCurrency || "USD");
+    setFranchiseStatus(p.franchiseStatus || "ACTIVE");
+    setFranchiseNotes(p.franchiseNotes || "");
+  };
+
+  // Guardar configuración de Franquicia
+  const handleSaveFranchise = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingFranchisePartner) return;
+
+    try {
+      setActionLoading(editingFranchisePartner.id);
+      const res = await fetch("/api/admin/partners", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          partnerId: editingFranchisePartner.id,
+          isFranchise: franchiseEnabled,
+          franchiseName: franchiseName.trim() || null,
+          franchiseCityCountry: franchiseCityCountry.trim() || null,
+          franchiseEntryFee: parseFloat(franchiseEntryFee) || 0,
+          franchiseEntryFeePaid,
+          franchiseMonthlyFee: parseFloat(franchiseMonthlyFee) || 0,
+          franchiseFeeCurrency,
+          franchiseStatus,
+          franchiseNotes: franchiseNotes.trim() || null,
+        }),
+      });
+
+      if (res.ok) {
+        alert(`¡Configuración de Franquicia de "${editingFranchisePartner.name}" actualizada con éxito!`);
+        setEditingFranchisePartner(null);
+        await loadPartners();
+      } else {
+        alert("No se pudo guardar la franquicia.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al guardar franquicia.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Registrar pago de mensualidad de franquicia (+30 días de vigencia)
+  const handleRegisterFranchiseMonthlyPayment = async (p: PartnerAdmin) => {
+    const feeStr = `${p.franchiseMonthlyFee || 29} ${p.franchiseFeeCurrency || "USD"}`;
+    const confirmPay = confirm(
+      `¿Confirmas haber recibido el pago de mensualidad (${feeStr}) de "${p.name}" (${p.franchiseName || "Franquicia"})?\n\nEsto extenderá la fecha de corte por 30 días adicionales y marcará su franquicia como AL DÍA.`
+    );
+    if (!confirmPay) return;
+
+    try {
+      setActionLoading(p.id);
+      const res = await fetch("/api/admin/partners", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          partnerId: p.id,
+          registerMonthlyPayment: true,
+        }),
+      });
+
+      if (res.ok) {
+        alert("¡Mensualidad registrada con éxito! La franquicia quedó al día.");
+        await loadPartners();
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al registrar mensualidad.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Guardar y aplicar porcentajes globales a todos los embajadores
   const handleApplyGlobalRate = async () => {
     const firstMonthNum = parseFloat(globalFirstMonthRateInput);
@@ -382,17 +491,22 @@ export default function AdminPartnersManager() {
   const displayedPartners = partners.filter((p) => {
     if (statusFilter === "PENDING") return p.status === "PENDING";
     if (statusFilter === "ACTIVE") return p.status === "ACTIVE";
+    if (statusFilter === "FRANCHISE") return Boolean(p.isFranchise);
     return true;
   });
 
   const pendingPartnersCount = partners.filter((p) => p.status === "PENDING").length;
   const activePartnersCount = partners.filter((p) => p.status === "ACTIVE").length;
+  const franchisePartnersCount = partners.filter((p) => p.isFranchise).length;
 
   // Métricas globales
   const totalSocios = partners.length;
   const totalNegociosTraidos = partners.reduce((acc, p) => acc + p.totalReferred, 0);
   const totalBalancePendiente = partners.reduce((acc, p) => acc + p.balance, 0);
   const totalHistoricoGanado = partners.reduce((acc, p) => acc + p.totalEarned, 0);
+  const totalFranchiseMonthlyMRR = partners
+    .filter((p) => p.isFranchise && p.franchiseStatus === "ACTIVE")
+    .reduce((acc, p) => acc + (p.franchiseMonthlyFee || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -584,6 +698,16 @@ export default function AdminPartnersManager() {
               >
                 🟢 Activos ({activePartnersCount})
               </button>
+              <button
+                onClick={() => setStatusFilter("FRANCHISE")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
+                  statusFilter === "FRANCHISE"
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                    : "text-amber-400 hover:text-amber-300"
+                }`}
+              >
+                <span>👑 Franquicias ({franchisePartnersCount})</span>
+              </button>
             </div>
           </div>
         </div>
@@ -651,6 +775,26 @@ export default function AdminPartnersManager() {
                         <span className="block text-[11px] font-normal text-slate-400 mt-0.5 font-mono">
                           {p.phone} • {p.email}
                         </span>
+
+                        {/* INSIGNIA DE FRANQUICIA SI ESTÁ HABILITADO */}
+                        {p.isFranchise && (
+                          <div className="mt-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 space-y-1">
+                            <div className="flex items-center gap-1 font-bold">
+                              <Crown className="h-3.5 w-3.5 text-amber-400" />
+                              <span>{p.franchiseName || "Franquicia Oficial"}</span>
+                              {p.franchiseCityCountry && <span className="text-slate-400 font-normal">({p.franchiseCityCountry})</span>}
+                            </div>
+                            <div className="text-[10px] text-slate-300 flex items-center gap-2 flex-wrap">
+                              <span>Inscripción: {p.franchiseEntryFeePaid ? "✓ Pagada" : "⚠️ Pendiente"}</span>
+                              <span>•</span>
+                              <span>Canon: ${p.franchiseMonthlyFee || 29} {p.franchiseFeeCurrency || "USD"}/mes</span>
+                              <span>•</span>
+                              <span className={p.franchiseStatus === "ACTIVE" ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+                                {p.franchiseStatus === "ACTIVE" ? "🟢 Al día" : "🟡 Revisar"}
+                              </span>
+                            </div>
+                          </div>
+                        )}
 
                         {/* PERFIL COMERCIAL / OBSERVACIONES CARGADAS POR EL POSTULANTE */}
                         {p.experience && (
@@ -773,6 +917,21 @@ export default function AdminPartnersManager() {
                             </button>
                           </>
                         )}
+
+                        {/* BOTÓN ADMINISTRAR FRANQUICIA */}
+                        <button
+                          onClick={() => handleOpenFranchiseModal(p)}
+                          disabled={actionLoading === p.id}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition shadow-sm ${
+                            p.isFranchise
+                              ? "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30"
+                              : "bg-slate-900 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-800"
+                          }`}
+                          title="Configurar Franquicia SaaS, inscripción y canon mensual"
+                        >
+                          <Crown className="h-3.5 w-3.5 text-amber-400" />
+                          <span>Franquicia</span>
+                        </button>
 
                         {/* BOTÓN ELIMINAR PERMANENTEMENTE */}
                         <button
@@ -995,6 +1154,228 @@ export default function AdminPartnersManager() {
                 Cerrar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CONFIGURACIÓN Y ADMINISTRACIÓN DE FRANQUICIA SAAS */}
+      {editingFranchisePartner && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-lg rounded-3xl border border-amber-500/30 bg-slate-950 p-6 sm:p-7 shadow-2xl relative max-h-[92vh] overflow-y-auto">
+            <button
+              onClick={() => setEditingFranchisePartner(null)}
+              className="absolute right-4 top-4 text-slate-400 hover:text-white p-1 rounded-lg"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-3 border-b border-slate-800 pb-4 mb-5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-400">
+                <Crown className="h-6 w-6" />
+              </div>
+              <div>
+                <h4 className="font-bold text-white text-base flex items-center gap-2">
+                  <span>Administración de Franquicia SaaS</span>
+                </h4>
+                <p className="text-xs text-slate-400">
+                  {editingFranchisePartner.name} · WhatsApp: {editingFranchisePartner.phone}
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveFranchise} className="space-y-4 text-xs">
+              {/* Activar como Franquicia */}
+              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-900 border border-slate-800">
+                <div>
+                  <span className="font-bold text-white block">¿Activar como Franquicia Oficial?</span>
+                  <span className="text-[11px] text-slate-400">
+                    Convierte a este aliado en dueño de la plataforma en su territorio.
+                  </span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={franchiseEnabled}
+                    onChange={(e) => setFranchiseEnabled(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                </label>
+              </div>
+
+              {franchiseEnabled && (
+                <>
+                  {/* Nombre y Territorio de la Franquicia */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-400 font-bold mb-1">
+                        Nombre de la Franquicia:
+                      </label>
+                      <input
+                        type="text"
+                        value={franchiseName}
+                        onChange={(e) => setFranchiseName(e.target.value)}
+                        placeholder="Ej. TurnoYa Medellín"
+                        className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-white font-bold focus:border-amber-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 font-bold mb-1">
+                        Ciudad / País:
+                      </label>
+                      <input
+                        type="text"
+                        value={franchiseCityCountry}
+                        onChange={(e) => setFranchiseCityCountry(e.target.value)}
+                        placeholder="Ej. Medellín, Colombia"
+                        className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-white font-medium focus:border-amber-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 1. CUOTA DE INSCRIPCIÓN INICIAL */}
+                  <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-amber-300">
+                        1️⃣ Cuota de Inscripción Inicial (Canon de Entrada)
+                      </span>
+                      <label className="flex items-center gap-1.5 cursor-pointer text-amber-200 font-bold text-[11px]">
+                        <input
+                          type="checkbox"
+                          checked={franchiseEntryFeePaid}
+                          onChange={(e) => setFranchiseEntryFeePaid(e.target.checked)}
+                          className="rounded text-amber-500 focus:ring-0"
+                        />
+                        <span>{franchiseEntryFeePaid ? "✓ Ya Pagada" : "⚠️ Pendiente"}</span>
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        value={franchiseEntryFee}
+                        onChange={(e) => setFranchiseEntryFee(e.target.value)}
+                        className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-white font-bold focus:border-amber-500 focus:outline-none"
+                        placeholder="99"
+                      />
+                      <span className="font-bold text-slate-400">{franchiseFeeCurrency}</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      Pago único al inicio por adquirir la licencia y configuración de franquicia (ej. $99 USD o $400.000 COP).
+                    </p>
+                  </div>
+
+                  {/* 2. MENSUALIDAD TECNOLÓGICA RECURRENTE */}
+                  <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-emerald-300">
+                        2️⃣ Mensualidad Tecnológica Recurrente
+                      </span>
+                      <select
+                        value={franchiseFeeCurrency}
+                        onChange={(e) => setFranchiseFeeCurrency(e.target.value)}
+                        className="rounded-lg bg-slate-900 border border-slate-700 text-white font-bold px-2 py-1 text-[11px]"
+                      >
+                        <option value="USD">USD ($)</option>
+                        <option value="COP">COP ($)</option>
+                        <option value="MXN">MXN ($)</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        value={franchiseMonthlyFee}
+                        onChange={(e) => setFranchiseMonthlyFee(e.target.value)}
+                        className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-white font-bold focus:border-emerald-500 focus:outline-none"
+                        placeholder="29"
+                      />
+                      <span className="font-bold text-slate-400">{franchiseFeeCurrency} / mes</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      Valor mensual fijo que el franquiciado te paga para mantener sus servidores, soporte y sistema activo (ej. $29 USD o $100.000 COP/mes).
+                    </p>
+                  </div>
+
+                  {/* Estado de la Franquicia y Próximo Vencimiento */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-400 font-bold mb-1">
+                        Estado del Canon:
+                      </label>
+                      <select
+                        value={franchiseStatus}
+                        onChange={(e) => setFranchiseStatus(e.target.value)}
+                        className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-white font-bold focus:border-amber-500 focus:outline-none"
+                      >
+                        <option value="ACTIVE">🟢 Al Día (Activa)</option>
+                        <option value="PENDING_ENTRY_FEE">🟡 Pendiente de Inscripción</option>
+                        <option value="PENDING_MONTHLY">🟠 Mensualidad Pendiente</option>
+                        <option value="PAST_DUE">🔴 Vencida / En Mora</option>
+                        <option value="INACTIVE">⚪ Inactiva</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 font-bold mb-1">
+                        Próximo Corte de Mensualidad:
+                      </label>
+                      <div className="text-white font-mono bg-slate-900 border border-slate-700 px-3 py-2 rounded-xl">
+                        {editingFranchisePartner.franchiseDueDate
+                          ? new Date(editingFranchisePartner.franchiseDueDate).toLocaleDateString("es-ES")
+                          : "No definida"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Botón rápido para registrar pago mensual recibido */}
+                  <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-white block">¿Recibiste la mensualidad este mes?</span>
+                      <span className="text-[11px] text-slate-400">Extiende 30 días la fecha de corte.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRegisterFranchiseMonthlyPayment(editingFranchisePartner)}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition"
+                    >
+                      + Registrar Pago Mensual
+                    </button>
+                  </div>
+
+                  {/* Notas internas */}
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1">
+                      Notas del Acuerdo / Franquicia:
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={franchiseNotes}
+                      onChange={(e) => setFranchiseNotes(e.target.value)}
+                      placeholder="Ej. Franquicia exclusiva para la zona norte. Contacto directo por WhatsApp..."
+                      className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-white font-medium focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Botones */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingFranchisePartner(null)}
+                  className="px-4 py-2 text-slate-400 hover:text-white rounded-xl transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading === editingFranchisePartner.id}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold transition shadow-md"
+                >
+                  {actionLoading === editingFranchisePartner.id ? "Guardando..." : "Guardar Franquicia"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

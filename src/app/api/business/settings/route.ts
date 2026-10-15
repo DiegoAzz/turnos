@@ -55,6 +55,9 @@ export async function PATCH(req: NextRequest) {
     if (logoUrl !== undefined) {
       dataToUpdate.logoUrl = logoUrl;
     }
+    if (body.currency) {
+      dataToUpdate.currency = body.currency.trim().toUpperCase();
+    }
     if (typeof body.smsEnabled === "boolean") {
       dataToUpdate.smsEnabled = body.smsEnabled;
     }

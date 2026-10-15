@@ -21,6 +21,10 @@ export async function getPlatformSettings() {
         independientePriceCOP: 35000,
         partnerFirstMonthRate: 0.50,
         partnerRecurringRate: 0.20,
+        defaultFranchiseEntryFeeUSD: 99,
+        defaultFranchiseEntryFeeCOP: 400000,
+        defaultFranchiseFeeUSD: 29,
+        defaultFranchiseFeeCOP: 100000,
       },
     });
   }

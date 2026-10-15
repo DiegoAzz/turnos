@@ -157,6 +157,19 @@ model Partner {
   experience              String?             // Observaciones / perfil comercial / experiencia
   status                  String              @default("PENDING") // "PENDING", "ACTIVE", "REJECTED"
   approvedAt              DateTime?
+
+  // Modelo de Franquicia SaaS / Marca Blanca (Inscripción inicial + Mensualidad tecnológica)
+  isFranchise             Boolean             @default(false)
+  franchiseName           String?             // Nombre comercial de la franquicia (ej: "TurnoYa Medellín")
+  franchiseCityCountry    String?             // Ciudad y país (ej: "Medellín, Colombia", "Ciudad de México")
+  franchiseEntryFee       Float               @default(0) // Cuota inicial de inscripción / canon de apertura
+  franchiseEntryFeePaid   Boolean             @default(false) // Si ya pagó la inscripción inicial
+  franchiseMonthlyFee     Float               @default(0) // Mensualidad tecnológica recurrente que paga al creador
+  franchiseFeeCurrency    String              @default("USD") // "USD" o "COP"
+  franchiseStatus         String              @default("INACTIVE") // "ACTIVE", "PENDING_ENTRY_FEE", "PENDING_MONTHLY", "PAST_DUE", "INACTIVE"
+  franchiseDueDate        DateTime?           // Próxima fecha límite de pago de la mensualidad
+  franchiseNotes          String?             // Condiciones / acuerdos especiales
+
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt
 
@@ -208,6 +221,10 @@ model PlatformSettings {
   independientePriceCOP Int      @default(35000)
   partnerFirstMonthRate Float    @default(0.50) // Tasa global por defecto 1er mes (ej: 50%)
   partnerRecurringRate  Float    @default(0.20) // Tasa global por defecto meses siguientes (ej: 20%)
+  defaultFranchiseEntryFeeUSD Float @default(99) // Inscripción inicial sugerida en USD
+  defaultFranchiseEntryFeeCOP Float @default(400000) // Inscripción inicial sugerida en COP
+  defaultFranchiseFeeUSD Float   @default(29)   // Mensualidad tecnológica sugerida en USD
+  defaultFranchiseFeeCOP Float   @default(100000) // Mensualidad tecnológica sugerida en COP
   updatedAt             DateTime @updatedAt
 }
 

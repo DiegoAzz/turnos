@@ -16,6 +16,13 @@ import {
   AlertTriangle,
   Palette,
   Activity,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  CalendarClock,
+  RotateCcw,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import ReminderSettingsModal from "@/components/ReminderSettingsModal";
@@ -75,6 +82,37 @@ function formatAppointmentDate(dateInput: string | Date | undefined): string {
   if (isToday) return `Hoy (${day} ${monthName})`;
   if (isTomorrow) return `Mañana (${day} ${monthName})`;
   return `${dayOfWeek}, ${day} ${monthName} ${year}`;
+}
+
+// Verifica si una cita corresponde a la fecha de hoy
+function isAppointmentToday(dateInput: string | Date | undefined): boolean {
+  if (!dateInput) return false;
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return false;
+  const dateStr = typeof dateInput === "string" ? dateInput : d.toISOString();
+  const [yearStr, monthStr, dayStr] = dateStr.slice(0, 10).split("-");
+  const today = new Date();
+  return (
+    today.getFullYear() === parseInt(yearStr, 10) &&
+    today.getMonth() === parseInt(monthStr, 10) - 1 &&
+    today.getDate() === parseInt(dayStr, 10)
+  );
+}
+
+// Sumar minutos a una hora HH:mm
+function addMinutesToTime(timeStr: string, minutes: number): string {
+  if (!timeStr) return "";
+  const clean = timeStr.trim();
+  const parts = clean.split(":");
+  let hours = parseInt(parts[0], 10) || 0;
+  let mins = parseInt(parts[1], 10) || 0;
+  if (clean.toUpperCase().includes("PM") && hours < 12) hours += 12;
+  if (clean.toUpperCase().includes("AM") && hours === 12) hours = 0;
+
+  const totalMins = hours * 60 + mins + minutes;
+  const newHours = Math.floor(totalMins / 60) % 24;
+  const newMins = totalMins % 60;
+  return `${String(newHours).padStart(2, "0")}:${String(newMins).padStart(2, "0")}`;
 }
 
 // Formatear cuándo fue reservada/creada la cita por el cliente
@@ -155,9 +193,31 @@ export default function DashboardClientActions({
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [currentBusiness, setCurrentBusiness] = useState(business);
+
+  // Modal de confirmación para Completar / Cancelar
   const [confirmModal, setConfirmModal] = useState<{
     appointment: any;
     action: "COMPLETED" | "CANCELLED";
+  } | null>(null);
+
+  // Estados de Búsqueda y Paginación Super Rápida
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "ALL" | "TODAY" | "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED"
+  >("ALL");
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Estados del Modal de Reagendar (Opción 2 de WhatsApp)
+  const [rescheduleModal, setRescheduleModal] = useState<any | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleStartTime, setRescheduleStartTime] = useState("");
+  const [rescheduleEndTime, setRescheduleEndTime] = useState("");
+  const [rescheduleNotes, setRescheduleNotes] = useState("");
+  const [rescheduleSubmitting, setRescheduleSubmitting] = useState(false);
+  const [rescheduleSuccess, setRescheduleSuccess] = useState<{
+    appointment: any;
+    whatsappUrl: string;
   } | null>(null);
 
   // Referencia para recordar los IDs ya conocidos
@@ -256,7 +316,7 @@ export default function DashboardClientActions({
       } catch (err) {
         console.error("Error al sincronizar citas en vivo:", err);
       }
-    }, 4000); // Consulta cada 4 segundos
+    }, 4000);
 
     return () => {
       clearInterval(interval);
@@ -264,7 +324,7 @@ export default function DashboardClientActions({
     };
   }, [business?.id, soundEnabled]);
 
-  // 3. Efecto para monitorear recordatorios automáticos según la anticipación configurada (ej. 24 min)
+  // 3. Efecto para monitorear recordatorios automáticos según la anticipación configurada
   useEffect(() => {
     if (currentBusiness?.autoRemindersEnabled === false) return;
 
@@ -312,6 +372,11 @@ export default function DashboardClientActions({
     return () => clearInterval(reminderInterval);
   }, [appointments, currentBusiness, soundEnabled]);
 
+  // Resetear a página 1 cuando cambia la búsqueda, el filtro o el tamaño de página
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, pageSize]);
+
   // Manejar envío de recordatorio por WhatsApp
   const handleSendReminder = async (appointment: any) => {
     try {
@@ -337,7 +402,7 @@ export default function DashboardClientActions({
     }
   };
 
-  // Cambiar estado de la cita
+  // Cambiar estado de la cita (ej. PENDING -> CONFIRMED, o CANCELLED, COMPLETED)
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
       setLoadingId(id);
@@ -359,6 +424,166 @@ export default function DashboardClientActions({
       setLoadingId(null);
     }
   };
+
+  // Manejar apertura del modal de reagendamiento (Opción 2)
+  const handleOpenReschedule = (appointment: any) => {
+    setRescheduleSuccess(null);
+    setRescheduleModal(appointment);
+
+    let curDateStr = "";
+    if (appointment.date) {
+      const d = new Date(appointment.date);
+      if (!isNaN(d.getTime())) {
+        curDateStr = (typeof appointment.date === "string" ? appointment.date : d.toISOString()).slice(0, 10);
+      }
+    }
+    if (!curDateStr) {
+      curDateStr = new Date().toISOString().slice(0, 10);
+    }
+    setRescheduleDate(curDateStr);
+
+    const start = appointment.startTime || "10:00";
+    setRescheduleStartTime(start);
+    const duration = appointment.service?.durationMinutes || 30;
+    setRescheduleEndTime(appointment.endTime || addMinutesToTime(start, duration));
+    setRescheduleNotes(appointment.clientNotes || "");
+  };
+
+  // Manejar cambio de hora de inicio con auto-cálculo de hora de fin
+  const handleStartTimeChange = (newStartTime: string) => {
+    setRescheduleStartTime(newStartTime);
+    if (rescheduleModal) {
+      const duration = rescheduleModal.service?.durationMinutes || 30;
+      setRescheduleEndTime(addMinutesToTime(newStartTime, duration));
+    }
+  };
+
+  // Guardar reagendamiento y generar mensaje de WhatsApp
+  const handleSaveReschedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rescheduleModal || !rescheduleDate || !rescheduleStartTime) return;
+
+    try {
+      setRescheduleSubmitting(true);
+      const res = await fetch(`/api/appointments/${rescheduleModal.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: rescheduleDate,
+          startTime: rescheduleStartTime,
+          endTime: rescheduleEndTime,
+          clientNotes: rescheduleNotes,
+          status: "CONFIRMED",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al reagendar la cita");
+
+      // Actualizar cita en el estado local
+      setAppointments((prev) =>
+        prev.map((a) =>
+          a.id === rescheduleModal.id
+            ? {
+                ...a,
+                date: rescheduleDate,
+                startTime: rescheduleStartTime,
+                endTime: rescheduleEndTime,
+                clientNotes: rescheduleNotes,
+                status: "CONFIRMED",
+                reminderSent: false,
+              }
+            : a
+        )
+      );
+
+      // Generar mensaje directo para WhatsApp
+      const rawPhone = (rescheduleModal.clientPhone || "").replace(/[^0-9]/g, "");
+      const cleanPhone =
+        rawPhone.length === 10 && rawPhone.startsWith("3") ? `57${rawPhone}` : rawPhone;
+      const formattedDate = formatAppointmentDate(rescheduleDate);
+      const addressText =
+        rescheduleModal.appointmentType === "DOMICILIO"
+          ? rescheduleModal.clientAddress || "A domicilio"
+          : currentBusiness?.address || "Nuestro local";
+
+      const whatsappText =
+        `Hola *${rescheduleModal.clientName}*, te confirmamos que tu cita en *${currentBusiness?.name || "nuestro establecimiento"}* ha sido *REAGENDADA* con éxito:\n\n` +
+        `🗓️ *Nueva Fecha:* ${formattedDate}\n` +
+        `⏰ *Nuevo Horario:* ${rescheduleStartTime} - ${rescheduleEndTime}\n` +
+        `💈 *Servicio:* ${rescheduleModal.service?.name || "Servicio"}\n` +
+        `📍 *Dirección:* ${addressText}\n\n` +
+        `¡Te esperamos! Si tienes cualquier inquietud, estamos atentos.`;
+
+      const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(whatsappText)}`;
+
+      setRescheduleSuccess({
+        appointment: {
+          ...rescheduleModal,
+          date: rescheduleDate,
+          startTime: rescheduleStartTime,
+          endTime: rescheduleEndTime,
+        },
+        whatsappUrl,
+      });
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Error al reagendar la cita");
+    } finally {
+      setRescheduleSubmitting(false);
+    }
+  };
+
+  // Contadores para pestañas de filtro
+  const totalCount = appointments.length;
+  const todayCount = appointments.filter((a) => isAppointmentToday(a.date)).length;
+  const pendingCount = appointments.filter((a) => a.status === "PENDING").length;
+  const confirmedCount = appointments.filter((a) => a.status === "CONFIRMED").length;
+  const completedCount = appointments.filter((a) => a.status === "COMPLETED").length;
+  const cancelledCount = appointments.filter((a) => a.status === "CANCELLED").length;
+
+  // Filtrar citas según búsqueda y estado
+  const filteredAppointments = appointments.filter((app) => {
+    // 1. Filtro por estado / Hoy
+    if (statusFilter === "TODAY") {
+      if (!isAppointmentToday(app.date)) return false;
+    } else if (statusFilter !== "ALL") {
+      if (app.status !== statusFilter) return false;
+    }
+
+    // 2. Filtro por texto de búsqueda
+    if (!searchQuery.trim()) return true;
+
+    const query = searchQuery.toLowerCase().trim();
+    const clientName = (app.clientName || "").toLowerCase();
+    const rawPhone = (app.clientPhone || "").replace(/[^0-9]/g, "");
+    const formattedPhone = formatDisplayPhone(app.clientPhone || "").toLowerCase();
+    const serviceName = (app.service?.name || "").toLowerCase();
+    const startTime = (app.startTime || "").toLowerCase();
+    const endTime = (app.endTime || "").toLowerCase();
+    const dateFormatted = formatAppointmentDate(app.date).toLowerCase();
+    const clientAddress = (app.clientAddress || "").toLowerCase();
+
+    return (
+      clientName.includes(query) ||
+      rawPhone.includes(query) ||
+      formattedPhone.includes(query) ||
+      serviceName.includes(query) ||
+      startTime.includes(query) ||
+      endTime.includes(query) ||
+      dateFormatted.includes(query) ||
+      clientAddress.includes(query)
+    );
+  });
+
+  // Cálculo de paginación super rápida
+  const totalFiltered = filteredAppointments.length;
+  const totalPages = pageSize === -1 ? 1 : Math.max(1, Math.ceil(totalFiltered / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedAppointments =
+    pageSize === -1
+      ? filteredAppointments
+      : filteredAppointments.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
 
   return (
     <div className="relative">
@@ -448,32 +673,25 @@ export default function DashboardClientActions({
           <button
             onClick={() => {
               unlockAudio();
-              requestSystemNotificationPermission();
-              const next = !soundEnabled;
-              setSoundEnabled(next);
-              if (next) playAlertChime();
+              playAlertChime();
             }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border transition ${
-              soundEnabled
-                ? "bg-slate-900 text-white border-slate-800 hover:bg-slate-800"
-                : "bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200"
-            }`}
-            title="Probar y asegurar sonido en segundo plano"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-gray-900 bg-gray-900 text-white hover:bg-gray-800 transition shadow-sm"
+            title="Probar sonido de notificación"
           >
-            {soundEnabled ? (
-              <>
-                <Volume2 className="h-3.5 w-3.5 text-emerald-400" />
-                <span>Sonido: Activado (Probar 🔔)</span>
-              </>
-            ) : (
-              <>
-                <VolumeX className="h-3.5 w-3.5 text-gray-400" />
-                <span>Sonido: Silenciado</span>
-              </>
-            )}
+            <Volume2 className="h-3.5 w-3.5 text-amber-400" />
+            <span>{soundEnabled ? "Sonido: Activado (Probar 🔔)" : "Sonido Desactivado"}</span>
           </button>
         </div>
       </div>
+
+      {/* MODAL CONFIGURACIÓN RECORDATORIOS */}
+      {isSettingsOpen && (
+        <ReminderSettingsModal
+          business={currentBusiness}
+          onClose={() => setIsSettingsOpen(false)}
+          onSaved={(updated) => setCurrentBusiness(updated)}
+        />
+      )}
 
       {/* MODAL ESTADO EN VIVO */}
       {isStatusOpen && (
@@ -484,20 +702,11 @@ export default function DashboardClientActions({
         />
       )}
 
-      {/* MODAL PERFIL DEL NEGOCIO & LOGO */}
+      {/* MODAL PERFIL & LOGO */}
       {isProfileOpen && (
         <BusinessProfileModal
           business={currentBusiness}
           onClose={() => setIsProfileOpen(false)}
-          onSaved={(updated) => setCurrentBusiness(updated)}
-        />
-      )}
-
-      {/* MODAL CONFIGURACIÓN RECORDATORIOS */}
-      {isSettingsOpen && (
-        <ReminderSettingsModal
-          business={currentBusiness}
-          onClose={() => setIsSettingsOpen(false)}
           onSaved={(updated) => setCurrentBusiness(updated)}
         />
       )}
@@ -543,15 +752,199 @@ export default function DashboardClientActions({
         </div>
       )}
 
+      {/* BARRA DE BÚSQUEDA Y PAGINACIÓN SUPER RÁPIDA */}
+      <div className="mt-4 bg-gray-50/90 rounded-2xl p-3 sm:p-4 border border-gray-200/80 space-y-3">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          {/* BUSCADOR INSTANTÁNEO */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por cliente, teléfono, servicio o fecha..."
+              className="w-full pl-9 pr-9 py-2.5 text-xs bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-gray-900 placeholder-gray-400 shadow-sm"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xs p-1"
+                title="Limpiar búsqueda"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* SELECTOR DE CITAS POR PÁGINA */}
+          <div className="flex items-center gap-2 shrink-0 self-end md:self-auto text-xs text-gray-500 font-medium">
+            <span className="hidden sm:inline">Mostrar:</span>
+            <div className="flex items-center rounded-xl bg-white border border-gray-200 p-0.5 shadow-sm">
+              {[10, 25, 50, -1].map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setPageSize(size)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                    pageSize === size
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  {size === -1 ? "Todas" : size}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* PESTAÑAS DE FILTRO RÁPIDO */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
+          <button
+            onClick={() => setStatusFilter("ALL")}
+            className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition shrink-0 ${
+              statusFilter === "ALL"
+                ? "bg-gray-900 text-white shadow-sm"
+                : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
+            }`}
+          >
+            <span>Todas</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
+                statusFilter === "ALL" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {totalCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setStatusFilter("TODAY")}
+            className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition shrink-0 ${
+              statusFilter === "TODAY"
+                ? "bg-emerald-700 text-white shadow-sm"
+                : "bg-white text-emerald-800 border border-emerald-200 hover:bg-emerald-50"
+            }`}
+          >
+            <span>📅 Citas de Hoy</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
+                statusFilter === "TODAY" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
+              }`}
+            >
+              {todayCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setStatusFilter("PENDING")}
+            className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition shrink-0 ${
+              statusFilter === "PENDING"
+                ? "bg-amber-600 text-white shadow-sm"
+                : "bg-white text-amber-800 border border-amber-200 hover:bg-amber-50"
+            }`}
+          >
+            <span>Pendientes</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
+                statusFilter === "PENDING" ? "bg-white/20 text-white" : "bg-amber-100 text-amber-800"
+              }`}
+            >
+              {pendingCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setStatusFilter("CONFIRMED")}
+            className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition shrink-0 ${
+              statusFilter === "CONFIRMED"
+                ? "bg-emerald-600 text-white shadow-sm"
+                : "bg-white text-emerald-700 border border-gray-200 hover:bg-gray-100"
+            }`}
+          >
+            <span>Confirmadas</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
+                statusFilter === "CONFIRMED" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {confirmedCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setStatusFilter("COMPLETED")}
+            className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition shrink-0 ${
+              statusFilter === "COMPLETED"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "bg-white text-blue-700 border border-gray-200 hover:bg-gray-100"
+            }`}
+          >
+            <span>Completadas</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
+                statusFilter === "COMPLETED" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {completedCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setStatusFilter("CANCELLED")}
+            className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition shrink-0 ${
+              statusFilter === "CANCELLED"
+                ? "bg-rose-600 text-white shadow-sm"
+                : "bg-white text-rose-700 border border-gray-200 hover:bg-gray-100"
+            }`}
+          >
+            <span>Canceladas</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
+                statusFilter === "CANCELLED" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {cancelledCount}
+            </span>
+          </button>
+
+          {(searchQuery || statusFilter !== "ALL") && (
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                setStatusFilter("ALL");
+              }}
+              className="text-xs text-gray-500 hover:text-gray-900 underline ml-2 font-medium shrink-0 flex items-center gap-1"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Restablecer filtros
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* TABLA DE CITAS */}
       <div className="overflow-x-auto mt-4">
-        {appointments.length === 0 ? (
+        {filteredAppointments.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-            <p className="font-semibold text-gray-600">Aún no hay citas registradas</p>
-            <p className="text-xs mt-1">
-              Las citas que tus clientes reserven en tu enlace público aparecerán aquí automáticamente con sonido.
+            <p className="font-semibold text-gray-700">No se encontraron citas</p>
+            <p className="text-xs mt-1 text-gray-500">
+              {searchQuery || statusFilter !== "ALL"
+                ? "Prueba cambiando el término de búsqueda o seleccionando otro filtro."
+                : "Las citas que tus clientes reserven en tu enlace público aparecerán aquí automáticamente."}
             </p>
+            {(searchQuery || statusFilter !== "ALL") && (
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setStatusFilter("ALL");
+                }}
+                className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>Ver todas las citas</span>
+              </button>
+            )}
           </div>
         ) : (
           <table className="w-full text-left text-sm">
@@ -562,13 +955,14 @@ export default function DashboardClientActions({
                 <th className="py-3 px-4">Servicio</th>
                 <th className="py-3 px-4">Precio</th>
                 <th className="py-3 px-4">Estado</th>
-                <th className="py-3 px-4 text-right">Acciones WhatsApp</th>
+                <th className="py-3 px-4 text-right">Acciones WhatsApp & Gestión</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {appointments.map((appointment) => {
+              {paginatedAppointments.map((appointment) => {
                 const isCompleted = appointment.status === "COMPLETED";
                 const isCancelled = appointment.status === "CANCELLED";
+                const isPending = appointment.status === "PENDING";
 
                 return (
                   <tr key={appointment.id} className="hover:bg-gray-50/50 transition">
@@ -609,7 +1003,10 @@ export default function DashboardClientActions({
                         {formatDisplayPhone(appointment.clientPhone)}
                       </span>
                       {appointment.clientAddress && (
-                        <span className="block text-[11px] text-gray-500 mt-0.5 max-w-xs truncate" title={appointment.clientAddress}>
+                        <span
+                          className="block text-[11px] text-gray-500 mt-0.5 max-w-xs truncate"
+                          title={appointment.clientAddress}
+                        >
                           📍 {appointment.clientAddress}
                         </span>
                       )}
@@ -646,11 +1043,42 @@ export default function DashboardClientActions({
                     </td>
 
                     <td className="py-3.5 px-4 text-right space-x-1.5">
-                      {/* Boton Enviar Recordatorio WhatsApp */}
+                      {/* Opción 1 del cliente: Botón Confirmar Asistencia con 1 Clic si está PENDIENTE */}
+                      {isPending && (
+                        <button
+                          onClick={() => handleStatusChange(appointment.id, "CONFIRMED")}
+                          disabled={loadingId === appointment.id}
+                          title="El cliente respondió 1: Confirmar Asistencia"
+                          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          <span>Confirmar (1)</span>
+                        </button>
+                      )}
+
+                      {/* Opción 2 del cliente: Botón Reagendar Cita (Fecha y Hora) */}
+                      {!isCompleted && !isCancelled && (
+                        <button
+                          onClick={() => handleOpenReschedule(appointment)}
+                          title="El cliente respondió 2: Reagendar Fecha u Horario"
+                          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition shadow-sm"
+                        >
+                          <CalendarClock className="h-3.5 w-3.5 text-blue-600" />
+                          <span className="hidden xl:inline">Reagendar (2)</span>
+                        </button>
+                      )}
+
+                      {/* Botón Enviar Recordatorio WhatsApp */}
                       {(() => {
                         const diff = getMinutesUntilAppointment(appointment);
                         const targetMinutes = parseReminderTimingMinutes(currentBusiness?.reminderTiming);
-                        const isDue = diff !== null && diff <= targetMinutes && diff >= -30 && !appointment.reminderSent && !isCompleted && !isCancelled;
+                        const isDue =
+                          diff !== null &&
+                          diff <= targetMinutes &&
+                          diff >= -30 &&
+                          !appointment.reminderSent &&
+                          !isCompleted &&
+                          !isCancelled;
 
                         if (isDue) {
                           return (
@@ -670,7 +1098,7 @@ export default function DashboardClientActions({
                           <button
                             onClick={() => handleSendReminder(appointment)}
                             disabled={loadingId === appointment.id || isCancelled}
-                            title="Enviar recordatorio por WhatsApp con el número corregido"
+                            title="Enviar recordatorio por WhatsApp"
                             className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold shadow-sm transition ${
                               appointment.reminderSent
                                 ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
@@ -689,7 +1117,7 @@ export default function DashboardClientActions({
                           href={`sms:${appointment.clientPhone.replace(/[^0-9]/g, "")}?body=${encodeURIComponent(
                             `Hola ${appointment.clientName}, te recordamos tu cita hoy a las ${appointment.startTime} en ${currentBusiness?.name || "nuestro local"}. ¡Te esperamos!`
                           )}`}
-                          title="Enviar SMS gratis usando la app de mensajería de tu celular"
+                          title="Enviar SMS usando la app de mensajería de tu celular"
                           className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 hover:text-gray-900 transition"
                         >
                           💬 SMS
@@ -725,6 +1153,266 @@ export default function DashboardClientActions({
           </table>
         )}
       </div>
+
+      {/* BARRA INFERIOR DEL PAGINADOR SUPER RÁPIDO */}
+      {filteredAppointments.length > 0 && (
+        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-gray-100 text-xs text-gray-600">
+          <div>
+            Mostrando{" "}
+            <strong>
+              {pageSize === -1
+                ? 1
+                : Math.min((safeCurrentPage - 1) * pageSize + 1, totalFiltered)}
+            </strong>{" "}
+            a{" "}
+            <strong>
+              {pageSize === -1
+                ? totalFiltered
+                : Math.min(safeCurrentPage * pageSize, totalFiltered)}
+            </strong>{" "}
+            de <strong>{totalFiltered}</strong> citas
+            {searchQuery && (
+              <span className="text-gray-400 ml-1">(filtradas de {totalCount} en total)</span>
+            )}
+          </div>
+
+          {pageSize !== -1 && totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              {/* Primera Página */}
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={safeCurrentPage === 1}
+                className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none shadow-sm transition"
+                title="Primera página"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </button>
+
+              {/* Anterior */}
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safeCurrentPage === 1}
+                className="px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none font-semibold flex items-center gap-1 shadow-sm transition"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Anterior</span>
+              </button>
+
+              {/* Botones de Páginas Numéricos */}
+              <div className="flex items-center gap-1 mx-1">
+                {(() => {
+                  const pages = [];
+                  let start = Math.max(1, safeCurrentPage - 2);
+                  let end = Math.min(totalPages, start + 4);
+                  if (end - start < 4) {
+                    start = Math.max(1, end - 4);
+                  }
+                  for (let i = start; i <= end; i++) {
+                    pages.push(i);
+                  }
+                  return pages.map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`h-8 w-8 rounded-lg font-bold text-xs transition ${
+                        safeCurrentPage === pageNum
+                          ? "bg-emerald-600 text-white shadow-sm"
+                          : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ));
+                })()}
+              </div>
+
+              {/* Siguiente */}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage === totalPages}
+                className="px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none font-semibold flex items-center gap-1 shadow-sm transition"
+              >
+                <span className="hidden sm:inline">Siguiente</span>
+                <ChevronRight className="h-4 w-4" />
+              </button>
+
+              {/* Última Página */}
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={safeCurrentPage === totalPages}
+                className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none shadow-sm transition"
+                title="Última página"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODAL PARA REAGENDAR CITA (OPCIÓN 2 DE WHATSAPP) */}
+      {rescheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 relative">
+            {rescheduleSuccess ? (
+              // Vista de Éxito con botón directo a WhatsApp
+              <div className="text-center space-y-4 py-2">
+                <div className="h-14 w-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                  <CheckCircle2 className="h-8 w-8" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">¡Cita Reagendada con Éxito!</h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    La cita de <strong>{rescheduleSuccess.appointment.clientName}</strong> se actualizó para el{" "}
+                    <strong>{formatAppointmentDate(rescheduleSuccess.appointment.date)}</strong> a las{" "}
+                    <strong>{rescheduleSuccess.appointment.startTime}</strong>.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-left text-xs space-y-1.5 text-emerald-900">
+                  <div className="font-bold flex items-center gap-1.5 text-emerald-800">
+                    <CalendarClock className="h-4 w-4 text-emerald-600" />
+                    <span>Nuevos datos de la reserva:</span>
+                  </div>
+                  <p>🗓️ <strong>Fecha:</strong> {formatAppointmentDate(rescheduleSuccess.appointment.date)}</p>
+                  <p>⏰ <strong>Horario:</strong> {rescheduleSuccess.appointment.startTime} - {rescheduleSuccess.appointment.endTime}</p>
+                  <p>💈 <strong>Servicio:</strong> {rescheduleSuccess.appointment.service?.name}</p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-2 pt-2">
+                  <a
+                    href={rescheduleSuccess.whatsappUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full sm:flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 transition"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Notificar al Cliente por WhatsApp</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRescheduleModal(null);
+                      setRescheduleSuccess(null);
+                    }}
+                    className="w-full sm:w-auto px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-xs rounded-xl transition"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // Formulario para Seleccionar Nueva Fecha y Horario
+              <form onSubmit={handleSaveReschedule} className="space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-blue-50 text-blue-600 rounded-2xl shrink-0">
+                      <CalendarClock className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-gray-900 text-base">
+                        Reagendar Cita (Opción 2)
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        Cliente: <strong>{rescheduleModal.clientName}</strong> · {rescheduleModal.service?.name} ({rescheduleModal.service?.durationMinutes} min)
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRescheduleModal(null)}
+                    className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Fecha y Hora Actual */}
+                <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3 text-xs text-amber-900 flex items-center justify-between">
+                  <span className="font-medium text-amber-700">Horario Anterior:</span>
+                  <span className="font-bold">
+                    {formatAppointmentDate(rescheduleModal.date)} · {rescheduleModal.startTime}
+                  </span>
+                </div>
+
+                {/* Selección de Nueva Fecha */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Nueva Fecha de la Cita:
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={rescheduleDate}
+                    onChange={(e) => setRescheduleDate(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Selección de Horario */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      Nueva Hora de Inicio:
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      value={rescheduleStartTime}
+                      onChange={(e) => handleStartTimeChange(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      Hora de Finalización:
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      value={rescheduleEndTime}
+                      onChange={(e) => setRescheduleEndTime(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-gray-50"
+                    />
+                  </div>
+                </div>
+
+                {/* Notas opcionales */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Notas o Motivo del Reagendamiento (Opcional):
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={rescheduleNotes}
+                    onChange={(e) => setRescheduleNotes(e.target.value)}
+                    placeholder="Ej. El cliente solicitó cambio de horario por trabajo..."
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Botones de acción */}
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setRescheduleModal(null)}
+                    className="px-4 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={rescheduleSubmitting}
+                    className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-md transition flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {rescheduleSubmitting ? "Guardando..." : "Guardar y Reagendar Cita"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* VENTANA MODAL DE CONFIRMACIÓN PARA COMPLETAR O CANCELAR CITA */}
       {confirmModal && (

@@ -16,6 +16,8 @@ import {
   ExternalLink,
   Smartphone,
   Share2,
+  Crown,
+  Building2,
 } from "lucide-react";
 
 export default function Home() {
@@ -249,10 +251,10 @@ export default function Home() {
                   3
                 </div>
                 <h3 className="mt-6 text-xl font-bold text-gray-900">
-                  Recordatorios y Cero Ausencias
+                  Recordatorios a 1 Clic y Cero Ausencias
                 </h3>
                 <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                  TurnoYa envía confirmaciones instantáneas y recordatorios automáticos por WhatsApp a tus clientes para que nunca olviden su turno.
+                  Notifica a tus clientes con mensajes listos para enviar en 1 toque por WhatsApp desde tu propio número, y recordatorios por SMS para asegurar su asistencia.
                 </p>
               </div>
             </div>
@@ -270,7 +272,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* PRICING SECTION (PLANES DE SUSCRIPCIÓN SAAS) */}
+        {/* PRICING SECTION (PLANES DE SUSCRIPCIÓN SAAS & FRANQUICIAS) */}
         <section id="precios" className="py-24 bg-white">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="text-center">
@@ -285,7 +287,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="mx-auto mt-16 grid max-w-5xl gap-8 lg:grid-cols-2">
+            <div className="mx-auto mt-16 grid max-w-7xl gap-8 lg:grid-cols-3">
               {/* PLAN FREE */}
               <div className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
                 <div>
@@ -318,7 +320,7 @@ export default function Home() {
                     </li>
                     <li className="flex items-center gap-3">
                       <CheckCircle className="h-4 w-4 text-emerald-500" />
-                      Recordatorios manuales por WhatsApp
+                      Recordatorios a 1 clic por WhatsApp
                     </li>
                   </ul>
                 </div>
@@ -384,6 +386,80 @@ export default function Home() {
                     className="block w-full text-center rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-600/25 hover:bg-emerald-500 transition"
                   >
                     Suscribirse al Plan Pro ($19/mes)
+                  </Link>
+                </div>
+              </div>
+
+              {/* PLAN FRANQUICIA SAAS / MARCA BLANCA */}
+              <div className="relative flex flex-col justify-between rounded-2xl border-2 border-amber-500 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white p-8 shadow-2xl">
+                <div className="absolute -top-3.5 right-6 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3.5 py-0.5 text-xs font-black text-slate-950 shadow-md flex items-center gap-1">
+                  <Crown className="h-3.5 w-3.5" />
+                  <span>Dueño de Franquicia</span>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                      <Building2 className="h-5 w-5 text-amber-400" />
+                      <span>Franquicia SaaS</span>
+                    </h3>
+                    <span className="rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1 text-[11px] font-bold">
+                      Marca Propia
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-300 leading-relaxed">
+                    Sé el dueño de la plataforma en tu ciudad o país. Afilia tus propios negocios, cobra el 100% y construye tu empresa de software.
+                  </p>
+
+                  {/* Precios: Inscripción Inicial + Mensualidad Tecnológica */}
+                  <div className="mt-6 p-4 rounded-xl bg-slate-900/90 border border-amber-500/30 space-y-2">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs text-slate-400 font-medium">Inscripción Inicial:</span>
+                      <span className="text-2xl font-black text-amber-400">
+                        $99 <span className="text-xs font-normal text-slate-400">USD (única vez)</span>
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between pt-1 border-t border-slate-800">
+                      <span className="text-xs text-slate-400 font-medium">Mensualidad de Tecnología:</span>
+                      <span className="text-lg font-bold text-emerald-400">
+                        $29 <span className="text-xs font-normal text-slate-400">USD / mes</span>
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 text-right pt-0.5">
+                      (Aprox. $400.000 COP inscripción + $100.000 COP/mes)
+                    </p>
+                  </div>
+
+                  <ul className="mt-6 space-y-2.5 text-xs text-slate-200">
+                    <li className="flex items-center gap-2.5 font-medium">
+                      <CheckCircle className="h-4 w-4 text-amber-400 shrink-0" />
+                      <span><strong>Tú cobras el 100%</strong> directamente a tus clientes</span>
+                    </li>
+                    <li className="flex items-center gap-2.5 font-medium">
+                      <CheckCircle className="h-4 w-4 text-amber-400 shrink-0" />
+                      <span><strong>Negocios y citas ilimitadas</strong> bajo tu red</span>
+                    </li>
+                    <li className="flex items-center gap-2.5 font-medium">
+                      <CheckCircle className="h-4 w-4 text-amber-400 shrink-0" />
+                      <span>Plataforma completa lista para usar sin saber programar</span>
+                    </li>
+                    <li className="flex items-center gap-2.5 font-medium">
+                      <CheckCircle className="h-4 w-4 text-amber-400 shrink-0" />
+                      <span>Servidores, base de datos y actualizaciones incluidas</span>
+                    </li>
+                    <li className="flex items-center gap-2.5 font-medium">
+                      <CheckCircle className="h-4 w-4 text-amber-400 shrink-0" />
+                      <span>Soporte prioritario y exclusividad en tu territorio</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="mt-8">
+                  <Link
+                    href="/afiliados"
+                    className="block w-full text-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 py-3 text-xs font-black text-slate-950 shadow-lg shadow-amber-500/20 hover:from-amber-400 hover:to-orange-400 transition"
+                  >
+                    Adquirir mi Franquicia Oficial →
                   </Link>
                 </div>
               </div>
