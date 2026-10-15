@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateReminderUrl } from "@/lib/whatsapp";
+import { sendLabsMobileSms } from "@/lib/sms";
 
 export const dynamic = "force-dynamic";
 
@@ -86,6 +87,30 @@ export async function GET(req: NextRequest) {
             })
           : null;
 
+        let smsStatus = "NOT_CONFIGURED";
+
+        // Si el negocio activó SMS automáticos con LabsMobile, disparar el SMS silencioso de inmediato
+        if (app.business.smsEnabled && app.business.smsApiToken && app.clientPhone) {
+          const smsText = `Hola ${app.clientName}, te recordamos tu cita hoy a las ${app.startTime} en ${app.business.name}. Reagendar: https://turnos.appzplay.online/p/${app.business.slug}`;
+          const smsRes = await sendLabsMobileSms({
+            username: app.business.smsUsername,
+            apiToken: app.business.smsApiToken,
+            senderId: app.business.smsSenderId || "TurnoYa",
+            phone: app.clientPhone,
+            message: smsText,
+          });
+
+          if (smsRes.success) {
+            await prisma.appointment.update({
+              where: { id: app.id },
+              data: { reminderSent: true },
+            });
+            smsStatus = "SENT_AUTOMATICALLY";
+          } else {
+            smsStatus = `ERROR: ${smsRes.error}`;
+          }
+        }
+
         dueReminders.push({
           appointmentId: app.id,
           clientName: app.clientName,
@@ -94,6 +119,7 @@ export async function GET(req: NextRequest) {
           startTime: app.startTime,
           diffMinutes,
           targetMinutes,
+          smsStatus,
           reminderUrl,
         });
       }

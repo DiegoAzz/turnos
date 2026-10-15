@@ -27,6 +27,10 @@ model Business {
   statusMessage          String?        // Novedad o mensaje de estado visible para los clientes
   category               String         @default("BARBERIA") // "BARBERIA", "MANICURA_SPA", "LAVADERO", "SALUD_CONSULTORIO", "OTRO"
   serviceModality        String         @default("LOCAL") // "LOCAL", "DOMICILIO", "HIBRIDO"
+  smsEnabled             Boolean        @default(false)
+  smsUsername            String?        @default("director@appzplay.online")
+  smsApiToken            String?
+  smsSenderId            String?        @default("TurnoYa")
   stripeCustomerId       String?
   stripeSubscriptionId   String?
   stripeCurrentPeriodEnd DateTime?

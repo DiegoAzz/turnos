@@ -7,9 +7,14 @@ interface ReminderSettingsProps {
   business: {
     id: string;
     name: string;
+    phone?: string | null;
     autoRemindersEnabled?: boolean;
     reminderTiming?: string;
     reminderMessageTemplate?: string | null;
+    smsEnabled?: boolean;
+    smsUsername?: string | null;
+    smsApiToken?: string | null;
+    smsSenderId?: string | null;
   };
   onClose: () => void;
   onSaved: (updatedBusiness: any) => void;
@@ -34,6 +39,14 @@ export default function ReminderSettingsModal({
     isCustomInitial ? initialTiming.split("_")[2] || "MINUTES" : "MINUTES"
   );
 
+  // Estados de LabsMobile SMS
+  const [smsEnabled, setSmsEnabled] = useState(business.smsEnabled ?? false);
+  const [smsUsername, setSmsUsername] = useState(business.smsUsername || "director@appzplay.online");
+  const [smsApiToken, setSmsApiToken] = useState(business.smsApiToken || "");
+  const [smsSenderId, setSmsSenderId] = useState(business.smsSenderId || "TurnoYa");
+  const [testingSms, setTestingSms] = useState(false);
+  const [smsTestResult, setSmsTestResult] = useState<string | null>(null);
+
   const [template, setTemplate] = useState(
     business.reminderMessageTemplate ||
       `Hola {cliente} 👋 Te recordamos tu cita hoy en *{negocio}*:
@@ -56,6 +69,45 @@ Por favor responde:
     setTemplate((prev) => prev + " " + variable);
   };
 
+  const handleTestSms = async () => {
+    if (!smsApiToken.trim()) {
+      alert("Por favor genera y pega tu API Token de LabsMobile antes de probar.");
+      return;
+    }
+    const testPhone = prompt(
+      "Ingresa el número celular donde deseas recibir el SMS de prueba (ej: 3106017261):",
+      business.phone || ""
+    );
+    if (!testPhone) return;
+
+    setTestingSms(true);
+    setSmsTestResult(null);
+    try {
+      const res = await fetch("/api/sms/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId: business.id,
+          phone: testPhone,
+          message: `Prueba exitosa de TurnoYa con LabsMobile para ${business.name}. Tus recordatorios por SMS están listos.`,
+          customUsername: smsUsername,
+          customToken: smsApiToken,
+          customSender: smsSenderId,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSmsTestResult("✅ ¡SMS enviado con éxito! Revisa la bandeja de entrada de tu celular.");
+      } else {
+        setSmsTestResult(`❌ Error de LabsMobile: ${data.error || "Verifica tu token y saldo."}`);
+      }
+    } catch (err: any) {
+      setSmsTestResult(`❌ Error de conexión: ${err.message}`);
+    } finally {
+      setTestingSms(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -76,6 +128,10 @@ Por favor responde:
           autoRemindersEnabled: enabled,
           reminderTiming: finalTiming,
           reminderMessageTemplate: template,
+          smsEnabled,
+          smsUsername,
+          smsApiToken,
+          smsSenderId,
         }),
       });
 
@@ -277,6 +333,101 @@ Por favor responde:
                 <div className="text-[10px] text-gray-400 text-right mt-1">10:45 AM ✓✓</div>
               </div>
             </div>
+          </div>
+
+          {/* SECCIÓN LABSMOBILE SMS AUTOMÁTICOS */}
+          <div className="pt-4 border-t border-gray-200">
+            <div className="flex items-center justify-between bg-blue-50/70 p-4 rounded-2xl border border-blue-200">
+              <div>
+                <span className="font-bold text-xs text-blue-950 flex items-center gap-1.5">
+                  <span>📱 SMS Automáticos en Segundo Plano (LabsMobile)</span>
+                  <span className="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
+                    100% Automático
+                  </span>
+                </span>
+                <span className="text-[11px] text-blue-800 block mt-0.5">
+                  El servidor envía los mensajes de texto a tus clientes sin que tengas que tocar nada.
+                </span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={smsEnabled}
+                  onChange={(e) => setSmsEnabled(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+
+            {smsEnabled && (
+              <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-2xl space-y-3">
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                    Usuario / Email de LabsMobile:
+                  </label>
+                  <input
+                    type="email"
+                    value={smsUsername}
+                    onChange={(e) => setSmsUsername(e.target.value)}
+                    placeholder="director@appzplay.online"
+                    className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-xs text-gray-900 focus:outline-none focus:border-blue-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-gray-700">
+                      API Token de LabsMobile:
+                    </label>
+                    <span className="text-[10px] text-blue-600 font-medium">
+                      Generado en tu panel LabsMobile
+                    </span>
+                  </div>
+                  <input
+                    type="password"
+                    value={smsApiToken}
+                    onChange={(e) => setSmsApiToken(e.target.value)}
+                    placeholder="Pega aquí tu API Token generado..."
+                    className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-xs text-gray-900 focus:outline-none focus:border-blue-500 font-mono"
+                  />
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    En tu panel de LabsMobile, pulsa en el botón azul <strong>&quot;+ GENERAR NUEVO API TOKEN&quot;</strong>, cópialo y pégalo aquí.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                    Nombre del Remitente (Sender ID - máx 11 letras):
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={11}
+                    value={smsSenderId}
+                    onChange={(e) => setSmsSenderId(e.target.value)}
+                    placeholder="TurnoYa"
+                    className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-xs text-gray-900 focus:outline-none focus:border-blue-500 font-bold"
+                  />
+                </div>
+
+                {/* BOTÓN PROBAR SMS */}
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    disabled={testingSms || !smsApiToken}
+                    onClick={handleTestSms}
+                    className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-2.5 px-3 rounded-xl text-xs shadow transition flex items-center justify-center gap-1.5"
+                  >
+                    <span>{testingSms ? "Enviando SMS de prueba..." : "📤 Probar Envío de SMS Ahora"}</span>
+                  </button>
+                  {smsTestResult && (
+                    <div className="mt-2 text-xs p-2.5 rounded-xl bg-white border border-gray-200 font-medium text-center">
+                      {smsTestResult}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-3">

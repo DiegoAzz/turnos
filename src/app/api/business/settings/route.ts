@@ -55,6 +55,18 @@ export async function PATCH(req: NextRequest) {
     if (logoUrl !== undefined) {
       dataToUpdate.logoUrl = logoUrl;
     }
+    if (typeof body.smsEnabled === "boolean") {
+      dataToUpdate.smsEnabled = body.smsEnabled;
+    }
+    if (body.smsUsername !== undefined) {
+      dataToUpdate.smsUsername = body.smsUsername?.trim() || null;
+    }
+    if (body.smsApiToken !== undefined) {
+      dataToUpdate.smsApiToken = body.smsApiToken?.trim() || null;
+    }
+    if (body.smsSenderId !== undefined) {
+      dataToUpdate.smsSenderId = body.smsSenderId?.trim() || "TurnoYa";
+    }
 
     const updated = await prisma.business.update({
       where: { id: businessId },
