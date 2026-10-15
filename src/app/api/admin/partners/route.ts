@@ -58,7 +58,9 @@ export async function GET() {
         totalEarned: p.totalEarned,
         payoutMethod: p.payoutMethod,
         payoutAccount: p.payoutAccount,
+        experience: p.experience,
         status: p.status,
+        approvedAt: p.approvedAt,
         createdAt: p.createdAt,
         totalReferred: p._count.referredBusinesses,
         activePayingClients,
@@ -92,7 +94,12 @@ export async function PATCH(req: NextRequest) {
 
     const dataToUpdate: any = {};
     if (typeof commissionRate === "number") dataToUpdate.commissionRate = commissionRate;
-    if (status) dataToUpdate.status = status;
+    if (status) {
+      dataToUpdate.status = status;
+      if (status === "ACTIVE") {
+        dataToUpdate.approvedAt = new Date();
+      }
+    }
 
     const updated = await prisma.partner.update({
       where: { id: partnerId },

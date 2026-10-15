@@ -60,6 +60,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Embajador no encontrado." }, { status: 404 });
     }
 
+    if (partner.status !== "ACTIVE") {
+      return NextResponse.json(
+        {
+          error:
+            partner.status === "PENDING"
+              ? "Tu postulación está pendiente de validación por el administrador."
+              : "Tu cuenta de embajador no está activa.",
+          status: partner.status,
+        },
+        { status: 403 }
+      );
+    }
+
     // Calcular métricas
     const totalClientes = partner.referredBusinesses.length;
     const clientesProActivos = partner.referredBusinesses.filter(

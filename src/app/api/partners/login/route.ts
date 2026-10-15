@@ -38,6 +38,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (partner.status === "PENDING") {
+      return NextResponse.json(
+        {
+          error:
+            "Tu postulación está actualmente en revisión por el administrador. En breve te contactaremos a tu WhatsApp para validar tu perfil y darte acceso.",
+          status: "PENDING",
+        },
+        { status: 403 }
+      );
+    }
+
+    if (partner.status === "REJECTED") {
+      return NextResponse.json(
+        {
+          error:
+            "Tu postulación como embajador no fue aprobada. Si consideras que es un error, por favor contáctanos por WhatsApp.",
+          status: "REJECTED",
+        },
+        { status: 403 }
+      );
+    }
+
     const cookieStore = await cookies();
     cookieStore.set("turnoya_partner_id", partner.id, {
       path: "/",

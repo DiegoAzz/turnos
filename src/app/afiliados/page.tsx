@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -33,11 +33,13 @@ export default function AfiliadosPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [experience, setExperience] = useState("");
   const [payoutMethod, setPayoutMethod] = useState("NEQUI");
   const [payoutAccount, setPayoutAccount] = useState("");
   const [customCode, setCustomCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [registrationSuccess, setRegistrationSuccess] = useState<any | null>(null);
 
   // Estado login
   const [loginMode, setLoginMode] = useState(false);
@@ -52,6 +54,18 @@ export default function AfiliadosPage() {
       maximumFractionDigits: 0,
     }).format(val);
 
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash) {
+      const hash = window.location.hash.substring(1);
+      const target = document.getElementById(hash);
+      if (target) {
+        setTimeout(() => {
+          target.scrollIntoView({ behavior: "smooth" });
+        }, 150);
+      }
+    }
+  }, []);
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -65,6 +79,7 @@ export default function AfiliadosPage() {
           name,
           phone,
           email,
+          experience,
           payoutMethod,
           payoutAccount: payoutAccount || phone,
           customCode,
@@ -74,7 +89,11 @@ export default function AfiliadosPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "No se pudo completar el registro.");
 
-      router.push("/afiliados/portal");
+      if (data.pendingApproval) {
+        setRegistrationSuccess(data);
+      } else {
+        router.push("/afiliados/portal");
+      }
     } catch (err: any) {
       setError(err.message || "Error al registrarse.");
     } finally {
@@ -134,7 +153,7 @@ export default function AfiliadosPage() {
             </div>
 
             {/* CALCULADORA INTERACTIVA DE INGRESOS PASIVOS */}
-            <div className="mt-16 mx-auto max-w-2xl rounded-3xl bg-white/5 border border-white/10 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+            <div id="calculadora" className="mt-16 mx-auto max-w-2xl rounded-3xl bg-white/5 border border-white/10 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 pb-4 mb-6 gap-3">
                 <div>
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -222,7 +241,7 @@ export default function AfiliadosPage() {
         </section>
 
         {/* CÓMO FUNCIONA EL MODELO REVOLUCIONARIO */}
-        <section className="py-20 bg-gray-50 border-y border-gray-200">
+        <section id="como-funciona-afiliados" className="py-20 bg-gray-50 border-y border-gray-200">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto">
               <h2 className="text-xs font-bold uppercase tracking-wider text-emerald-600">
@@ -305,116 +324,181 @@ export default function AfiliadosPage() {
 
               {!loginMode ? (
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">
-                    Regístrate en 30 segundos
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-1 mb-6">
-                    Obtén tu enlace único y tu código de referido para empezar a comisionar hoy.
-                  </p>
-
-                  {error && (
-                    <div className="mb-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200">
-                      {error}
+                  {registrationSuccess ? (
+                    <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-6 text-center space-y-4">
+                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/30">
+                        <CheckCircle2 className="h-8 w-8" />
+                      </div>
+                      <h3 className="text-xl font-extrabold text-gray-900">
+                        ¡Postulación Enviada con Éxito!
+                      </h3>
+                      <p className="text-xs sm:text-sm text-gray-600 leading-relaxed max-w-md mx-auto">
+                        Gracias <strong>{registrationSuccess.partner?.name}</strong>. Tu perfil comercial ha sido enviado al administrador para validación y activación manual.
+                      </p>
+                      <div className="rounded-xl bg-white border border-emerald-100 p-4 text-xs text-left text-gray-700 space-y-2 shadow-xs">
+                        <p>
+                          <strong>Código solicitado:</strong>{" "}
+                          <span className="font-mono font-bold text-emerald-700">
+                            {registrationSuccess.partner?.referralCode}
+                          </span>
+                        </p>
+                        <p>
+                          <strong>WhatsApp de contacto:</strong>{" "}
+                          <span className="font-medium">{registrationSuccess.partner?.phone}</span>
+                        </p>
+                        <p className="flex items-center gap-1.5">
+                          <strong>Estado de la cuenta:</strong>{" "}
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">
+                            🟡 Pendiente de Aprobación
+                          </span>
+                        </p>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Te contactaremos por WhatsApp para validar tu información y habilitar tu acceso al portal de comisiones.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRegistrationSuccess(null);
+                          setLoginMode(true);
+                        }}
+                        className="inline-block mt-2 text-xs font-bold text-emerald-700 hover:text-emerald-800 underline"
+                      >
+                        ¿Ya te validaron? Iniciar Sesión aquí →
+                      </button>
                     </div>
-                  )}
+                  ) : (
+                    <>
+                      <h3 className="text-xl font-bold text-gray-900">
+                        Postúlate como Embajador
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-1 mb-6">
+                        Envía tu información para validar tu perfil comercial y asignarte tu código oficial.
+                      </p>
 
-                  <form onSubmit={handleRegister} className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Tu Nombre Completo *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Ej. Carlos Mendoza"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
-                      />
-                    </div>
+                      {error && (
+                        <div className="mb-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200">
+                          {error}
+                        </div>
+                      )}
 
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Tu WhatsApp (para coordinar pagos y avisos) *
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="Ej. +57 300 123 4567"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
-                      />
-                    </div>
+                      <form onSubmit={handleRegister} className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Tu Nombre Completo *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Ej. Carlos Mendoza"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
+                          />
+                        </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Tu Correo Electrónico *
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        placeholder="carlos@ejemplo.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
-                      />
-                    </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Tu WhatsApp (para validar tu cuenta y coordinar pagos) *
+                          </label>
+                          <input
+                            type="tel"
+                            required
+                            placeholder="Ej. +57 300 123 4567"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
+                          />
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">
-                          Método de Pago Preferido
-                        </label>
-                        <select
-                          value={payoutMethod}
-                          onChange={(e) => setPayoutMethod(e.target.value)}
-                          className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none bg-white"
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Tu Correo Electrónico *
+                          </label>
+                          <input
+                            type="email"
+                            required
+                            placeholder="carlos@ejemplo.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
+                          />
+                        </div>
+
+                        {/* CAMPO DE OBSERVACIONES / PERFIL COMERCIAL (REQUERIDO) */}
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Tu Perfil Comercial, Experiencia u Observaciones *
+                          </label>
+                          <textarea
+                            required
+                            rows={3}
+                            placeholder="Cuéntanos brevemente: ¿Qué experiencia tienes comercialmente? ¿En qué ciudad estás? ¿Qué barberías, spas o consultorios conoces para promover TurnoYa? (Obligatorio para que el administrador valide tu cuenta)"
+                            value={experience}
+                            onChange={(e) => setExperience(e.target.value)}
+                            className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none leading-relaxed"
+                          />
+                          <p className="mt-1 text-[11px] text-gray-500">
+                            🔒 Filtro de seriedad: El administrador revisa tu perfil antes de activar tu cuenta para evitar registros no calificados.
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">
+                              Método de Pago Preferido
+                            </label>
+                            <select
+                              value={payoutMethod}
+                              onChange={(e) => setPayoutMethod(e.target.value)}
+                              className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none bg-white"
+                            >
+                              <option value="NEQUI">Nequi</option>
+                              <option value="DAVIPLATA">Daviplata</option>
+                              <option value="BANCOLOMBIA">Bancolombia</option>
+                              <option value="PAYPAL">PayPal</option>
+                              <option value="OTRO">Otro Banco</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">
+                              Número de Cuenta / Celular
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Número para transferirte"
+                              value={payoutAccount}
+                              onChange={(e) => setPayoutAccount(e.target.value)}
+                              className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Código de referido deseado (Opcional)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ej. CARLOS-PRO (dejar vacío para auto-generar)"
+                            value={customCode}
+                            onChange={(e) => setCustomCode(e.target.value)}
+                            className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none uppercase font-mono"
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          style={{ backgroundColor: "#059669", color: "#ffffff" }}
+                          className="w-full mt-4 rounded-xl py-3 text-sm font-bold shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500 disabled:opacity-50"
                         >
-                          <option value="NEQUI">Nequi</option>
-                          <option value="DAVIPLATA">Daviplata</option>
-                          <option value="BANCOLOMBIA">Bancolombia</option>
-                          <option value="PAYPAL">PayPal</option>
-                          <option value="OTRO">Otro Banco</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">
-                          Número de Cuenta / Celular
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Número para transferirte"
-                          value={payoutAccount}
-                          onChange={(e) => setPayoutAccount(e.target.value)}
-                          className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Código de referido deseado (Opcional)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ej. CARLOS-PRO (dejar vacío para auto-generar)"
-                        value={customCode}
-                        onChange={(e) => setCustomCode(e.target.value)}
-                        className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none uppercase font-mono"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      style={{ backgroundColor: "#059669", color: "#ffffff" }}
-                      className="w-full mt-4 rounded-xl py-3 text-sm font-bold shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500 disabled:opacity-50"
-                    >
-                      {loading ? "Creando tu cuenta de embajador..." : "Obtener mi Enlace de Embajador →"}
-                    </button>
-                  </form>
+                          {loading ? "Enviando postulación..." : "Enviar Postulación para Validación →"}
+                        </button>
+                      </form>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div>

@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -11,9 +14,23 @@ import {
   Zap,
   ArrowRight,
   ExternalLink,
+  Smartphone,
+  Share2,
 } from "lucide-react";
 
 export default function Home() {
+  useEffect(() => {
+    // Si viene con un hash desde otra página (/afiliados, etc.), hacer scroll suave
+    if (typeof window !== "undefined" && window.location.hash) {
+      const hash = window.location.hash.substring(1);
+      const target = document.getElementById(hash);
+      if (target) {
+        setTimeout(() => {
+          target.scrollIntoView({ behavior: "smooth" });
+        }, 150);
+      }
+    }
+  }, []);
   return (
     <div className="flex min-h-screen flex-col bg-white text-gray-900">
       <Navbar />
@@ -183,6 +200,72 @@ export default function Home() {
                   Visualiza tus ingresos estimados, citas diarias, clientes recurrentes y administra los estados de tus servicios en segundos.
                 </p>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CÓMO FUNCIONA */}
+        <section id="como-funciona" className="py-20 bg-white border-y border-gray-100">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto">
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
+                Paso a Paso
+              </span>
+              <h2 className="mt-4 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+                ¿Cómo Funciona TurnoYa?
+              </h2>
+              <p className="mt-4 text-base text-gray-600">
+                Digitaliza la agenda de tu barbería, centro estético, spa o consultorio en solo 3 simples pasos.
+              </p>
+            </div>
+
+            <div className="mt-16 grid gap-8 sm:grid-cols-3">
+              <div className="relative rounded-2xl border border-gray-200/80 bg-gray-50/50 p-8 hover:bg-emerald-50/30 transition shadow-sm">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white font-extrabold text-lg shadow-md shadow-emerald-600/20">
+                  1
+                </div>
+                <h3 className="mt-6 text-xl font-bold text-gray-900">
+                  Configura tus Servicios y Horarios
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                  Crea tu perfil en 2 minutos: agrega tus servicios (cortes, masajes, consultas), la duración de cada turno y tus días y horas de atención.
+                </p>
+              </div>
+
+              <div className="relative rounded-2xl border border-gray-200/80 bg-gray-50/50 p-8 hover:bg-emerald-50/30 transition shadow-sm">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white font-extrabold text-lg shadow-md shadow-emerald-600/20">
+                  2
+                </div>
+                <h3 className="mt-6 text-xl font-bold text-gray-900">
+                  Comparte tu Enlace Inteligente
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                  Pon tu enlace en la biografía de Instagram, Facebook o envíalo por WhatsApp. Tus clientes reservan solos 24/7 sin interrumpirte ni llamarte.
+                </p>
+              </div>
+
+              <div className="relative rounded-2xl border border-gray-200/80 bg-gray-50/50 p-8 hover:bg-emerald-50/30 transition shadow-sm">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white font-extrabold text-lg shadow-md shadow-emerald-600/20">
+                  3
+                </div>
+                <h3 className="mt-6 text-xl font-bold text-gray-900">
+                  Recordatorios y Cero Ausencias
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                  TurnoYa envía confirmaciones instantáneas y recordatorios automáticos por WhatsApp a tus clientes para que nunca olviden su turno.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-12 text-center">
+              <Link
+                href="/dashboard"
+                style={{ backgroundColor: "#059669", color: "#ffffff" }}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-500 transition"
+              >
+                <span>Probar Ahora Gratis</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
           </div>
         </section>

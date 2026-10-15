@@ -24,6 +24,9 @@ export default function Footer() {
             <Link href="/login" className="text-gray-600 hover:text-emerald-600">
               Acceso Negocios
             </Link>
+            <Link href="/afiliados" className="text-gray-600 hover:text-emerald-600">
+              Sé Embajador
+            </Link>
             <Link href="/dashboard" className="text-gray-600 hover:text-emerald-600">
               Panel
             </Link>
@@ -31,6 +34,15 @@ export default function Footer() {
               👑 Super Admin
             </Link>
           </div>
+        </div>
+
+        <div className="mt-8 pt-6 border-t border-gray-200/70 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-3 text-center sm:text-left">
+          <p>
+            © {new Date().getFullYear()} <strong>TurnoYa SaaS</strong>. Propiedad intelectual y derechos de autor reservados por <strong className="text-emerald-700 font-bold">Appzplay</strong>.
+          </p>
+          <p className="text-[11px] font-medium text-gray-400">
+            Plataforma tecnológica operada por <a href="https://appzplay.online" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 underline font-semibold">Appzplay</a>
+          </p>
         </div>
       </div>
     </footer>

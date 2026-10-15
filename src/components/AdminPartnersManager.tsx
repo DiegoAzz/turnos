@@ -18,6 +18,10 @@ import {
   ShieldAlert,
   Settings2,
   Edit2,
+  CheckCircle2,
+  XCircle,
+  FileText,
+  UserCheck,
 } from "lucide-react";
 
 interface PartnerAdmin {
@@ -31,7 +35,9 @@ interface PartnerAdmin {
   totalEarned: number;
   payoutMethod: string;
   payoutAccount: string | null;
+  experience?: string | null;
   status: string;
+  approvedAt?: string | null;
   createdAt: string;
   totalReferred: number;
   activePayingClients: number;
@@ -41,13 +47,111 @@ interface PartnerAdmin {
 export default function AdminPartnersManager() {
   const [partners, setPartners] = useState<PartnerAdmin[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPartner, setSelectedPartner] = useState<PartnerAdmin | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "ACTIVE">("ALL");
 
   // Modal simulación
   const [simulateAmount, setSimulateAmount] = useState(60000);
   const [simulateSuccess, setSimulateSuccess] = useState<any | null>(null);
   const [globalRateInput, setGlobalRateInput] = useState("20");
+
+  const formatCOP = (val: number) =>
+    new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
+      maximumFractionDigits: 0,
+    }).format(val);
+
+  const loadPartners = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/admin/partners");
+      if (res.ok) {
+        const data = await res.json();
+        setPartners(data.partners || []);
+      }
+    } catch (err) {
+      console.error("Error al cargar embajadores:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPartners();
+  }, []);
+
+  // Aprobar un embajador pendiente
+  const handleApprovePartner = async (partner: PartnerAdmin) => {
+    const confirmApprove = confirm(
+      `¿Deseas APROBAR a "${partner.name}" como Embajador Oficial?\n\nWhatsApp: ${partner.phone}\nObservaciones: ${partner.experience || "Sin perfil especificado"}`
+    );
+    if (!confirmApprove) return;
+
+    try {
+      setActionLoading(partner.id);
+      const res = await fetch("/api/admin/partners", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          partnerId: partner.id,
+          status: "ACTIVE",
+        }),
+      });
+
+      if (res.ok) {
+        const cleanPhone = partner.phone.replace(/[^0-9]/g, "");
+        const approvalMsg = encodeURIComponent(
+          `¡Hola ${partner.name}! 👋 Te informamos que tu postulación como Embajador Oficial de TurnoYa ha sido APROBADA con éxito 🎉.\n\n` +
+          `🔑 Tu código de referido oficial es: ${partner.referralCode}\n` +
+          `📈 Comisión asignada: ${Math.round(partner.commissionRate * 100)}% recurrente vitalicio.\n` +
+          `🌐 Ya puedes ingresar a tu portal en https://turnos.appzplay.online/afiliados con tu WhatsApp para obtener tu enlace único y comenzar a registrar negocios.`
+        );
+        const notifyWA = confirm("¡Embajador Aprobado! ¿Deseas abrir WhatsApp para enviarle el mensaje de bienvenida con su código de referido ahora?");
+        if (notifyWA) {
+          window.open(`https://wa.me/${cleanPhone}?text=${approvalMsg}`, "_blank");
+        }
+        await loadPartners();
+      } else {
+        alert("No se pudo aprobar el embajador.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al aprobar embajador.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Rechazar postulación
+  const handleRejectPartner = async (partner: PartnerAdmin) => {
+    const confirmReject = confirm(
+      `¿Deseas RECHAZAR la postulación de "${partner.name}"?`
+    );
+    if (!confirmReject) return;
+
+    try {
+      setActionLoading(partner.id);
+      const res = await fetch("/api/admin/partners", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          partnerId: partner.id,
+          status: "REJECTED",
+        }),
+      });
+
+      if (res.ok) {
+        alert("Postulación rechazada.");
+        await loadPartners();
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al rechazar embajador.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   // Editar porcentaje de un embajador individual
   const handleEditCommissionRate = async (partner: PartnerAdmin) => {
@@ -117,32 +221,6 @@ export default function AdminPartnersManager() {
     }
   };
 
-  const formatCOP = (val: number) =>
-    new Intl.NumberFormat("es-CO", {
-      style: "currency",
-      currency: "COP",
-      maximumFractionDigits: 0,
-    }).format(val);
-
-  const loadPartners = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/admin/partners");
-      if (res.ok) {
-        const data = await res.json();
-        setPartners(data.partners || []);
-      }
-    } catch (err) {
-      console.error("Error al cargar embajadores:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadPartners();
-  }, []);
-
   // Simular renovación mensual de un cliente para acreditar comisión al embajador
   const handleSimulateCommission = async (partner: PartnerAdmin) => {
     const businessName = prompt(
@@ -153,12 +231,11 @@ export default function AdminPartnersManager() {
 
     try {
       setActionLoading(partner.id);
-      // Primero verificar si tiene un negocio o creamos uno de prueba
       const res = await fetch("/api/admin/partners/simulate-commission", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          businessId: partner.id, // o id de negocio
+          businessId: partner.id,
           amount: simulateAmount,
           planName: `Plan PRO Mensual (${businessName})`,
         }),
@@ -166,7 +243,6 @@ export default function AdminPartnersManager() {
 
       const data = await res.json();
       if (!res.ok) {
-        // Si no tiene negocio formal, acreditamos directamente a la billetera
         alert(data.error || "No se pudo simular la comisión.");
         return;
       }
@@ -183,7 +259,10 @@ export default function AdminPartnersManager() {
 
   // Aprobar pago de retiro
   const handleApprovePayout = async (payoutId: string) => {
-    const ref = prompt("Ingresa el número de comprobante o referencia de transferencia (Nequi/Banco):", "TRX-" + Math.floor(100000 + Math.random() * 900000));
+    const ref = prompt(
+      "Ingresa el número de comprobante o referencia de transferencia (Nequi/Banco):",
+      "TRX-" + Math.floor(100000 + Math.random() * 900000)
+    );
     if (!ref) return;
 
     try {
@@ -203,10 +282,18 @@ export default function AdminPartnersManager() {
     }
   };
 
+  const pendingPartnersCount = partners.filter((p) => p.status === "PENDING").length;
+  const activePartnersCount = partners.filter((p) => p.status === "ACTIVE").length;
   const totalPartners = partners.length;
   const totalBalancePendiente = partners.reduce((sum, p) => sum + p.balance, 0);
   const totalHistoricoGanado = partners.reduce((sum, p) => sum + p.totalEarned, 0);
   const totalNegociosTraidos = partners.reduce((sum, p) => sum + p.totalReferred, 0);
+
+  const displayedPartners = partners.filter((p) => {
+    if (statusFilter === "PENDING") return p.status === "PENDING";
+    if (statusFilter === "ACTIVE") return p.status === "ACTIVE";
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -216,8 +303,15 @@ export default function AdminPartnersManager() {
           <span className="text-xs font-semibold text-slate-400 uppercase">
             Embajadores Activos
           </span>
-          <p className="mt-2 text-3xl font-black text-white">{totalPartners}</p>
-          <span className="text-[11px] text-emerald-400">Promotores registrados</span>
+          <div className="mt-2 flex items-baseline gap-2">
+            <p className="text-3xl font-black text-white">{activePartnersCount}</p>
+            {pendingPartnersCount > 0 && (
+              <span className="rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] px-2 py-0.5 font-bold">
+                +{pendingPartnersCount} por validar
+              </span>
+            )}
+          </div>
+          <span className="text-[11px] text-emerald-400">Promotores validados</span>
         </div>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-5">
@@ -259,7 +353,7 @@ export default function AdminPartnersManager() {
               Modelo de Ingreso Residual Recurrente (100% Personalizable)
             </h4>
             <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-              Cada vez que una barbería o negocio renueva su suscripción ($60.000 COP / $19 USD), el embajador recibe automáticamente su porcentaje acordado directo a su billetera. Puedes personalizar la tasa global o cambiarla individualmente para cada promotor.
+              Cada vez que una barbería o negocio renueva su suscripción ($60.000 COP / $19 USD), el embajador recibe automáticamente su porcentaje asignado directo a su billetera. Las postulaciones nuevas entran en revisión para que puedas validar su perfil antes de activarlos.
             </p>
           </div>
 
@@ -269,7 +363,7 @@ export default function AdminPartnersManager() {
               target="_blank"
               className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 shadow-md shadow-emerald-600/20 transition"
             >
-              <span>Ver Landing de Afiliados</span>
+              <span>Ver Formulario de Afiliados</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </a>
           </div>
@@ -310,59 +404,139 @@ export default function AdminPartnersManager() {
         </div>
       </div>
 
-      {/* TABLA DE EMBAJADORES */}
+      {/* TABLA DE EMBAJADORES Y POSTULACIONES */}
       <div className="rounded-2xl border border-slate-800 bg-slate-950/60 overflow-hidden shadow-xl">
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h3 className="font-bold text-base text-white">Red de Embajadores Registrados</h3>
+            <h3 className="font-bold text-base text-white">Red de Embajadores & Postulaciones</h3>
             <p className="text-xs text-slate-400">
-              Control de códigos de referido, clientes activos y saldos acumulados
+              Valida perfiles antes de activarlos, ajusta comisiones y monitorea rendimientos
             </p>
           </div>
-          <button
-            onClick={loadPartners}
-            className="text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-lg"
-          >
-            Actualizar Lista
-          </button>
+
+          <div className="flex items-center gap-2">
+            {/* Filtros de estado */}
+            <div className="flex rounded-xl bg-slate-900 p-1 border border-slate-800 text-xs">
+              <button
+                onClick={() => setStatusFilter("ALL")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${
+                  statusFilter === "ALL"
+                    ? "bg-slate-800 text-white"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Todos ({partners.length})
+              </button>
+              <button
+                onClick={() => setStatusFilter("PENDING")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
+                  statusFilter === "PENDING"
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                    : "text-amber-400 hover:text-amber-300"
+                }`}
+              >
+                <span>🟡 Pendientes</span>
+                {pendingPartnersCount > 0 && (
+                  <span className="bg-amber-500 text-slate-950 px-1.5 py-0.2 rounded-full text-[10px] font-black">
+                    {pendingPartnersCount}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setStatusFilter("ACTIVE")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${
+                  statusFilter === "ACTIVE"
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                🟢 Activos ({activePartnersCount})
+              </button>
+            </div>
+
+            <button
+              onClick={loadPartners}
+              className="text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-lg"
+            >
+              Actualizar
+            </button>
+          </div>
         </div>
 
         {loading ? (
           <div className="p-8 text-center text-xs text-slate-400">Cargando embajadores...</div>
-        ) : partners.length === 0 ? (
+        ) : displayedPartners.length === 0 ? (
           <div className="p-12 text-center text-xs text-slate-400">
-            Aún no hay embajadores registrados. Puedes registrar el primero en{" "}
-            <a href="/afiliados" target="_blank" className="text-emerald-400 underline font-bold">
-              turnos.appzplay.online/afiliados
-            </a>
+            No hay registros con el filtro seleccionado.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-900/80 text-slate-400 font-semibold border-b border-slate-800">
                 <tr>
-                  <th className="py-3 px-4">Embajador</th>
+                  <th className="py-3 px-4">Postulante / Embajador</th>
                   <th className="py-3 px-4">Código Referido</th>
                   <th className="py-3 px-4">Comisión</th>
-                  <th className="py-3 px-4">Clientes Traídos</th>
-                  <th className="py-3 px-4">Saldo Disponible</th>
+                  <th className="py-3 px-4">Clientes</th>
+                  <th className="py-3 px-4">Saldo Disp.</th>
                   <th className="py-3 px-4">Total Ganado</th>
-                  <th className="py-3 px-4">Medio de Retiro</th>
+                  <th className="py-3 px-4">Medio Pago</th>
                   <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {partners.map((p) => {
+                {displayedPartners.map((p) => {
                   const cleanPhone = p.phone.replace(/[^0-9]/g, "");
-                  const whatsappUrl = `https://wa.me/${cleanPhone}`;
+                  const whatsappInterviewUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
+                    `¡Hola ${p.name}! 👋 Te escribo desde TurnoYa respecto a tu solicitud para ser Embajador Oficial. Nos gustaría conocer más sobre tu propuesta.`
+                  )}`;
+
+                  const isPending = p.status === "PENDING";
+                  const isRejected = p.status === "REJECTED";
 
                   return (
-                    <tr key={p.id} className="hover:bg-slate-900/40 transition">
-                      <td className="py-3.5 px-4 font-bold text-white">
-                        {p.name}
-                        <span className="block text-[11px] font-normal text-slate-400">
-                          {p.phone}
+                    <tr
+                      key={p.id}
+                      className={`transition ${
+                        isPending
+                          ? "bg-amber-950/20 hover:bg-amber-950/30"
+                          : "hover:bg-slate-900/40"
+                      }`}
+                    >
+                      <td className="py-3.5 px-4 font-bold text-white max-w-xs">
+                        <div className="flex items-center gap-2">
+                          <span>{p.name}</span>
+                          {isPending ? (
+                            <span className="rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] px-2 py-0.5 font-bold">
+                              🟡 Por Validar
+                            </span>
+                          ) : isRejected ? (
+                            <span className="rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-300 text-[10px] px-2 py-0.5 font-bold">
+                              🔴 Rechazado
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[10px] px-2 py-0.5 font-bold">
+                              🟢 Activo
+                            </span>
+                          )}
+                        </div>
+
+                        <span className="block text-[11px] font-normal text-slate-400 mt-0.5">
+                          {p.phone} • {p.email}
                         </span>
+
+                        {/* PERFIL COMERCIAL / OBSERVACIONES CARGADAS POR EL POSTULANTE */}
+                        {p.experience && (
+                          <div className="mt-2 p-2.5 rounded-xl bg-slate-900/90 border border-slate-700/70 text-[11px] text-slate-200">
+                            <span className="text-[10px] uppercase font-bold text-emerald-400 flex items-center gap-1 mb-1">
+                              <FileText className="h-3 w-3" />
+                              Perfil / Observaciones del Postulante:
+                            </span>
+                            <p className="leading-snug italic font-normal text-slate-300">
+                              &ldquo;{p.experience}&rdquo;
+                            </p>
+                          </div>
+                        )}
                       </td>
 
                       <td className="py-3.5 px-4 font-mono font-bold text-amber-400">
@@ -383,7 +557,7 @@ export default function AdminPartnersManager() {
                       <td className="py-3.5 px-4">
                         <span className="font-bold text-white">{p.totalReferred}</span>
                         <span className="text-[10px] text-emerald-400 block font-medium">
-                          ({p.activePayingClients} activos PRO)
+                          ({p.activePayingClients} PRO)
                         </span>
                       </td>
 
@@ -402,29 +576,70 @@ export default function AdminPartnersManager() {
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4 text-right space-x-2">
-                        {/* Botón WhatsApp */}
-                        <a
-                          href={whatsappUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 px-2.5 py-1.5 rounded-lg border border-emerald-500/30"
-                          title="Contactar por WhatsApp"
-                        >
-                          <MessageCircle className="h-3.5 w-3.5" />
-                          <span>WhatsApp</span>
-                        </a>
+                      <td className="py-3.5 px-4 text-right space-x-2 whitespace-nowrap">
+                        {/* ACCIONES DEPENDIENDO DEL ESTADO */}
+                        {isPending ? (
+                          <>
+                            {/* BOTÓN APROBAR */}
+                            <button
+                              onClick={() => handleApprovePartner(p)}
+                              disabled={actionLoading === p.id}
+                              className="inline-flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg shadow-sm transition"
+                              title="Aprobar embajador y generar mensaje de WhatsApp"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              <span>Aprobar</span>
+                            </button>
 
-                        {/* Botón simular pago recurrente */}
-                        <button
-                          onClick={() => handleSimulateCommission(p)}
-                          disabled={actionLoading === p.id}
-                          className="inline-flex items-center gap-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 px-2.5 py-1.5 rounded-lg border border-amber-500/30"
-                          title={`Simular renovación mensual del cliente y acreditar ${Math.round(p.commissionRate * 100)}%`}
-                        >
-                          <Play className="h-3.5 w-3.5" />
-                          <span>+ Pagar Comisión</span>
-                        </button>
+                            {/* BOTÓN RECHAZAR */}
+                            <button
+                              onClick={() => handleRejectPartner(p)}
+                              disabled={actionLoading === p.id}
+                              className="inline-flex items-center gap-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 px-2.5 py-1.5 rounded-lg transition"
+                              title="Rechazar postulación"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                              <span>Rechazar</span>
+                            </button>
+
+                            {/* CONTACTAR WHATSAPP ANTES DE APROBAR */}
+                            <a
+                              href={whatsappInterviewUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 px-2.5 py-1.5 rounded-lg border border-emerald-500/30"
+                              title="Escribir por WhatsApp para entrevistarlo"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              <span>Entrevistar</span>
+                            </a>
+                          </>
+                        ) : (
+                          <>
+                            {/* BOTÓN WHATSAPP */}
+                            <a
+                              href={`https://wa.me/${cleanPhone}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 px-2.5 py-1.5 rounded-lg border border-emerald-500/30"
+                              title="Contactar por WhatsApp"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              <span>WhatsApp</span>
+                            </a>
+
+                            {/* BOTÓN SIMULAR PAGO RECURRENTE */}
+                            <button
+                              onClick={() => handleSimulateCommission(p)}
+                              disabled={actionLoading === p.id}
+                              className="inline-flex items-center gap-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 px-2.5 py-1.5 rounded-lg border border-amber-500/30"
+                              title={`Simular renovación mensual del cliente y acreditar ${Math.round(p.commissionRate * 100)}%`}
+                            >
+                              <Play className="h-3.5 w-3.5" />
+                              <span>+ Pagar Comisión</span>
+                            </button>
+                          </>
+                        )}
                       </td>
                     </tr>
                   );
@@ -442,7 +657,7 @@ export default function AdminPartnersManager() {
           Solicitudes de Retiro de Fondos
         </h3>
         <p className="text-xs text-slate-400 mb-6">
-          Cuando un embajador solicita cobrar su saldo, te aparecerá aquí para que le transfieras a su Nequi o cuenta bancaria.
+          Cuando un embajador solicita cobrar su saldo acumulado, te aparecerá aquí para que le transfieras a su Nequi o cuenta bancaria.
         </p>
 
         {partners.every((p) => (p.pendingPayoutRequests || []).length === 0) ? (
@@ -451,74 +666,125 @@ export default function AdminPartnersManager() {
           </div>
         ) : (
           <div className="space-y-3">
-            {partners.flatMap((p) =>
-              (p.pendingPayoutRequests || []).map((req) => (
-                <div
-                  key={req.id}
-                  className="rounded-xl bg-slate-900 border border-slate-800 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-white text-sm">{p.name}</span>
-                      <span className="text-xs text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded">
-                        Pendiente
-                      </span>
+            {partners
+              .flatMap((p) =>
+                (p.pendingPayoutRequests || []).map((req) => ({
+                  ...req,
+                  partnerName: p.name,
+                  partnerPhone: p.phone,
+                  partnerReferralCode: p.referralCode,
+                }))
+              )
+              .map((req) => {
+                const cleanPhone = req.partnerPhone.replace(/[^0-9]/g, "");
+                return (
+                  <div
+                    key={req.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white text-sm">
+                          {req.partnerName} ({req.partnerReferralCode})
+                        </span>
+                        <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                          {req.payoutMethod}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 mt-1">
+                        Cuenta / Celular: <strong className="text-white font-mono">{req.payoutAccount}</strong>
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Solicitado el {new Date(req.createdAt).toLocaleDateString("es-ES")}
+                      </p>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Monto: <strong className="text-emerald-400 text-sm">{formatCOP(req.amount)}</strong> a través de{" "}
-                      <strong>{req.payoutMethod}</strong> ({req.payoutAccount})
-                    </p>
-                  </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleApprovePayout(req.id)}
-                      className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 shadow transition flex items-center gap-1.5"
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      Marcar Transferido
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <span className="text-xs text-slate-400 block uppercase font-semibold">
+                          Monto a Transferir
+                        </span>
+                        <span className="text-lg font-black text-amber-400">
+                          {formatCOP(req.amount)}
+                        </span>
+                      </div>
+
+                      <a
+                        href={`https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(req.partnerName)},%20recibimos%20tu%20solicitud%20de%20retiro%20por%20${encodeURIComponent(formatCOP(req.amount))}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-slate-300 hover:text-white transition"
+                        title="Avisar por WhatsApp"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </a>
+
+                      <button
+                        onClick={() => handleApprovePayout(req.id)}
+                        className="rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2.5 transition flex items-center gap-1.5 shadow-sm"
+                      >
+                        <Check className="h-4 w-4" />
+                        <span>Confirmar Transferencia Realizada</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
+                );
+              })}
           </div>
         )}
       </div>
 
-      {/* MODAL / AVISO DE ÉXITO DE SIMULACIÓN */}
+      {/* MODAL / AVISO DE COMISIÓN SIMULADA CON ÉXITO */}
       {simulateSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 p-6 text-white shadow-2xl">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 mb-4">
-              <CheckCircle className="h-6 w-6" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl border border-emerald-500/30 bg-slate-950 p-6 shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-slate-800 pb-4 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
+                <CheckCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <h4 className="font-bold text-white text-base">¡Comisión Acreditada!</h4>
+                <p className="text-xs text-emerald-400">Billetera del embajador actualizada</p>
+              </div>
             </div>
 
-            <h3 className="text-lg font-bold">¡Comisión Acreditada!</h3>
-            <p className="text-xs text-slate-300 mt-2 leading-relaxed">
-              {simulateSuccess.message}
-            </p>
-
-            {simulateSuccess.whatsappAlert && (
-              <div className="mt-4">
-                <a
-                  href={simulateSuccess.whatsappAlert}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 flex items-center justify-center gap-2 shadow"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  Avisar al Embajador por WhatsApp
-                </a>
+            <div className="space-y-3 text-xs text-slate-300 mb-6">
+              <div className="flex justify-between py-1 border-b border-slate-800/60">
+                <span className="text-slate-400">Embajador:</span>
+                <span className="font-bold text-white">{simulateSuccess.partnerName}</span>
               </div>
-            )}
+              <div className="flex justify-between py-1 border-b border-slate-800/60">
+                <span className="text-slate-400">Pago suscripción mensual:</span>
+                <span className="font-bold text-white">{formatCOP(simulateSuccess.subscriptionAmount)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-800/60">
+                <span className="text-slate-400">Comisión ganada:</span>
+                <span className="font-bold text-emerald-400 text-sm">+{formatCOP(simulateSuccess.commissionEarned)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-800/60">
+                <span className="text-slate-400">Nuevo saldo disponible:</span>
+                <span className="font-bold text-amber-400 text-sm">{formatCOP(simulateSuccess.newBalance)}</span>
+              </div>
+            </div>
 
-            <button
-              onClick={() => setSimulateSuccess(null)}
-              className="w-full mt-3 rounded-xl border border-slate-700 py-2 text-xs font-semibold text-slate-400 hover:text-white"
-            >
-              Cerrar
-            </button>
+            <div className="space-y-2">
+              <a
+                href={simulateSuccess.whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-3 shadow-md shadow-emerald-600/25 transition"
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span>Enviar Notificación por WhatsApp al Embajador</span>
+              </a>
+
+              <button
+                onClick={() => setSimulateSuccess(null)}
+                className="w-full rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs py-2.5 transition"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { normalizeReferralCode } from "@/lib/partners";
 
@@ -8,16 +7,34 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, email, phone, payoutMethod = "NEQUI", payoutAccount, customCode } = body;
+    const {
+      name,
+      email,
+      phone,
+      experience,
+      payoutMethod = "NEQUI",
+      payoutAccount,
+      customCode,
+    } = body;
 
     if (!name || !email || !phone) {
       return NextResponse.json(
-        { error: "Nombre, correo y WhatsApp son obligatorios para ser embajador." },
+        { error: "Nombre, correo y WhatsApp son obligatorios para postularte como embajador." },
         { status: 400 }
       );
     }
 
-    // Generar código de referido
+    if (!experience || experience.trim().length < 10) {
+      return NextResponse.json(
+        {
+          error:
+            "Por favor describe tu perfil u observaciones comerciales (mínimo 10 caracteres) para que el administrador pueda validar y aprobar tu solicitud.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Generar código de referido inicial
     let finalCode = "";
     if (customCode && customCode.trim()) {
       finalCode = normalizeReferralCode(customCode);
@@ -40,7 +57,7 @@ export async function POST(req: NextRequest) {
     });
     if (existingEmail) {
       return NextResponse.json(
-        { error: "Este correo electrónico ya está registrado como embajador. Por favor inicia sesión." },
+        { error: "Este correo electrónico ya está registrado. Por favor inicia sesión o consulta el estado de tu cuenta." },
         { status: 400 }
       );
     }
@@ -52,46 +69,39 @@ export async function POST(req: NextRequest) {
     });
     const defaultRate = latestPartner?.commissionRate ?? 0.20;
 
-    // Crear el embajador con la comisión definida por el administrador
+    // Crear el embajador en estado PENDING para que el Super Admin lo valide primero
     const partner = await prisma.partner.create({
       data: {
-        name,
-        email,
-        phone,
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        experience: experience.trim(),
         referralCode: finalCode,
         commissionRate: defaultRate,
         payoutMethod,
         payoutAccount: payoutAccount || phone,
-        status: "ACTIVE",
+        status: "PENDING", // Queda pendiente de validación manual
       },
-    });
-
-    // Guardar cookie de sesión del embajador (30 días)
-    const cookieStore = await cookies();
-    cookieStore.set("turnoya_partner_id", partner.id, {
-      path: "/",
-      maxAge: 30 * 24 * 60 * 60,
-      httpOnly: false,
-      sameSite: "lax",
     });
 
     return NextResponse.json({
       success: true,
+      pendingApproval: true,
+      message:
+        "¡Solicitud enviada con éxito! Revisaremos tu perfil comercial para validar tu cuenta. Te notificaremos a tu WhatsApp cuando quede activada.",
       partner: {
         id: partner.id,
         name: partner.name,
         email: partner.email,
         phone: partner.phone,
         referralCode: partner.referralCode,
-        commissionRate: partner.commissionRate,
-        balance: partner.balance,
+        status: partner.status,
       },
-      referralLink: `https://turnos.appzplay.online/?ref=${partner.referralCode}`,
     });
   } catch (error) {
     console.error("Error al registrar embajador:", error);
     return NextResponse.json(
-      { error: "Error al registrar el embajador." },
+      { error: "Error al registrar la solicitud de embajador." },
       { status: 500 }
     );
   }

@@ -153,7 +153,9 @@ model Partner {
   totalEarned     Float               @default(0)    // Total acumulado histórico ganado
   payoutMethod    String              @default("NEQUI") // "NEQUI", "DAVIPLATA", "BANCOLOMBIA", "PAYPAL", "EFECTIVO"
   payoutAccount   String?             // Número de celular o cuenta
-  status          String              @default("ACTIVE") // "ACTIVE", "PAUSED"
+  experience      String?             // Observaciones / perfil comercial / experiencia
+  status          String              @default("PENDING") // "PENDING", "ACTIVE", "REJECTED"
+  approvedAt      DateTime?
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
