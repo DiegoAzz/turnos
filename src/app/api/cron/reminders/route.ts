@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateReminderUrl } from "@/lib/whatsapp";
 import { sendLabsMobileSms } from "@/lib/sms";
+import { verifyAdminSession } from "@/lib/auth-security";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,23 @@ function parseReminderTimingMinutes(timingStr?: string): number {
 
 export async function GET(req: NextRequest) {
   try {
+    // Protección de seguridad para el Cron: autorizar solo si tiene CRON_SECRET o si es admin autenticado
+    const cronSecret = process.env.CRON_SECRET;
+    const authHeader = req.headers.get("authorization");
+    const querySecret = new URL(req.url).searchParams.get("secret");
+    const isAdmin = await verifyAdminSession();
+
+    if (cronSecret) {
+      const isAuthorized =
+        authHeader === `Bearer ${cronSecret}` ||
+        querySecret === cronSecret ||
+        isAdmin;
+
+      if (!isAuthorized) {
+        return NextResponse.json({ error: "No autorizado para ejecutar el cron de recordatorios." }, { status: 401 });
+      }
+    }
+
     const now = new Date();
     // Consultar citas de hoy con recordatorio no enviado y estado confirmado/pendiente
     const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));

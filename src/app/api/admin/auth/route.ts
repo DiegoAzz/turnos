@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { setAdminSessionCookie, verifyAdminSession } from "@/lib/auth-security";
 
 export const dynamic = "force-dynamic";
 
@@ -16,14 +17,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cookieStore = await cookies();
-    cookieStore.set("turnos_admin_session", "authenticated", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30, // 30 días
-    });
+    await setAdminSessionCookie();
 
     return NextResponse.json({ success: true, message: "Sesión iniciada con éxito." });
   } catch (error) {
@@ -33,10 +27,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const session = cookieStore.get("turnos_admin_session");
-  const isAuthenticated = session?.value === "authenticated";
-
+  const isAuthenticated = await verifyAdminSession();
   return NextResponse.json({ isAuthenticated });
 }
 

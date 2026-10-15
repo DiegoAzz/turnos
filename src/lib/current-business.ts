@@ -1,11 +1,9 @@
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { getVerifiedBusinessSlug, verifyAdminSession } from "@/lib/auth-security";
 
 export async function getCurrentBusiness(includeOptions?: any): Promise<any> {
-  const cookieStore = await cookies();
-  const selectedSlug = cookieStore.get("selected_business_slug")?.value;
-  const adminSession = cookieStore.get("turnos_admin_session")?.value;
-  const isAdmin = adminSession === "authenticated";
+  const selectedSlug = await getVerifiedBusinessSlug();
+  const isAdmin = await verifyAdminSession();
 
   let business: any = null;
   if (selectedSlug) {

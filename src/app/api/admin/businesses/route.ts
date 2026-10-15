@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { verifyAdminSession as verifyAdmin } from "@/lib/auth-security";
 
 export const dynamic = "force-dynamic";
-
-async function verifyAdmin(): Promise<boolean> {
-  const cookieStore = await cookies();
-  const session = cookieStore.get("turnos_admin_session");
-  return session?.value === "authenticated";
-}
 
 // GET /api/admin/businesses - Listar todas las empresas con métricas
 export async function GET() {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { setBusinessSessionCookie } from "@/lib/auth-security";
 
 export const dynamic = "force-dynamic";
 
@@ -48,12 +48,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cookieStore = await cookies();
-    cookieStore.set("selected_business_slug", business.slug, {
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
-      sameSite: "lax",
-    });
+    await setBusinessSessionCookie(business.slug);
 
     return NextResponse.json({
       success: true,

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import GoogleAuthButton from "@/components/GoogleAuthButton";
 
 export default function AfiliadosPage() {
   const router = useRouter();
@@ -511,6 +512,35 @@ export default function AfiliadosPage() {
                         </div>
                       )}
 
+                      {/* BOTÓN REGISTRO CON GOOGLE / GMAIL */}
+                      <div className="mb-6 space-y-3">
+                        <GoogleAuthButton
+                          endpoint="/api/auth/google/partner"
+                          text={
+                            postulationType === "FRANCHISE"
+                              ? "Postularme con Google / Gmail (Franquicia)"
+                              : "Registrarme con Google / Gmail"
+                          }
+                          postulationType={postulationType}
+                          franchiseName={franchiseName}
+                          franchiseCityCountry={franchiseCityCountry}
+                          onSuccess={(data) => {
+                            if (data.isExisting && data.status === "ACTIVE") {
+                              router.push("/afiliados/portal");
+                            } else {
+                              setRegistrationSuccess(data);
+                            }
+                          }}
+                        />
+
+                        <div className="relative flex items-center justify-center">
+                          <div className="border-t border-gray-200 w-full" />
+                          <span className="bg-white px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                            o con formulario manual
+                          </span>
+                        </div>
+                      </div>
+
                       <form onSubmit={handleRegister} className="space-y-4">
                         {/* CAMPOS EXCLUSIVOS DE FRANQUICIA */}
                         {postulationType === "FRANCHISE" && (
@@ -725,6 +755,28 @@ export default function AfiliadosPage() {
                       {loginError}
                     </div>
                   )}
+
+                  {/* BOTÓN INGRESO CON GOOGLE */}
+                  <div className="mb-6 space-y-3">
+                    <GoogleAuthButton
+                      endpoint="/api/auth/google/partner"
+                      text="Entrar a mi Portal con Google / Gmail"
+                      onSuccess={(data) => {
+                        if (data.isExisting && data.status === "ACTIVE") {
+                          router.push("/afiliados/portal");
+                        } else {
+                          setLoginError(data.message || "Tu cuenta vinculada a Gmail está en revisión.");
+                        }
+                      }}
+                    />
+
+                    <div className="relative flex items-center justify-center">
+                      <div className="border-t border-gray-200 w-full" />
+                      <span className="bg-white px-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                        o con tu código / WhatsApp
+                      </span>
+                    </div>
+                  </div>
 
                   <form onSubmit={handleLogin} className="space-y-4">
                     <div>

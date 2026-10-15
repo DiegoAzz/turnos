@@ -47,6 +47,9 @@ model Business {
   products               Product[]
   productSales           ProductSale[]
   partnerCommissions     PartnerCommission[]
+
+  @@index([partnerId])
+  @@index([active])
 }
 
 model Service {
@@ -96,6 +99,11 @@ model Appointment {
   reminderSent Boolean   @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  @@index([businessId, date])
+  @@index([businessId, status])
+  @@index([date, reminderSent])
+  @@index([clientPhone])
 }
 
 model Expense {
@@ -107,6 +115,8 @@ model Expense {
   category    String   @default("INSUMOS") // "INSUMOS", "TRANSPORTE", "SERVICIOS", "ARRIENDO", "OTRO"
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
+
+  @@index([businessId, date])
 }
 
 model Product {
@@ -125,6 +135,8 @@ model Product {
   updatedAt   DateTime      @updatedAt
 
   sales       ProductSale[]
+
+  @@index([businessId, active])
 }
 
 model ProductSale {
@@ -140,6 +152,8 @@ model ProductSale {
   clientName    String?
   date          DateTime  @default(now())
   createdAt     DateTime  @default(now())
+
+  @@index([businessId, date])
 }
 
 model Partner {
@@ -176,6 +190,9 @@ model Partner {
   referredBusinesses Business[]
   commissions        PartnerCommission[]
   payouts            PartnerPayout[]
+
+  @@index([isFranchise])
+  @@index([status])
 }
 
 model PartnerCommission {
@@ -191,6 +208,9 @@ model PartnerCommission {
   monthNumber        Int       @default(1)     // Número de mes de suscripción (1, 2, 3...)
   description        String    // ej: "Bono Inicial 1er Mes (50%) Plan PRO"
   createdAt          DateTime  @default(now())
+
+  @@index([partnerId])
+  @@index([businessId])
 }
 
 model PartnerPayout {
@@ -205,6 +225,8 @@ model PartnerPayout {
   notes         String?
   createdAt     DateTime  @default(now())
   processedAt   DateTime?
+
+  @@index([partnerId, status])
 }
 
 model PlatformSettings {

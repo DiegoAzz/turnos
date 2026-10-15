@@ -1,22 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { verifyAdminSession, setBusinessSessionCookie } from "@/lib/auth-security";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
+    const isAdmin = await verifyAdminSession();
+    if (!isAdmin) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
     const { slug } = await req.json();
 
     if (!slug) {
       return NextResponse.json({ error: "Slug requerido" }, { status: 400 });
     }
 
-    const cookieStore = await cookies();
-    cookieStore.set("selected_business_slug", slug, {
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30, // 30 días
-      sameSite: "lax",
-    });
+    await setBusinessSessionCookie(slug);
 
     return NextResponse.json({ success: true, slug });
   } catch (error) {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Calendar, KeyRound, Building2, ArrowRight, AlertCircle } from "lucide-react";
+import GoogleAuthButton from "@/components/GoogleAuthButton";
 
 export default function BusinessLoginPage() {
   const router = useRouter();
@@ -59,7 +60,22 @@ export default function BusinessLoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="mt-6 space-y-4">
+        {/* BOTÓN REGISTRO / INGRESO CON GOOGLE */}
+        <div className="space-y-4">
+          <GoogleAuthButton
+            endpoint="/api/auth/google/business"
+            text="Continuar con Google / Gmail"
+          />
+
+          <div className="relative flex items-center justify-center">
+            <div className="border-t border-gray-200 w-full" />
+            <span className="bg-white px-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+              o con tu PIN de negocio
+            </span>
+          </div>
+        </div>
+
+        <form onSubmit={handleLogin} className="mt-4 space-y-4">
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
               Nombre de tu Negocio, Slug o Correo
