@@ -42,6 +42,17 @@ export async function GET() {
       },
     });
 
+    // Obtener configuración global de comisiones
+    let globalFirstMonthRate = 0.50;
+    let globalRecurringRate = 0.20;
+    try {
+      const settings = await prisma.platformSettings.findUnique({ where: { id: "global" } });
+      if (settings) {
+        globalFirstMonthRate = settings.partnerFirstMonthRate ?? 0.50;
+        globalRecurringRate = settings.partnerRecurringRate ?? 0.20;
+      }
+    } catch (e) {}
+
     const data = partners.map((p) => {
       const activePayingClients = p.referredBusinesses.filter(
         (b) => b.plan !== "FREE" && b.active
@@ -53,6 +64,7 @@ export async function GET() {
         email: p.email,
         phone: p.phone,
         referralCode: p.referralCode,
+        firstMonthCommissionRate: p.firstMonthCommissionRate ?? 0.50,
         commissionRate: p.commissionRate,
         balance: p.balance,
         totalEarned: p.totalEarned,
@@ -68,7 +80,11 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ partners: data });
+    return NextResponse.json({
+      partners: data,
+      globalFirstMonthRate,
+      globalRecurringRate,
+    });
   } catch (error) {
     console.error("Error al listar embajadores:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
@@ -83,17 +99,40 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { partnerId, commissionRate, status, updateAll } = body;
+    const { partnerId, commissionRate, firstMonthCommissionRate, status, updateAll } = body;
 
-    if (updateAll && typeof commissionRate === "number") {
-      await prisma.partner.updateMany({
-        data: { commissionRate },
+    if (updateAll) {
+      const updateData: any = {};
+      if (typeof commissionRate === "number") updateData.commissionRate = commissionRate;
+      if (typeof firstMonthCommissionRate === "number") updateData.firstMonthCommissionRate = firstMonthCommissionRate;
+
+      if (Object.keys(updateData).length > 0) {
+        await prisma.partner.updateMany({ data: updateData });
+
+        // Guardar también en PlatformSettings para nuevos registros
+        await prisma.platformSettings.upsert({
+          where: { id: "global" },
+          update: {
+            ...(typeof firstMonthCommissionRate === "number" ? { partnerFirstMonthRate: firstMonthCommissionRate } : {}),
+            ...(typeof commissionRate === "number" ? { partnerRecurringRate: commissionRate } : {}),
+          },
+          create: {
+            id: "global",
+            partnerFirstMonthRate: typeof firstMonthCommissionRate === "number" ? firstMonthCommissionRate : 0.50,
+            partnerRecurringRate: typeof commissionRate === "number" ? commissionRate : 0.20,
+          },
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Comisiones de todos los embajadores y configuración global actualizadas con éxito.",
       });
-      return NextResponse.json({ success: true, message: `Comisión de todos los embajadores actualizada a ${commissionRate * 100}%` });
     }
 
     const dataToUpdate: any = {};
     if (typeof commissionRate === "number") dataToUpdate.commissionRate = commissionRate;
+    if (typeof firstMonthCommissionRate === "number") dataToUpdate.firstMonthCommissionRate = firstMonthCommissionRate;
     if (status) {
       dataToUpdate.status = status;
       if (status === "ACTIVE") {
@@ -110,5 +149,41 @@ export async function PATCH(req: NextRequest) {
   } catch (error) {
     console.error("Error al actualizar embajador:", error);
     return NextResponse.json({ error: "Error al actualizar" }, { status: 500 });
+  }
+}
+
+// DELETE /api/admin/partners - Eliminar embajador permanentemente de la base de datos
+export async function DELETE(req: NextRequest) {
+  const isAdmin = await verifyAdmin();
+  if (!isAdmin) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "ID de embajador requerido" }, { status: 400 });
+    }
+
+    // Desvincular cualquier negocio que haya referido para no romper integridad
+    await prisma.business.updateMany({
+      where: { partnerId: id },
+      data: { partnerId: null },
+    });
+
+    // Eliminar el embajador (sus comisiones y retiros se eliminan en cascada)
+    await prisma.partner.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Embajador eliminado permanentemente con éxito.",
+    });
+  } catch (error) {
+    console.error("Error al eliminar embajador:", error);
+    return NextResponse.json({ error: "Error al eliminar el embajador" }, { status: 500 });
   }
 }

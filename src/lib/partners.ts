@@ -8,8 +8,9 @@ export function normalizeReferralCode(code: string): string {
 }
 
 /**
- * Registra y acredita automáticamente la comisión recurrente a un embajador/socio
- * cuando un cliente paga o renueva su suscripción.
+ * Registra y acredita automáticamente la comisión a un embajador/socio.
+ * El PRIMER MES aplica un porcentaje mayor (Bono de Adquisición para motivarlo),
+ * y a partir del MES 2 en adelante aplica la comisión recurrente vitalicia.
  */
 export async function recordSubscriptionCommission({
   businessId,
@@ -35,7 +36,28 @@ export async function recordSubscriptionCommission({
       return { credited: false, reason: "El embajador no se encuentra activo." };
     }
 
-    const commissionAmount = Math.round(subscriptionAmount * partner.commissionRate * 100) / 100;
+    // Contar cuántas comisiones previas ha generado este negocio para este embajador
+    const previousCommissionsCount = await prisma.partnerCommission.count({
+      where: {
+        partnerId: partner.id,
+        businessId: business.id,
+      },
+    });
+
+    const isFirstMonth = previousCommissionsCount === 0;
+    const monthNumber = previousCommissionsCount + 1;
+
+    // Primer mes: gana una comisión inicial mayor para motivar su esfuerzo comercial
+    // Meses siguientes: gana la comisión recurrente vitalicia pactada
+    const appliedRate = isFirstMonth
+      ? (partner.firstMonthCommissionRate ?? 0.50)
+      : (partner.commissionRate ?? 0.20);
+
+    const commissionAmount = Math.round(subscriptionAmount * appliedRate * 100) / 100;
+
+    const description = isFirstMonth
+      ? `🔥 Bono Inicial 1er Mes (${Math.round(appliedRate * 100)}%) por captación de ${business.name} (${planName})`
+      : `🔄 Comisión Recurrente Mes #${monthNumber} (${Math.round(appliedRate * 100)}%) de ${business.name} (${planName})`;
 
     // Ejecutar transacción atómica: crear registro de comisión y sumar saldo a la billetera
     const [commission, updatedPartner] = await prisma.$transaction([
@@ -44,9 +66,11 @@ export async function recordSubscriptionCommission({
           partnerId: partner.id,
           businessId: business.id,
           subscriptionAmount,
-          commissionRate: partner.commissionRate,
+          commissionRate: appliedRate,
           amount: commissionAmount,
-          description: `Comisión mensual recurrente ${planName} de ${business.name}`,
+          isFirstMonth,
+          monthNumber,
+          description,
         },
       }),
       prisma.partner.update({
@@ -64,6 +88,10 @@ export async function recordSubscriptionCommission({
       partnerName: partner.name,
       partnerPhone: partner.phone,
       commissionAmount,
+      isFirstMonth,
+      monthNumber,
+      appliedRate,
+      recurringRate: partner.commissionRate,
       newBalance: updatedPartner.balance,
       businessName: business.name,
     };
@@ -74,7 +102,8 @@ export async function recordSubscriptionCommission({
 }
 
 /**
- * Genera el enlace de WhatsApp para notificar al embajador que recibió una comisión recurrente
+ * Genera el enlace de WhatsApp para notificar al embajador que recibió una comisión.
+ * Distingue con gran entusiasmo el bono de primer mes frente a las renovaciones recurrentes.
  */
 export function generatePartnerCommissionWhatsAppMessage({
   phone,
@@ -83,6 +112,10 @@ export function generatePartnerCommissionWhatsAppMessage({
   commissionAmount,
   currency = "COP",
   newBalance,
+  isFirstMonth = false,
+  monthNumber = 1,
+  appliedRate,
+  recurringRate,
 }: {
   phone: string;
   partnerName: string;
@@ -90,6 +123,10 @@ export function generatePartnerCommissionWhatsAppMessage({
   commissionAmount: number;
   currency?: string;
   newBalance: number;
+  isFirstMonth?: boolean;
+  monthNumber?: number;
+  appliedRate?: number;
+  recurringRate?: number;
 }): string {
   const cleanPhone = phone.replace(/[^0-9]/g, "");
   const formattedCommission = new Intl.NumberFormat("es-CO", {
@@ -104,16 +141,25 @@ export function generatePartnerCommissionWhatsAppMessage({
     maximumFractionDigits: 0,
   }).format(newBalance);
 
-  const text = `🎉 *¡Felicidades ${partnerName}! Nueva comisión recurrente ganada.*
-
-Tu cliente *${businessName}* acaba de pagar su suscripción de TurnoYa.
-
-💰 *Comisión ganada:* ${formattedCommission}
-🏦 *Tu saldo acumulado:* ${formattedBalance}
-
-Recuerda: ¡mientras tu cliente siga usando la app, seguirás cobrando mes a mes de por vida! 🚀
-
-Revisa tu portal aquí: https://turnos.appzplay.online/afiliados`;
+  let text = "";
+  if (isFirstMonth) {
+    const ratePct = appliedRate ? Math.round(appliedRate * 100) : 50;
+    const recPct = recurringRate ? Math.round(recurringRate * 100) : 20;
+    text = `*¡Felicidades ${partnerName}! Ganaste tu BONO INICIAL del PRIMER MES.*\n\n` +
+      `Acabas de captar a tu nuevo cliente *${businessName}* en TurnoYa.\n\n` +
+      `✓ *Bono Inicial 1er Mes (${ratePct}%):* ${formattedCommission}\n` +
+      `✓ *Tu saldo acumulado:* ${formattedBalance}\n\n` +
+      `➜ *Lo mejor:* a partir del mes 2 seguirás cobrando tu *comisión recurrente del ${recPct}%* todos los meses de por vida mientras tu cliente use la app.\n\n` +
+      `Revisa tu portal aquí: https://turnos.appzplay.online/afiliados`;
+  } else {
+    const ratePct = appliedRate ? Math.round(appliedRate * 100) : 20;
+    text = `*¡Felicidades ${partnerName}! Nueva comisión recurrente ganada (Mes #${monthNumber}).*\n\n` +
+      `Tu cliente *${businessName}* acaba de renovar su suscripción en TurnoYa.\n\n` +
+      `✓ *Comisión Recurrente (${ratePct}%):* ${formattedCommission}\n` +
+      `✓ *Tu saldo acumulado:* ${formattedBalance}\n\n` +
+      `¡Tu sueldo residual pasivo sigue creciendo mes a mes!\n\n` +
+      `Revisa tu portal aquí: https://turnos.appzplay.online/afiliados`;
+  }
 
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
 }

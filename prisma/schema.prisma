@@ -143,21 +143,22 @@ model ProductSale {
 }
 
 model Partner {
-  id              String              @id @default(cuid())
-  name            String
-  email           String              @unique
-  phone           String              // WhatsApp para coordinar retiros y avisos
-  referralCode    String              @unique // ej: "CARLOS10", "PRO-BOGOTA"
-  commissionRate  Float               @default(0.20) // Comisión recurrente vitalicia personalizada
-  balance         Float               @default(0)    // Saldo disponible para retirar
-  totalEarned     Float               @default(0)    // Total acumulado histórico ganado
-  payoutMethod    String              @default("NEQUI") // "NEQUI", "DAVIPLATA", "BANCOLOMBIA", "PAYPAL", "EFECTIVO"
-  payoutAccount   String?             // Número de celular o cuenta
-  experience      String?             // Observaciones / perfil comercial / experiencia
-  status          String              @default("PENDING") // "PENDING", "ACTIVE", "REJECTED"
-  approvedAt      DateTime?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  id                      String              @id @default(cuid())
+  name                    String
+  email                   String              @unique
+  phone                   String              // WhatsApp para coordinar retiros y avisos
+  referralCode            String              @unique // ej: "CARLOS10", "PRO-BOGOTA"
+  firstMonthCommissionRate Float              @default(0.50) // Bono inicial mayor para el 1er mes (captación)
+  commissionRate          Float               @default(0.20) // Comisión recurrente vitalicia personalizada (meses 2+)
+  balance                 Float               @default(0)    // Saldo disponible para retirar
+  totalEarned             Float               @default(0)    // Total acumulado histórico ganado
+  payoutMethod            String              @default("NEQUI") // "NEQUI", "DAVIPLATA", "BANCOLOMBIA", "PAYPAL", "EFECTIVO"
+  payoutAccount           String?             // Número de celular o cuenta
+  experience              String?             // Observaciones / perfil comercial / experiencia
+  status                  String              @default("PENDING") // "PENDING", "ACTIVE", "REJECTED"
+  approvedAt              DateTime?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
 
   referredBusinesses Business[]
   commissions        PartnerCommission[]
@@ -171,9 +172,11 @@ model PartnerCommission {
   businessId         String
   business           Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   subscriptionAmount Float     // Monto del pago de la suscripción (ej: 60000 COP o 19 USD)
-  commissionRate     Float     // Tasa aplicada personalizada (ej: 0.20 para 20%)
+  commissionRate     Float     // Tasa aplicada personalizada (ej: 0.50 primer mes, 0.20 meses posteriores)
   amount             Float     // Comisión ganada (calculada con su tasa asignada)
-  description        String    // ej: "Comisión mensual recurrente Plan PRO"
+  isFirstMonth       Boolean   @default(false) // Indica si fue bono de captación del primer mes
+  monthNumber        Int       @default(1)     // Número de mes de suscripción (1, 2, 3...)
+  description        String    // ej: "Bono Inicial 1er Mes (50%) Plan PRO"
   createdAt          DateTime  @default(now())
 }
 
@@ -203,6 +206,8 @@ model PlatformSettings {
   whatsappPaymentNumber String   @default("300 123 4567")
   proPriceCOP           Int      @default(60000)
   independientePriceCOP Int      @default(35000)
+  partnerFirstMonthRate Float    @default(0.50) // Tasa global por defecto 1er mes (ej: 50%)
+  partnerRecurringRate  Float    @default(0.20) // Tasa global por defecto meses siguientes (ej: 20%)
   updatedAt             DateTime @updatedAt
 }
 

@@ -19,6 +19,8 @@ export async function getPlatformSettings() {
         whatsappPaymentNumber: "300 123 4567",
         proPriceCOP: 60000,
         independientePriceCOP: 35000,
+        partnerFirstMonthRate: 0.50,
+        partnerRecurringRate: 0.20,
       },
     });
   }

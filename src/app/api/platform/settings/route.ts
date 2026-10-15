@@ -27,6 +27,8 @@ export async function GET() {
       whatsappPaymentNumber: settings.whatsappPaymentNumber,
       proPriceCOP: settings.proPriceCOP,
       independientePriceCOP: settings.independientePriceCOP,
+      partnerFirstMonthRate: settings.partnerFirstMonthRate ?? 0.50,
+      partnerRecurringRate: settings.partnerRecurringRate ?? 0.20,
       hasWompiConfigured: Boolean(settings.wompiPublicKey && settings.wompiPublicKey.trim()),
     });
   } catch (error) {
@@ -40,6 +42,8 @@ export async function GET() {
         whatsappPaymentNumber: "300 123 4567",
         proPriceCOP: 60000,
         independientePriceCOP: 35000,
+        partnerFirstMonthRate: 0.50,
+        partnerRecurringRate: 0.20,
         hasWompiConfigured: false,
       },
       { status: 200 }
@@ -67,6 +71,8 @@ export async function PATCH(req: NextRequest) {
       whatsappPaymentNumber,
       proPriceCOP,
       independientePriceCOP,
+      partnerFirstMonthRate,
+      partnerRecurringRate,
     } = body;
 
     const dataToUpdate: any = {};
@@ -82,6 +88,8 @@ export async function PATCH(req: NextRequest) {
     if (typeof whatsappPaymentNumber === "string") dataToUpdate.whatsappPaymentNumber = whatsappPaymentNumber.trim();
     if (typeof proPriceCOP === "number") dataToUpdate.proPriceCOP = proPriceCOP;
     if (typeof independientePriceCOP === "number") dataToUpdate.independientePriceCOP = independientePriceCOP;
+    if (typeof partnerFirstMonthRate === "number") dataToUpdate.partnerFirstMonthRate = partnerFirstMonthRate;
+    if (typeof partnerRecurringRate === "number") dataToUpdate.partnerRecurringRate = partnerRecurringRate;
 
     const updated = await prisma.platformSettings.upsert({
       where: { id: "global" },

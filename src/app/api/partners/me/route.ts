@@ -90,6 +90,7 @@ export async function GET(req: NextRequest) {
         email: partner.email,
         phone: partner.phone,
         referralCode: partner.referralCode,
+        firstMonthCommissionRate: partner.firstMonthCommissionRate ?? 0.50,
         commissionRate: partner.commissionRate,
         balance: partner.balance,
         totalEarned: partner.totalEarned,

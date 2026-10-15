@@ -56,18 +56,53 @@ export async function POST(req: NextRequest) {
       where: { email },
     });
     if (existingEmail) {
+      if (existingEmail.status === "PENDING" || existingEmail.status === "REJECTED") {
+        // El postulante se equivocó (ej: en el teléfono) y está corrigiendo sus datos
+        const updatedPartner = await prisma.partner.update({
+          where: { id: existingEmail.id },
+          data: {
+            name: name.trim(),
+            phone: phone.trim(),
+            experience: experience.trim(),
+            payoutMethod,
+            payoutAccount: payoutAccount || phone,
+            status: "PENDING", // Reactivar a revisión
+          },
+        });
+
+        return NextResponse.json({
+          success: true,
+          pendingApproval: true,
+          message: `¡Datos actualizados con éxito! Hemos corregido tu número de WhatsApp (${phone.trim()}) y tu postulación está en revisión para validación del administrador.`,
+          partner: {
+            id: updatedPartner.id,
+            name: updatedPartner.name,
+            email: updatedPartner.email,
+            phone: updatedPartner.phone,
+            referralCode: updatedPartner.referralCode,
+            status: updatedPartner.status,
+          },
+        });
+      }
+
       return NextResponse.json(
-        { error: "Este correo electrónico ya está registrado. Por favor inicia sesión o consulta el estado de tu cuenta." },
+        { error: "Tu cuenta de embajador ya está activa. Si deseas actualizar tu número de WhatsApp o medios de pago, puedes ingresar a tu portal de afiliados." },
         { status: 400 }
       );
     }
 
-    // Heredar la tasa de comisión configurada por el administrador (o 0.20 por defecto)
-    const latestPartner = await prisma.partner.findFirst({
-      orderBy: { createdAt: "desc" },
-      select: { commissionRate: true },
-    });
-    const defaultRate = latestPartner?.commissionRate ?? 0.20;
+    // Heredar las tasas de comisión configuradas por el administrador
+    let defaultFirstMonthRate = 0.50;
+    let defaultRecurringRate = 0.20;
+    try {
+      const platformSettings = await prisma.platformSettings.findUnique({ where: { id: "global" } });
+      if (platformSettings) {
+        defaultFirstMonthRate = platformSettings.partnerFirstMonthRate ?? 0.50;
+        defaultRecurringRate = platformSettings.partnerRecurringRate ?? 0.20;
+      }
+    } catch (e) {
+      // Usar defaults si falla
+    }
 
     // Crear el embajador en estado PENDING para que el Super Admin lo valide primero
     const partner = await prisma.partner.create({
@@ -77,7 +112,8 @@ export async function POST(req: NextRequest) {
         phone: phone.trim(),
         experience: experience.trim(),
         referralCode: finalCode,
-        commissionRate: defaultRate,
+        firstMonthCommissionRate: defaultFirstMonthRate,
+        commissionRate: defaultRecurringRate,
         payoutMethod,
         payoutAccount: payoutAccount || phone,
         status: "PENDING", // Queda pendiente de validación manual

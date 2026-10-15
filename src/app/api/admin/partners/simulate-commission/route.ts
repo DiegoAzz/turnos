@@ -41,6 +41,10 @@ export async function POST(req: NextRequest) {
         commissionAmount: result.commissionAmount || 0,
         currency: "COP",
         newBalance: result.newBalance || 0,
+        isFirstMonth: result.isFirstMonth,
+        monthNumber: result.monthNumber,
+        appliedRate: result.appliedRate,
+        recurringRate: result.recurringRate,
       });
     }
 

@@ -31,6 +31,7 @@ export default function AfiliadosPage() {
 
   // Estado formulario registro
   const [name, setName] = useState("");
+  const [countryCode, setCountryCode] = useState("+57");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [experience, setExperience] = useState("");
@@ -72,16 +73,22 @@ export default function AfiliadosPage() {
     setLoading(true);
 
     try {
+      const cleanDigits = phone.replace(/[^0-9]/g, "");
+      const cleanCode = countryCode.replace(/[^0-9]/g, "");
+      const fullPhone = cleanDigits.startsWith(cleanCode)
+        ? `+${cleanDigits}`
+        : `${countryCode} ${phone.trim()}`;
+
       const res = await fetch("/api/partners/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
-          phone,
+          phone: fullPhone,
           email,
           experience,
           payoutMethod,
-          payoutAccount: payoutAccount || phone,
+          payoutAccount: payoutAccount || fullPhone,
           customCode,
         }),
       });
@@ -401,14 +408,43 @@ export default function AfiliadosPage() {
                           <label className="block text-xs font-semibold text-gray-700 mb-1">
                             Tu WhatsApp (para validar tu cuenta y coordinar pagos) *
                           </label>
-                          <input
-                            type="tel"
-                            required
-                            placeholder="Ej. +57 300 123 4567"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
-                          />
+                          <div className="flex rounded-xl border border-gray-300 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 overflow-hidden bg-white">
+                            <select
+                              value={countryCode}
+                              onChange={(e) => setCountryCode(e.target.value)}
+                              className="bg-gray-50 border-r border-gray-300 px-2.5 py-2.5 text-xs text-gray-700 font-bold focus:outline-none cursor-pointer"
+                            >
+                              <option value="+57">🇨🇴 +57 (Colombia)</option>
+                              <option value="+52">🇲🇽 +52 (México)</option>
+                              <option value="+1">🇺🇸 +1 (USA / Canadá)</option>
+                              <option value="+34">🇪🇸 +34 (España)</option>
+                              <option value="+54">🇦🇷 +54 (Argentina)</option>
+                              <option value="+56">🇨🇱 +56 (Chile)</option>
+                              <option value="+51">🇵🇪 +51 (Perú)</option>
+                              <option value="+593">🇪🇨 +593 (Ecuador)</option>
+                              <option value="+507">🇵🇦 +507 (Panamá)</option>
+                              <option value="+58">🇻🇪 +58 (Venezuela)</option>
+                              <option value="+506">🇨🇷 +506 (Costa Rica)</option>
+                              <option value="+502">🇬🇹 +502 (Guatemala)</option>
+                              <option value="+503">🇸🇻 +503 (El Salvador)</option>
+                              <option value="+504">🇭🇳 +504 (Honduras)</option>
+                              <option value="+591">🇧🇴 +591 (Bolivia)</option>
+                              <option value="+598">🇺🇾 +598 (Uruguay)</option>
+                              <option value="+595">🇵🇾 +595 (Paraguay)</option>
+                              <option value="+1809">🇩🇴 +1 (Rep. Dominicana)</option>
+                            </select>
+                            <input
+                              type="tel"
+                              required
+                              placeholder="Ej. 300 123 4567"
+                              value={phone}
+                              onChange={(e) => setPhone(e.target.value)}
+                              className="w-full px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none font-medium"
+                            />
+                          </div>
+                          <p className="mt-1 text-[11px] text-gray-400">
+                            Selecciona tu país e ingresa tu número móvil para coordinar tus retiros por WhatsApp.
+                          </p>
                         </div>
 
                         <div>

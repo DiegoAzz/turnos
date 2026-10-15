@@ -166,9 +166,14 @@ export default function PartnerPortalPage() {
             <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold text-gray-900">
               Panel de {partner.name}
             </h1>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              Comisión recurrente activa: <strong>{partner.commissionRate * 100}% de por vida</strong> sobre cada cliente que mantengas.
-            </p>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 border border-amber-300 px-3 py-0.5 text-xs font-black text-amber-900">
+                🔥 Bono 1er Mes: {Math.round((partner.firstMonthCommissionRate ?? 0.50) * 100)}%
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-3 py-0.5 text-xs font-black text-emerald-900">
+                🔄 Recurrente Mes 2+: {Math.round(partner.commissionRate * 100)}% vitalicio
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -420,8 +425,15 @@ export default function PartnerPortalPage() {
                         <td className="py-2.5 px-3 text-gray-500 whitespace-nowrap">
                           {new Date(c.createdAt).toLocaleDateString("es-ES")}
                         </td>
-                        <td className="py-2.5 px-3 text-gray-900 font-medium truncate max-w-[200px]">
-                          {c.description}
+                        <td className="py-2.5 px-3 text-gray-900 font-medium">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {c.isFirstMonth && (
+                              <span className="rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-black px-2 py-0.5">
+                                🔥 1er Mes
+                              </span>
+                            )}
+                            <span className="truncate max-w-[240px]">{c.description}</span>
+                          </div>
                         </td>
                         <td className="py-2.5 px-3 text-right font-bold text-emerald-600">
                           +{formatCOP(c.amount)}
