@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getPlatformSettings } from "@/lib/settings";
+import { verifyAdminSession as verifyAdmin } from "@/lib/auth-security";
 
 export const dynamic = "force-dynamic";
-
-async function verifyAdmin(): Promise<boolean> {
-  const cookieStore = await cookies();
-  const session = cookieStore.get("turnos_admin_session");
-  return session?.value === "authenticated";
-}
 
 // GET: Retorna la configuración de pagos activa para el dashboard y la plataforma
 export async function GET() {

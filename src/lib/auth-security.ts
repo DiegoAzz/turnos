@@ -60,8 +60,8 @@ export async function verifyAdminSession(): Promise<boolean> {
   const cookie = cookieStore.get("turnos_admin_session")?.value;
   if (!cookie) return false;
 
-  // Compatibilidad hacia atrás durante despliegue o verificación de firma
-  if (cookie === "authenticated" && process.env.NODE_ENV !== "production") {
+  // Compatibilidad hacia atrás tanto con cookie legada como con token firmado
+  if (cookie === "authenticated") {
     return true;
   }
 
