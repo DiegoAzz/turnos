@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import SubscriptionManager from "./SubscriptionManager";
 
+export const dynamic = "force-dynamic";
 
 export default async function SuscripcionPage() {
   const business = await prisma.business.findFirst({

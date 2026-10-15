@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import DashboardClientActions from "./DashboardClientActions";
 
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const business = await prisma.business.findFirst({

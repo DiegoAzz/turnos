@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import DashboardClientActions from "../DashboardClientActions";
 
+export const dynamic = "force-dynamic";
 
 export default async function CitasPage() {
   const business = await prisma.business.findFirst({

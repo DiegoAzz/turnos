@@ -5,11 +5,12 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Iniciando seed de datos para TurnoYa...");
 
-  // Limpiar datos existentes de prueba si existen
-  await prisma.appointment.deleteMany();
-  await prisma.workingHour.deleteMany();
-  await prisma.service.deleteMany();
-  await prisma.business.deleteMany();
+  // Si ya existe un negocio configurado en PostgreSQL, no sobreescribir datos reales
+  const existing = await prisma.business.findFirst();
+  if (existing) {
+    console.log(`Ya existe el negocio "${existing.name}" en la base de datos. Saltando seed.`);
+    return;
+  }
 
   // 1. Crear Negocio Demo
   const business = await prisma.business.create({

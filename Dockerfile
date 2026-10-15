@@ -16,14 +16,12 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Environment variables for build stage
-ENV DATABASE_URL="file:./dev.db"
-ENV NEXT_PUBLIC_APP_URL="http://localhost:3000"
+ENV DATABASE_URL="postgresql://user:password@localhost:5432/turnos?schema=public"
+ENV NEXT_PUBLIC_APP_URL="https://turnos.appzplay.online"
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Generate Prisma Client, sync db and build
+# Generate Prisma Client and build Next.js application
 RUN npx prisma generate
-RUN npx prisma db push --accept-data-loss
-RUN npx tsx prisma/seed.ts
 RUN npm run build
 
 # Production image, copy all the files and run next
@@ -32,7 +30,6 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV DATABASE_URL="file:./dev.db"
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
@@ -45,7 +42,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
 RUN chown -R nextjs:nodejs /app && chmod -R 777 /app
 
@@ -53,4 +52,4 @@ USER nextjs
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate && npx tsx prisma/seed.ts && exec node server.js"]
