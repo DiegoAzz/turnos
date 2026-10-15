@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   Calendar,
   LayoutDashboard,
@@ -39,32 +40,16 @@ export default async function DashboardLayout({
     });
   }
 
-  if (!business && allBusinesses.length > 0) {
+  // Solo el Super Admin tiene acceso fallback al primer negocio si no ha seleccionado ninguno
+  if (!business && isAdmin && allBusinesses.length > 0) {
     business = await prisma.business.findFirst({
       orderBy: { createdAt: "asc" },
     });
   }
 
-  // Si no hay ningún negocio en el sistema
+  // Si no hay negocio conectado ni es Super Admin, redirigir a inicio de sesión
   if (!business) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-2xl border border-gray-200 text-center max-w-md shadow-sm">
-          <Calendar className="h-12 w-12 text-emerald-600 mx-auto mb-3" />
-          <h2 className="text-xl font-bold text-gray-900">No hay negocios registrados</h2>
-          <p className="text-sm text-gray-500 mt-2">
-            Entra al panel de Super Admin para dar de alta tu primera empresa.
-          </p>
-          <Link
-            href="/admin"
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-emerald-600 text-white px-5 py-2.5 font-bold text-sm shadow hover:bg-emerald-500 transition"
-          >
-            <ShieldCheck className="h-4 w-4" />
-            <span>Ir al Super Admin</span>
-          </Link>
-        </div>
-      </div>
-    );
+    redirect("/login");
   }
 
   // Si la empresa está suspendida y no es el Super Admin

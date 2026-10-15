@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle, Settings, Check, Clock, Sparkles, AlertCircle } from "lucide-react";
+import { MessageCircle, Clock, Check, Sparkles, Plus, Sliders } from "lucide-react";
 
 interface ReminderSettingsProps {
   business: {
@@ -21,7 +21,19 @@ export default function ReminderSettingsModal({
   onSaved,
 }: ReminderSettingsProps) {
   const [enabled, setEnabled] = useState(business.autoRemindersEnabled ?? true);
-  const [timing, setTiming] = useState(business.reminderTiming || "2_HOURS_BEFORE");
+  
+  // Analizar valor actual de timing
+  const initialTiming = business.reminderTiming || "15_MINUTES_BEFORE";
+  const isCustomInitial = initialTiming.startsWith("CUSTOM_");
+
+  const [timing, setTiming] = useState(isCustomInitial ? "CUSTOM" : initialTiming);
+  const [customValue, setCustomValue] = useState(
+    isCustomInitial ? initialTiming.split("_")[1] || "30" : "30"
+  );
+  const [customUnit, setCustomUnit] = useState(
+    isCustomInitial ? initialTiming.split("_")[2] || "MINUTES" : "MINUTES"
+  );
+
   const [template, setTemplate] = useState(
     business.reminderMessageTemplate ||
       `Hola {cliente} 👋 Te recordamos tu cita hoy en *{negocio}*:
@@ -39,10 +51,21 @@ Por favor responde:
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  // Insertar variable en el cursor o al final del texto
+  const insertVariable = (variable: string) => {
+    setTemplate((prev) => prev + " " + variable);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setSavedSuccess(false);
+
+    // Calcular el string final de timing
+    const finalTiming =
+      timing === "CUSTOM"
+        ? `CUSTOM_${customValue}_${customUnit}`
+        : timing;
 
     try {
       const res = await fetch("/api/business/settings", {
@@ -51,7 +74,7 @@ Por favor responde:
         body: JSON.stringify({
           businessId: business.id,
           autoRemindersEnabled: enabled,
-          reminderTiming: timing,
+          reminderTiming: finalTiming,
           reminderMessageTemplate: template,
         }),
       });
@@ -82,7 +105,7 @@ Por favor responde:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-gray-100 relative max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-gray-100 relative max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
@@ -143,37 +166,97 @@ Por favor responde:
               onChange={(e) => setTiming(e.target.value)}
               className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs text-gray-900 focus:outline-none focus:border-emerald-500 font-medium"
             >
+              <option value="15_MINUTES_BEFORE">⚡ 15 minutos antes de la cita (Predeterminado)</option>
+              <option value="30_MINUTES_BEFORE">⏱️ 30 minutos antes de la cita</option>
               <option value="1_HOUR_BEFORE">⏱️ 1 hora antes de la cita</option>
-              <option value="2_HOURS_BEFORE">⏱️ 2 horas antes de la cita (Recomendado)</option>
-              <option value="4_HOURS_BEFORE">⏱️ 4 horas antes de la cita</option>
+              <option value="2_HOURS_BEFORE">⏱️ 2 horas antes de la cita</option>
               <option value="24_HOURS_BEFORE">📅 24 horas antes (1 día de anticipación)</option>
               <option value="SAME_DAY_MORNING">☀️ El mismo día por la mañana (8:00 AM)</option>
+              <option value="CUSTOM">⚙️ Personalizado (Elegir minutos u horas a medida)</option>
             </select>
+
+            {/* CAMPOS CUANDO ELIGE PERSONALIZADO */}
+            {timing === "CUSTOM" && (
+              <div className="mt-3 p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl flex items-center gap-3">
+                <Sliders className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span className="text-xs font-semibold text-emerald-950">Enviar</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={customValue}
+                  onChange={(e) => setCustomValue(e.target.value)}
+                  className="w-20 bg-white border border-emerald-300 rounded-xl px-3 py-1.5 text-xs font-bold text-emerald-900 text-center focus:outline-none"
+                />
+                <select
+                  value={customUnit}
+                  onChange={(e) => setCustomUnit(e.target.value)}
+                  className="bg-white border border-emerald-300 rounded-xl px-3 py-1.5 text-xs font-bold text-emerald-900 focus:outline-none"
+                >
+                  <option value="MINUTES">Minutos antes</option>
+                  <option value="HOURS">Horas antes</option>
+                  <option value="DAYS">Días antes</option>
+                </select>
+              </div>
+            )}
           </div>
 
-          {/* PLANTILLA DE MENSAJE PERSONALIZADA */}
+          {/* PLANTILLA DE MENSAJE PERSONALIZADA Y EDITABLE */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-bold text-gray-800">
-                Plantilla del Mensaje de WhatsApp
+                Plantilla del Mensaje de WhatsApp (Editable)
               </label>
               <span className="text-[10px] text-gray-400">
-                Variables: &#123;cliente&#125;, &#123;hora&#125;, &#123;servicio&#125;, &#123;negocio&#125;
+                Variables dinámicas
               </span>
             </div>
+
+            {/* BOTONES RÁPIDOS PARA INSERTAR VARIABLES */}
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              <button
+                type="button"
+                onClick={() => insertVariable("{cliente}")}
+                className="text-[11px] bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 px-2 py-0.5 rounded-lg border border-gray-200 font-mono transition"
+              >
+                + &#123;cliente&#125;
+              </button>
+              <button
+                type="button"
+                onClick={() => insertVariable("{hora}")}
+                className="text-[11px] bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 px-2 py-0.5 rounded-lg border border-gray-200 font-mono transition"
+              >
+                + &#123;hora&#125;
+              </button>
+              <button
+                type="button"
+                onClick={() => insertVariable("{servicio}")}
+                className="text-[11px] bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 px-2 py-0.5 rounded-lg border border-gray-200 font-mono transition"
+              >
+                + &#123;servicio&#125;
+              </button>
+              <button
+                type="button"
+                onClick={() => insertVariable("{negocio}")}
+                className="text-[11px] bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 px-2 py-0.5 rounded-lg border border-gray-200 font-mono transition"
+              >
+                + &#123;negocio&#125;
+              </button>
+            </div>
+
             <textarea
               disabled={!enabled}
               rows={5}
               value={template}
               onChange={(e) => setTemplate(e.target.value)}
-              className="w-full bg-white border border-gray-300 rounded-xl p-3 text-xs text-gray-900 font-mono focus:outline-none focus:border-emerald-500"
+              className="w-full bg-white border border-gray-300 rounded-xl p-3 text-xs text-gray-900 font-mono focus:outline-none focus:border-emerald-500 leading-relaxed"
             />
           </div>
 
           {/* VISTA PREVIA ESTILO BURBUJA WHATSAPP */}
           <div>
             <label className="text-[11px] font-bold text-gray-500 block mb-1">
-              Vista Previa de cómo le llegará al cliente:
+              Vista Previa en Tiempo Real:
             </label>
             <div className="bg-[#EFEAE2] p-3.5 rounded-2xl border border-gray-200">
               <div className="bg-white p-3 rounded-xl rounded-tl-none shadow-sm text-xs text-gray-800 whitespace-pre-wrap max-w-sm">

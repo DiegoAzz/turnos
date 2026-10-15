@@ -60,14 +60,50 @@ export default function BookingPage({
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
+  const [scheduleMode, setScheduleMode] = useState<"DEFAULT" | "ALL_HOURS">("DEFAULT");
   const [clientName, setClientName] = useState("");
   const [countryCode, setCountryCode] = useState("+57");
   const [clientPhone, setClientPhone] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [clientNotes, setClientNotes] = useState("");
+  const [isReturningClient, setIsReturningClient] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState<any | null>(null);
+
+  // Cargar datos previos de cliente frecuente guardados en el navegador
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const savedName = localStorage.getItem("turnoya_client_name");
+        const savedPhone = localStorage.getItem("turnoya_client_phone");
+        const savedEmail = localStorage.getItem("turnoya_client_email");
+        const savedCountry = localStorage.getItem("turnoya_client_country");
+
+        if (savedName) setClientName(savedName);
+        if (savedPhone) setClientPhone(savedPhone);
+        if (savedEmail) setClientEmail(savedEmail);
+        if (savedCountry) setCountryCode(savedCountry);
+
+        if (savedName || savedPhone) {
+          setIsReturningClient(true);
+        }
+      }
+    } catch (_) {}
+  }, []);
+
+  const handleClearSavedData = () => {
+    try {
+      localStorage.removeItem("turnoya_client_name");
+      localStorage.removeItem("turnoya_client_phone");
+      localStorage.removeItem("turnoya_client_email");
+      localStorage.removeItem("turnoya_client_country");
+    } catch (_) {}
+    setClientName("");
+    setClientPhone("");
+    setClientEmail("");
+    setIsReturningClient(false);
+  };
 
   // Generar los próximos 14 días para reservar
   const availableDates = Array.from({ length: 14 }).map((_, index) => {
@@ -124,7 +160,24 @@ export default function BookingPage({
 
   // Generar franjas horarias del día seleccionado
   const generateSlotsForSelectedDate = () => {
-    if (!selectedDate || workingHours.length === 0) return [];
+    if (!selectedDate) return [];
+
+    // Modo 1: Todas las horas (horario extendido de 06:00 a 23:30 para barberos o turnos especiales)
+    if (scheduleMode === "ALL_HOURS") {
+      const allSlots: string[] = [];
+      let currentMin = 6 * 60; // 06:00 AM
+      const endMin = 23 * 60 + 30; // 23:30 PM
+      while (currentMin <= endMin) {
+        const h = Math.floor(currentMin / 60);
+        const m = currentMin % 60;
+        allSlots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+        currentMin += 30;
+      }
+      return allSlots;
+    }
+
+    // Modo 2: Horario habitual configurado por el negocio
+    if (workingHours.length === 0) return [];
     const dateObj = new Date(`${selectedDate}T12:00:00.000Z`);
     const dayOfWeek = dateObj.getDay();
 
@@ -185,6 +238,16 @@ export default function BookingPage({
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "No se pudo agendar la cita.");
+
+      // Guardar datos en el teléfono/navegador del cliente frecuente
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("turnoya_client_name", clientName);
+          localStorage.setItem("turnoya_client_phone", cleanDigits);
+          if (clientEmail) localStorage.setItem("turnoya_client_email", clientEmail);
+          if (countryCode) localStorage.setItem("turnoya_client_country", countryCode);
+        }
+      } catch (_) {}
 
       setBookingSuccess(data);
       setStep(5);
@@ -374,13 +437,53 @@ export default function BookingPage({
               </button>
 
               <div className="mb-4">
-                <h2 className="text-lg font-bold text-gray-900">3. Selecciona la hora</h2>
-                <p className="text-xs text-gray-500">Horarios disponibles para {selectedDate}</p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">3. Selecciona la hora</h2>
+                    <p className="text-xs text-gray-500">Horarios para {selectedDate}</p>
+                  </div>
+
+                  {/* Selector Horario Habitual vs Horario Extendido (Todas las Horas) */}
+                  <div className="flex items-center bg-gray-100 p-1 rounded-xl self-start sm:self-auto border border-gray-200">
+                    <button
+                      type="button"
+                      onClick={() => setScheduleMode("DEFAULT")}
+                      className={`px-3 py-1.5 text-xs rounded-lg transition ${
+                        scheduleMode === "DEFAULT"
+                          ? "bg-white text-emerald-800 shadow-sm font-bold"
+                          : "text-gray-500 hover:text-gray-900 font-medium"
+                      }`}
+                    >
+                      Horario habitual
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScheduleMode("ALL_HOURS")}
+                      className={`px-3 py-1.5 text-xs rounded-lg transition flex items-center gap-1.5 ${
+                        scheduleMode === "ALL_HOURS"
+                          ? "bg-white text-emerald-800 shadow-sm font-bold"
+                          : "text-gray-500 hover:text-gray-900 font-medium"
+                      }`}
+                    >
+                      <span>Todas las horas (Extendido)</span>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1 py-0.2 rounded font-bold">24h</span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {timeSlots.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
-                  El negocio no atiende en el día seleccionado. Por favor elige otra fecha.
+                <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500 bg-gray-50/50">
+                  <p className="font-semibold text-gray-700">El negocio no tiene horario habitual configurado para este día.</p>
+                  <p className="text-xs text-gray-400 mt-1">¿El profesional está disponible fuera de hora habitual?</p>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleMode("ALL_HOURS")}
+                    className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm transition"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>Ver todas las horas disponibles (Extendido)</span>
+                  </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
@@ -436,6 +539,26 @@ export default function BookingPage({
                 <h2 className="text-lg font-bold text-gray-900">4. Datos de contacto</h2>
                 <p className="text-xs text-gray-500">Para enviarte la confirmación y recordatorio</p>
               </div>
+
+              {/* BANNER CLIENTE FRECUENTE AUTO-RECORDADO */}
+              {isReturningClient && (
+                <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs text-emerald-950 animate-in fade-in">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">👋</span>
+                    <div>
+                      <p className="font-bold">¡Hola de nuevo{clientName ? `, ${clientName.split(" ")[0]}` : ""}!</p>
+                      <p className="text-[11px] text-emerald-700">Tus datos se autocompletaron para que agendes en 1 clic.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearSavedData}
+                    className="text-[10px] text-emerald-800 hover:text-emerald-950 underline font-semibold px-2 py-1 shrink-0"
+                  >
+                    ¿Cambiar datos?
+                  </button>
+                </div>
+              )}
 
               {/* RESUMEN PREVIO */}
               <div className="mb-5 rounded-xl bg-gray-50 p-3.5 border border-gray-200 text-xs space-y-1.5 text-gray-700">

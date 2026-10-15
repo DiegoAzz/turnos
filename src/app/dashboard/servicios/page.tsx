@@ -1,4 +1,5 @@
 import { getCurrentBusiness } from "@/lib/current-business";
+import { redirect } from "next/navigation";
 import ServiciosManager from "./ServiciosManager";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +11,7 @@ export default async function ServiciosPage() {
     },
   });
 
-  if (!business) return null;
+  if (!business) redirect("/login");
 
   return (
     <div className="space-y-6">

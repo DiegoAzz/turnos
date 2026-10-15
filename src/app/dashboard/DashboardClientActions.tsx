@@ -1,44 +1,28 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { MessageCircle, Check, X, Bell, Volume2, VolumeX, Sparkles, Settings } from "lucide-react";
+import {
+  MessageCircle,
+  Check,
+  X,
+  Bell,
+  Volume2,
+  VolumeX,
+  Settings,
+  Sparkles,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+} from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import ReminderSettingsModal from "@/components/ReminderSettingsModal";
-
-// Función para reproducir sonido de campana/ding nativo con Web Audio API
-function playChimeSound() {
-  try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-
-    // Primer tono (Agudo)
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = "sine";
-    osc1.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-    gain1.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    osc1.start(ctx.currentTime);
-    osc1.stop(ctx.currentTime + 0.6);
-
-    // Segundo tono (Armónico alegre)
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = "sine";
-    osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.15); // A5
-    gain2.gain.setValueAtTime(0.35, ctx.currentTime + 0.15);
-    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.9);
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    osc2.start(ctx.currentTime + 0.15);
-    osc2.stop(ctx.currentTime + 0.9);
-  } catch (e) {
-    console.warn("AudioContext no disponible o bloqueado por el navegador:", e);
-  }
-}
+import {
+  playAlertChime,
+  unlockAudio,
+  requestSystemNotificationPermission,
+  showSystemNotification,
+} from "@/lib/sound";
 
 // Formatear teléfono para mostrar con formato limpio (ej. +57 310 601 7261)
 function formatDisplayPhone(phone: string): string {
@@ -50,6 +34,59 @@ function formatDisplayPhone(phone: string): string {
     return `+57 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
   }
   return phone;
+}
+
+const SPANISH_MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const SPANISH_DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+// Formatear la fecha en que está agendada la cita
+function formatAppointmentDate(dateInput: string | Date | undefined): string {
+  if (!dateInput) return "";
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return "";
+
+  const dateStr = typeof dateInput === "string" ? dateInput : d.toISOString();
+  const [yearStr, monthStr, dayStr] = dateStr.slice(0, 10).split("-");
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10) - 1;
+  const day = parseInt(dayStr, 10);
+
+  const targetDate = new Date(year, month, day);
+  const dayOfWeek = SPANISH_DAYS[targetDate.getDay()];
+  const monthName = SPANISH_MONTHS[month];
+
+  const today = new Date();
+  const isToday =
+    today.getFullYear() === year &&
+    today.getMonth() === month &&
+    today.getDate() === day;
+
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+  const isTomorrow =
+    tomorrow.getFullYear() === year &&
+    tomorrow.getMonth() === month &&
+    tomorrow.getDate() === day;
+
+  if (isToday) return `Hoy (${day} ${monthName})`;
+  if (isTomorrow) return `Mañana (${day} ${monthName})`;
+  return `${dayOfWeek}, ${day} ${monthName} ${year}`;
+}
+
+// Formatear cuándo fue reservada/creada la cita por el cliente
+function formatCreatedAt(createdAtInput: string | Date | undefined): string {
+  if (!createdAtInput) return "";
+  const d = new Date(createdAtInput);
+  if (isNaN(d.getTime())) return "";
+
+  const day = d.getDate().toString().padStart(2, "0");
+  const monthName = SPANISH_MONTHS[d.getMonth()];
+  let hours = d.getHours();
+  const mins = d.getMinutes().toString().padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12;
+
+  return `${day} ${monthName}, ${hours}:${mins} ${ampm}`;
 }
 
 export default function DashboardClientActions({
@@ -65,15 +102,37 @@ export default function DashboardClientActions({
   const [newAppointmentNotification, setNewAppointmentNotification] = useState<any | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [currentBusiness, setCurrentBusiness] = useState(business);
+  const [confirmModal, setConfirmModal] = useState<{
+    appointment: any;
+    action: "COMPLETED" | "CANCELLED";
+  } | null>(null);
 
   // Referencia para recordar los IDs ya conocidos
   const knownIdsRef = useRef<Set<string>>(
     new Set((initialAppointments || []).map((a) => a.id))
   );
 
-  // Efecto para sondear (polling) citas nuevas en tiempo real cada 5 segundos
+  // 1. Desbloquear audio del navegador al primer clic o toque en cualquier parte
+  useEffect(() => {
+    const handleFirstUserInteraction = () => {
+      unlockAudio();
+      requestSystemNotificationPermission();
+    };
+
+    window.addEventListener("click", handleFirstUserInteraction, { once: true });
+    window.addEventListener("touchstart", handleFirstUserInteraction, { once: true });
+
+    return () => {
+      window.removeEventListener("click", handleFirstUserInteraction);
+      window.removeEventListener("touchstart", handleFirstUserInteraction);
+    };
+  }, []);
+
+  // 2. Efecto para sondear (polling) citas nuevas en tiempo real cada 4 segundos
   useEffect(() => {
     if (!business?.id) return;
+
+    let titleInterval: any = null;
 
     const interval = setInterval(async () => {
       try {
@@ -86,43 +145,67 @@ export default function DashboardClientActions({
         const newOnes = incomingList.filter((a) => !knownIdsRef.current.has(a.id));
 
         if (newOnes.length > 0) {
-          // Tomamos la más reciente
           const latest = newOnes[0];
 
-          // Sonar alerta
+          // 🔊 Sonar alerta garantizada (en primer plano y segundo plano)
           if (soundEnabled) {
-            playChimeSound();
+            playAlertChime();
           }
 
-          // Vibrar en celulares si está soportado
+          // 📳 Vibrar en celulares si está soportado
           if (typeof window !== "undefined" && "vibrate" in navigator) {
             try {
-              navigator.vibrate([200, 100, 200]);
+              navigator.vibrate([300, 150, 300]);
             } catch (_) {}
           }
 
-          // Mostrar notificación flotante
+          // 💻 Notificación nativa del Sistema Operativo (Windows/Mac/Android)
+          showSystemNotification(
+            "🔔 ¡Nuevo Turno en TurnoYa!",
+            `${latest.clientName} agendó ${latest.service?.name || "un servicio"} para las ${latest.startTime}`
+          );
+
+          // 🏷️ Parpadear el título de la pestaña del navegador para llamar la atención si está en otra página
+          if (typeof document !== "undefined") {
+            const originalTitle = document.title;
+            let toggle = false;
+            titleInterval = setInterval(() => {
+              document.title = toggle ? "🔔 (1) ¡NUEVO TURNO!" : originalTitle;
+              toggle = !toggle;
+            }, 1000);
+
+            // Detener parpadeo después de 15 segundos
+            setTimeout(() => {
+              if (titleInterval) clearInterval(titleInterval);
+              document.title = originalTitle;
+            }, 15000);
+          }
+
+          // Mostrar notificación flotante interna
           setNewAppointmentNotification(latest);
 
-          // Agregar nuevos IDs al registro
+          // Registrar IDs para no repetir alerta
           newOnes.forEach((n) => knownIdsRef.current.add(n.id));
 
           // Actualizar lista en pantalla
           setAppointments(incomingList);
 
-          // Quitar notificación tras 7 segundos
+          // Quitar notificación flotante tras 8 segundos
           setTimeout(() => {
             setNewAppointmentNotification((current: any) =>
               current?.id === latest.id ? null : current
             );
-          }, 7000);
+          }, 8000);
         }
       } catch (err) {
         console.error("Error al sincronizar citas en vivo:", err);
       }
-    }, 5000); // Consulta cada 5 segundos
+    }, 4000); // Consulta cada 4 segundos
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (titleInterval) clearInterval(titleInterval);
+    };
   }, [business?.id, soundEnabled]);
 
   // Manejar envío de recordatorio por WhatsApp
@@ -205,13 +288,14 @@ export default function DashboardClientActions({
       )}
 
       {/* BARRA SUPERIOR DE ESTADO EN VIVO Y CONTROL DE SONIDO */}
-      <div className="flex items-center justify-between pb-4 border-b border-gray-100 text-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-gray-100 gap-3 text-xs">
         <div className="flex items-center gap-2 text-emerald-700 font-semibold bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-          <span>Sincronización en vivo activa (Alertas en tiempo real)</span>
+          <span>Alertas en tiempo real activas (Suena en segundo plano)</span>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* BOTÓN CONFIGURACIÓN RECORDATORIOS */}
           <button
             onClick={() => setIsSettingsOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition shadow-sm"
@@ -221,23 +305,26 @@ export default function DashboardClientActions({
             <span>⚙️ Recordatorios WhatsApp</span>
           </button>
 
+          {/* BOTÓN PROBAR / ACTIVAR SONIDO */}
           <button
             onClick={() => {
+              unlockAudio();
+              requestSystemNotificationPermission();
               const next = !soundEnabled;
               setSoundEnabled(next);
-              if (next) playChimeSound();
+              if (next) playAlertChime();
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border transition ${
               soundEnabled
                 ? "bg-slate-900 text-white border-slate-800 hover:bg-slate-800"
                 : "bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200"
             }`}
-            title="Activar/Desactivar sonido de nuevo turno"
+            title="Probar y asegurar sonido en segundo plano"
           >
             {soundEnabled ? (
               <>
                 <Volume2 className="h-3.5 w-3.5 text-emerald-400" />
-                <span>Sonido: Activado</span>
+                <span>Sonido: Activado (Probar 🔔)</span>
               </>
             ) : (
               <>
@@ -272,7 +359,7 @@ export default function DashboardClientActions({
           <table className="w-full text-left text-sm">
             <thead className="border-b border-gray-100 bg-gray-50/70 text-xs font-semibold text-gray-500">
               <tr>
-                <th className="py-3 px-4">Hora</th>
+                <th className="py-3 px-4">Fecha & Horario</th>
                 <th className="py-3 px-4">Cliente</th>
                 <th className="py-3 px-4">Servicio</th>
                 <th className="py-3 px-4">Precio</th>
@@ -287,11 +374,28 @@ export default function DashboardClientActions({
 
                 return (
                   <tr key={appointment.id} className="hover:bg-gray-50/50 transition">
-                    <td className="py-3.5 px-4 font-mono font-bold text-gray-900">
-                      {appointment.startTime}
-                      <span className="block text-[11px] font-normal text-gray-400">
-                        hasta {appointment.endTime}
-                      </span>
+                    <td className="py-3.5 px-4">
+                      {/* Fecha agendada de la cita */}
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900">
+                        <Calendar className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                        <span>{formatAppointmentDate(appointment.date)}</span>
+                      </div>
+
+                      {/* Horario del turno */}
+                      <div className="text-xs font-mono font-semibold text-emerald-800 mt-0.5">
+                        {appointment.startTime}
+                        <span className="text-[11px] font-normal text-gray-400 ml-1">
+                          (hasta {appointment.endTime})
+                        </span>
+                      </div>
+
+                      {/* Cuándo tomó la cita el cliente */}
+                      {appointment.createdAt && (
+                        <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                          <Clock className="h-2.5 w-2.5 text-gray-400 shrink-0" />
+                          <span>Tomada: {formatCreatedAt(appointment.createdAt)}</span>
+                        </div>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -347,21 +451,21 @@ export default function DashboardClientActions({
                         {appointment.reminderSent ? "Recordatorio Enviado" : "Enviar WhatsApp"}
                       </button>
 
-                      {/* Marcar como Completada */}
+                      {/* Marcar como Completada con Modal de Confirmación */}
                       {!isCompleted && !isCancelled && (
                         <button
-                          onClick={() => handleStatusChange(appointment.id, "COMPLETED")}
+                          onClick={() => setConfirmModal({ appointment, action: "COMPLETED" })}
                           title="Marcar como atendida / completada"
-                          className="rounded-lg p-1.5 text-gray-400 hover:bg-emerald-50 hover:text-emerald-600 transition"
+                          className="rounded-lg p-1.5 text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition"
                         >
                           <Check className="h-4 w-4" />
                         </button>
                       )}
 
-                      {/* Cancelar Cita */}
+                      {/* Cancelar Cita con Modal de Confirmación */}
                       {!isCancelled && !isCompleted && (
                         <button
-                          onClick={() => handleStatusChange(appointment.id, "CANCELLED")}
+                          onClick={() => setConfirmModal({ appointment, action: "CANCELLED" })}
                           title="Cancelar turno"
                           className="rounded-lg p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600 transition"
                         >
@@ -376,6 +480,96 @@ export default function DashboardClientActions({
           </table>
         )}
       </div>
+
+      {/* VENTANA MODAL DE CONFIRMACIÓN PARA COMPLETAR O CANCELAR CITA */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 relative">
+            <div className="flex items-start gap-3.5 mb-4">
+              <div
+                className={`p-3 rounded-2xl shrink-0 ${
+                  confirmModal.action === "COMPLETED"
+                    ? "bg-blue-50 text-blue-600"
+                    : "bg-rose-50 text-rose-600"
+                }`}
+              >
+                {confirmModal.action === "COMPLETED" ? (
+                  <CheckCircle2 className="h-6 w-6" />
+                ) : (
+                  <AlertTriangle className="h-6 w-6" />
+                )}
+              </div>
+              <div>
+                <h3 className="font-extrabold text-gray-900 text-base">
+                  {confirmModal.action === "COMPLETED"
+                    ? "¿Marcar cita como atendida?"
+                    : "¿Seguro que deseas cancelar este turno?"}
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {confirmModal.action === "COMPLETED"
+                    ? "El cliente fue atendido con éxito y la cita se registrará como completada."
+                    : "El turno quedará marcado como cancelado en tu agenda y el horario se liberará."}
+                </p>
+              </div>
+            </div>
+
+            {/* Ficha Resumen de la Cita */}
+            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200/70 mb-5 text-xs space-y-2 text-gray-700">
+              <div className="flex justify-between items-center pb-1.5 border-b border-gray-200/60">
+                <span className="text-gray-500 font-medium">Cliente:</span>
+                <span className="font-bold text-gray-900">{confirmModal.appointment.clientName}</span>
+              </div>
+              <div className="flex justify-between items-center pb-1.5 border-b border-gray-200/60">
+                <span className="text-gray-500 font-medium">Servicio:</span>
+                <span className="font-semibold text-gray-800">{confirmModal.appointment.service?.name}</span>
+              </div>
+              <div className="flex justify-between items-center pb-1.5 border-b border-gray-200/60">
+                <span className="text-gray-500 font-medium">Fecha de la cita:</span>
+                <span className="font-bold text-emerald-800">
+                  {formatAppointmentDate(confirmModal.appointment.date)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 font-medium">Horario:</span>
+                <span className="font-mono font-bold text-gray-900">
+                  {confirmModal.appointment.startTime} - {confirmModal.appointment.endTime}
+                </span>
+              </div>
+            </div>
+
+            {/* Botones de Acción */}
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                className="px-4 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition"
+              >
+                Volver
+              </button>
+
+              <button
+                type="button"
+                disabled={loadingId === confirmModal.appointment.id}
+                onClick={async () => {
+                  const appointmentId = confirmModal.appointment.id;
+                  const targetAction = confirmModal.action;
+                  setConfirmModal(null);
+                  await handleStatusChange(appointmentId, targetAction);
+                }}
+                className={`px-5 py-2.5 text-xs font-bold text-white rounded-xl shadow-md transition ${
+                  confirmModal.action === "COMPLETED"
+                    ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"
+                    : "bg-rose-600 hover:bg-rose-700 shadow-rose-500/20"
+                }`}
+              >
+                {confirmModal.action === "COMPLETED"
+                  ? "Sí, marcar completada ✓"
+                  : "Sí, cancelar turno ✕"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

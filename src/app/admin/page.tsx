@@ -20,6 +20,8 @@ import {
   Search,
   Sparkles,
   ArrowRight,
+  Copy,
+  MessageCircle,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
@@ -198,6 +200,22 @@ export default function AdminDashboardPage() {
       console.error(err);
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  // Copiar credenciales para enviar al cliente por WhatsApp
+  const handleCopyCredentials = (business: BusinessAdmin) => {
+    const text = `¡Hola! Aquí tienes los datos para acceder al panel de tu negocio en TurnoYa:
+🔗 Enlace de acceso: https://turnos.appzplay.online/login
+📧 Usuario: ${business.email} (o slug: ${business.slug})
+🔑 Contraseña / PIN: ${business.adminPin}
+🌐 Tu página de reservas: https://turnos.appzplay.online/p/${business.slug}`;
+
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      alert(`¡Credenciales de "${business.name}" copiadas!\nPuedes pegarlas directamente en WhatsApp al cliente.`);
+    } else {
+      prompt("Copia los datos de acceso:", text);
     }
   };
 
@@ -466,16 +484,26 @@ export default function AdminDashboardPage() {
                         </button>
                       </td>
 
-                      {/* PIN */}
+                      {/* PIN y Credenciales */}
                       <td className="py-4 px-4">
-                        <button
-                          onClick={() => handleEditPin(b)}
-                          title="Clic para cambiar PIN"
-                          className="inline-flex items-center gap-1.5 font-mono font-bold text-slate-300 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg hover:border-slate-500 transition"
-                        >
-                          <KeyRound className="h-3 w-3 text-amber-400" />
-                          <span>{b.adminPin}</span>
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleEditPin(b)}
+                            title="Clic para cambiar PIN / Contraseña"
+                            className="inline-flex items-center gap-1.5 font-mono font-bold text-slate-300 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg hover:border-slate-500 transition"
+                          >
+                            <KeyRound className="h-3 w-3 text-amber-400" />
+                            <span>{b.adminPin}</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleCopyCredentials(b)}
+                            title="Copiar credenciales de acceso para enviárselas al cliente por WhatsApp"
+                            className="p-1.5 bg-slate-800 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 border border-slate-700 rounded-lg transition"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </td>
 
                       {/* Citas */}
@@ -641,7 +669,7 @@ export default function AdminDashboardPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    PIN Acceso Dueño
+                    Contraseña / PIN de Acceso *
                   </label>
                   <input
                     type="text"
@@ -651,7 +679,27 @@ export default function AdminDashboardPage() {
                     onChange={(e) => setFormData({ ...formData, adminPin: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                   />
+                  <p className="mt-1 text-[11px] text-emerald-400">
+                    🔑 Esta es la clave con la que el cliente ingresa a su panel.
+                  </p>
                 </div>
+              </div>
+
+              {/* GUIA DE ACCESO PARA EL CLIENTE */}
+              <div className="p-3.5 bg-slate-950/80 rounded-2xl border border-slate-800 text-xs text-slate-300 space-y-1">
+                <p className="font-bold text-emerald-400 flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  <span>¿Cómo entra tu cliente a su panel de control?</span>
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  El cliente abrirá la URL: <strong className="text-white">turnos.appzplay.online/login</strong>
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  • <strong>Usuario:</strong> Su correo (<span className="text-white">{formData.email || "andrea@ejemplo.com"}</span>) o slug (<span className="text-white">{formData.slug || "spa-andrea"}</span>)
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  • <strong>Contraseña / PIN:</strong> <span className="text-emerald-400 font-mono font-bold">{formData.adminPin || "1234"}</span>
+                </p>
               </div>
 
               <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">

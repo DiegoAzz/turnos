@@ -1,4 +1,5 @@
 import { getCurrentBusiness } from "@/lib/current-business";
+import { redirect } from "next/navigation";
 import SubscriptionManager from "./SubscriptionManager";
 
 export const dynamic = "force-dynamic";
@@ -6,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function SuscripcionPage() {
   const business = await getCurrentBusiness();
 
-  if (!business) return null;
+  if (!business) redirect("/login");
 
   return (
     <div className="space-y-6">

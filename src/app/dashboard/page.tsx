@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   Calendar,
   DollarSign,
@@ -27,12 +28,7 @@ export default async function DashboardPage() {
   });
 
   if (!business) {
-    return (
-      <div className="p-8 text-center">
-        <h2 className="text-xl font-bold">No se encontró ningún negocio configurado.</h2>
-        <p className="text-sm text-gray-500 mt-2">Ejecuta el script de seed para cargar datos de prueba.</p>
-      </div>
-    );
+    redirect("/login");
   }
 
   const appointments: any[] = business.appointments || [];
