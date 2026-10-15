@@ -24,6 +24,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import AdminPartnersManager from "@/components/AdminPartnersManager";
 
 interface BusinessAdmin {
   id: string;
@@ -50,6 +51,7 @@ export default function AdminDashboardPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"BUSINESSES" | "PARTNERS">("BUSINESSES");
 
   // Formulario nueva empresa
   const [formData, setFormData] = useState({
@@ -346,8 +348,36 @@ export default function AdminDashboardPage() {
           </button>
         </div>
 
-        {/* MÉTRICAS GLOBALES */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* TABS SUPER ADMIN: EMPRESAS vs RED DE EMBAJADORES */}
+        <div className="flex border-b border-slate-800 space-x-2">
+          <button
+            onClick={() => setActiveTab("BUSINESSES")}
+            className={`pb-3 px-4 text-sm font-bold border-b-2 transition flex items-center gap-2 ${
+              activeTab === "BUSINESSES"
+                ? "border-emerald-500 text-emerald-400"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Building2 className="h-4 w-4" />
+            Empresas & Negocios ({totalEmpresas})
+          </button>
+          <button
+            onClick={() => setActiveTab("PARTNERS")}
+            className={`pb-3 px-4 text-sm font-bold border-b-2 transition flex items-center gap-2 ${
+              activeTab === "PARTNERS"
+                ? "border-emerald-500 text-emerald-400"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Users className="h-4 w-4" />
+            Red de Embajadores & Comisiones (30% Vitalicio)
+          </button>
+        </div>
+
+        {activeTab === "BUSINESSES" ? (
+          <>
+            {/* MÉTRICAS GLOBALES */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-slate-800/60 border border-slate-800 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-400">Total Empresas</span>
@@ -574,6 +604,10 @@ export default function AdminDashboardPage() {
             </div>
           )}
         </div>
+        </>
+        ) : (
+          <AdminPartnersManager />
+        )}
       </main>
 
       {/* MODAL PARA DAR DE ALTA NUEVA EMPRESA */}

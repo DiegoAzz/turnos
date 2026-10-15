@@ -39,12 +39,11 @@ export default function Navbar() {
             Precios
           </a>
           <Link
-            href="/p/barberia-elite"
-            target="_blank"
-            className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 hover:text-emerald-700"
+            href="/afiliados"
+            className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full border border-emerald-200 transition"
           >
-            <Sparkles className="h-4 w-4" />
-            Ver Demo Público
+            <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+            Sé Embajador (Gana 30% Mes a Mes)
           </Link>
         </nav>
 

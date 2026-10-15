@@ -89,6 +89,8 @@ export async function POST(req: NextRequest) {
       category = "BARBERIA",
       serviceModality = "LOCAL",
       adminPin = "1234",
+      partnerId: initialPartnerId,
+      partnerCode,
     } = body;
 
     if (!name || !slug || !email) {
@@ -122,6 +124,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Resolver embajador si se pasó código o ID
+    let finalPartnerId = initialPartnerId || null;
+    if (partnerCode) {
+      const p = await prisma.partner.findFirst({
+        where: {
+          OR: [
+            { referralCode: partnerCode.toUpperCase().trim() },
+            { id: partnerCode },
+          ],
+        },
+      });
+      if (p) finalPartnerId = p.id;
+    }
+
     // 1. Crear el negocio con su rubro y modalidad
     const business = await prisma.business.create({
       data: {
@@ -135,8 +151,19 @@ export async function POST(req: NextRequest) {
         serviceModality,
         active: true,
         adminPin: adminPin || "1234",
+        partnerId: finalPartnerId,
       },
     });
+
+    // Si tiene embajador y es de pago, acreditar primera comisión
+    if (finalPartnerId && plan !== "FREE") {
+      const { recordSubscriptionCommission } = await import("@/lib/partners");
+      await recordSubscriptionCommission({
+        businessId: business.id,
+        subscriptionAmount: currency === "USD" ? 19 : 60000,
+        planName: `Plan ${plan}`,
+      });
+    }
 
     // 2. Horarios por defecto (Lunes a Sábado 09:00 a 19:00, Domingo cerrado)
     const workingHours = [

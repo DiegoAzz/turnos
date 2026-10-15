@@ -37,12 +37,16 @@ model Business {
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
 
-  services     Service[]
-  appointments Appointment[]
-  workingHours WorkingHour[]
-  expenses     Expense[]
-  products     Product[]
-  productSales ProductSale[]
+  partnerId              String?
+  partner                Partner?       @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+
+  services               Service[]
+  appointments           Appointment[]
+  workingHours           WorkingHour[]
+  expenses               Expense[]
+  products               Product[]
+  productSales           ProductSale[]
+  partnerCommissions     PartnerCommission[]
 }
 
 model Service {
@@ -136,5 +140,52 @@ model ProductSale {
   clientName    String?
   date          DateTime  @default(now())
   createdAt     DateTime  @default(now())
+}
+
+model Partner {
+  id              String              @id @default(cuid())
+  name            String
+  email           String              @unique
+  phone           String              // WhatsApp para coordinar retiros y avisos
+  referralCode    String              @unique // ej: "CARLOS10", "PRO-BOGOTA"
+  commissionRate  Float               @default(0.30) // 30% de comisión recurrente vitalicia
+  balance         Float               @default(0)    // Saldo disponible para retirar
+  totalEarned     Float               @default(0)    // Total acumulado histórico ganado
+  payoutMethod    String              @default("NEQUI") // "NEQUI", "DAVIPLATA", "BANCOLOMBIA", "PAYPAL", "EFECTIVO"
+  payoutAccount   String?             // Número de celular o cuenta
+  status          String              @default("ACTIVE") // "ACTIVE", "PAUSED"
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  referredBusinesses Business[]
+  commissions        PartnerCommission[]
+  payouts            PartnerPayout[]
+}
+
+model PartnerCommission {
+  id                 String    @id @default(cuid())
+  partnerId          String
+  partner            Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  businessId         String
+  business           Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  subscriptionAmount Float     // Monto del pago de la suscripción (ej: 60000 COP o 19 USD)
+  commissionRate     Float     // Tasa aplicada (ej: 0.30)
+  amount             Float     // Comisión ganada (ej: 18000 COP o 5.70 USD)
+  description        String    // ej: "Comisión mensual recurrente Plan PRO"
+  createdAt          DateTime  @default(now())
+}
+
+model PartnerPayout {
+  id            String    @id @default(cuid())
+  partnerId     String
+  partner       Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  amount        Float
+  payoutMethod  String
+  payoutAccount String
+  status        String    @default("REQUESTED") // "REQUESTED", "PAID", "REJECTED"
+  reference     String?   // Comprobante de pago / ID de transferencia
+  notes         String?
+  createdAt     DateTime  @default(now())
+  processedAt   DateTime?
 }
 

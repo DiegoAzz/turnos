@@ -27,6 +27,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Si el negocio sube a Plan PRO o Independiente y tiene un embajador asignado, acreditar comisión
+    if (plan !== "FREE" && updatedBusiness.partnerId) {
+      const { recordSubscriptionCommission } = await import("@/lib/partners");
+      await recordSubscriptionCommission({
+        businessId: updatedBusiness.id,
+        subscriptionAmount: updatedBusiness.currency === "USD" ? 19 : 60000,
+        planName: `Plan ${plan}`,
+      });
+    }
+
     return NextResponse.json({
       success: true,
       business: updatedBusiness,
