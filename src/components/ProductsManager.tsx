@@ -16,6 +16,7 @@ import {
   Layers,
   ArrowRight,
   CreditCard,
+  Lock,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
@@ -223,6 +224,37 @@ export default function ProductsManager({ business }: { business: any }) {
       setSellSubmitting(false);
     }
   };
+
+  // Si no tiene Plan PRO, mostrar banner de bloqueo para motivar la suscripción
+  const isPro = business?.plan === "PRO";
+  if (!isPro) {
+    return (
+      <div className="rounded-3xl border border-amber-200 bg-gradient-to-b from-amber-50/60 to-white p-8 text-center max-w-2xl mx-auto shadow-sm my-6">
+        <div className="h-14 w-14 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto mb-4">
+          <Lock className="h-7 w-7" />
+        </div>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900 mb-2">
+          <Sparkles className="h-3 w-3" />
+          Función Exclusiva del Plan PRO
+        </span>
+        <h3 className="text-xl font-bold text-gray-900 mt-1">
+          Control de Inventario & Punto de Venta (POS)
+        </h3>
+        <p className="text-xs text-gray-600 mt-2 max-w-lg mx-auto leading-relaxed">
+          Vende productos en mostrador (ceras, esmaltes, aceites, shampoos, tratamientos), controla tu stock en tiempo real con alertas de inventario bajo, cobra con Nequi o Efectivo y muestra tus artículos en tu enlace público de reservas.
+        </p>
+
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <a
+            href="/dashboard/suscripcion"
+            className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition"
+          >
+            Actualizar al Plan PRO ($19/mes)
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   // Métricas
   const totalStockUnits = products.reduce((sum, p) => sum + p.stock, 0);

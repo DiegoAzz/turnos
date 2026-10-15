@@ -133,10 +133,13 @@ export default async function DashboardLayout({
             </Link>
             <Link
               href="/dashboard/productos"
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
+              className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
             >
-              <ShoppingBag className="h-4 w-4 text-emerald-600" />
-              <span>Productos & Tienda</span>
+              <div className="flex items-center gap-3">
+                <ShoppingBag className="h-4 w-4 text-emerald-600" />
+                <span>Productos & Tienda</span>
+              </div>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">PRO</span>
             </Link>
             <Link
               href="/dashboard/contabilidad"

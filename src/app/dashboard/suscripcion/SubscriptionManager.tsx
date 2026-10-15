@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Zap, Sparkles, CreditCard, Smartphone, Wallet, Car } from "lucide-react";
+import { Check, Zap, Sparkles, CreditCard, Smartphone, Wallet, Car, ShoppingBag } from "lucide-react";
 
 export default function SubscriptionManager({ business }: { business: any }) {
   const [currentPlan, setCurrentPlan] = useState<string>(business.plan || "FREE");
@@ -280,6 +280,10 @@ export default function SubscriptionManager({ business }: { business: any }) {
               <li className="flex items-center gap-2.5 font-bold text-emerald-900 bg-emerald-50/70 p-1.5 rounded-lg border border-emerald-100">
                 <Wallet className="h-4 w-4 text-emerald-700 shrink-0" />
                 📊 Módulo Contable (Ingresos, Gastos y Ganancia neta)
+              </li>
+              <li className="flex items-center gap-2.5 font-bold text-emerald-900 bg-emerald-50/70 p-1.5 rounded-lg border border-emerald-100">
+                <ShoppingBag className="h-4 w-4 text-emerald-700 shrink-0" />
+                🛍️ Inventario & Punto de Venta (POS) en mostrador
               </li>
               <li className="flex items-center gap-2.5 font-semibold text-gray-900">
                 <Zap className="h-4 w-4 text-emerald-600 shrink-0" />
