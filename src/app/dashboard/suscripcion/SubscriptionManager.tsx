@@ -148,32 +148,53 @@ export default function SubscriptionManager({ business }: { business: any }) {
         throw new Error(data.error || "No se pudo preparar el checkout online");
       }
 
-      if (typeof window !== "undefined" && (window as any).WidgetCheckout) {
-        const checkout = new (window as any).WidgetCheckout({
-          currency: data.currency,
-          amountInCents: data.amountInCents,
-          reference: data.reference,
-          publicKey: data.publicKey,
-          signature: data.signature ? { integrity: data.signature } : undefined,
-          redirectUrl: data.redirectUrl,
-          customerData: data.customerData,
-        });
+      const signatureParam = data.signature ? `&signature:integrity=${data.signature}` : "";
+      const wompiUrl = `https://checkout.wompi.co/p/?public-key=${data.publicKey}&currency=${data.currency}&amount-in-cents=${data.amountInCents}&reference=${data.reference}${signatureParam}&redirect-url=${encodeURIComponent(data.redirectUrl)}`;
 
-        checkout.open((result: any) => {
-          const transaction = result?.transaction;
-          if (transaction?.status === "APPROVED") {
-            alert("¡Pago aprobado! Tu suscripción se ha activado correctamente.");
-            window.location.reload();
+      // Intentar primero con el Widget modal de Wompi si está cargado
+      if (typeof window !== "undefined" && (window as any).WidgetCheckout) {
+        try {
+          const checkoutConfig: any = {
+            currency: data.currency,
+            amountInCents: data.amountInCents,
+            reference: data.reference,
+            publicKey: data.publicKey,
+            redirectUrl: data.redirectUrl,
+          };
+
+          if (data.signature) {
+            checkoutConfig.signature = { integrity: data.signature };
           }
-        });
-      } else {
-        // Redirección directa al portal de Wompi
-        const signatureParam = data.signature ? `&signature:integrity=${data.signature}` : "";
-        const wompiUrl = `https://checkout.wompi.co/p/?public-key=${data.publicKey}&currency=${data.currency}&amount-in-cents=${data.amountInCents}&reference=${data.reference}${signatureParam}&redirect-url=${encodeURIComponent(data.redirectUrl)}`;
-        window.location.href = wompiUrl;
+
+          if (data.customerData?.email) {
+            checkoutConfig.customerData = {
+              email: data.customerData.email,
+              fullName: data.customerData.fullName || undefined,
+            };
+          }
+
+          const checkout = new (window as any).WidgetCheckout(checkoutConfig);
+
+          checkout.open((result: any) => {
+            const transaction = result?.transaction;
+            if (transaction?.status === "APPROVED") {
+              alert("¡Pago aprobado! Tu suscripción se ha activado correctamente.");
+              window.location.reload();
+            }
+          });
+          return;
+        } catch (widgetErr) {
+          console.warn("Wompi WidgetCheckout modal no disponible, redirigiendo a checkout web:", widgetErr);
+          // Continúa abajo con la redirección directa oficial
+        }
       }
+
+      // Redirección directa al portal web seguro de Wompi (100% compatible con todos los navegadores)
+      window.location.href = wompiUrl;
     } catch (err: any) {
-      alert(err.message || "Error al conectar con la pasarela Wompi");
+      console.error("Error en checkout Wompi:", err);
+      const msg = err?.message || (typeof err === "string" ? err : "") || "Error al conectar con la pasarela Wompi. Por favor verifica que las credenciales estén guardadas en el panel Admin.";
+      alert(msg);
     } finally {
       setWompiLoading(false);
     }
