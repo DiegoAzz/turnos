@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { businessId, plan } = body;
 
-    if (!businessId || !["FREE", "PRO"].includes(plan)) {
+    if (!businessId || !["FREE", "INDEPENDIENTE", "PRO"].includes(plan)) {
       return NextResponse.json(
         { error: "Parámetros inválidos." },
         { status: 400 }
@@ -19,9 +19,9 @@ export async function POST(req: NextRequest) {
       where: { id: businessId },
       data: {
         plan,
-        stripeSubscriptionId: plan === "PRO" ? "sub_mock_active" : null,
+        stripeSubscriptionId: plan !== "FREE" ? "sub_mock_active" : null,
         stripeCurrentPeriodEnd:
-          plan === "PRO"
+          plan !== "FREE"
             ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
             : null,
       },

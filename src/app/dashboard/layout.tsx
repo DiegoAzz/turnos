@@ -10,6 +10,8 @@ import {
   ShieldCheck,
   AlertTriangle,
   LogOut,
+  Wallet,
+  Smartphone,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
@@ -127,6 +129,26 @@ export default async function DashboardLayout({
             >
               <Scissors className="h-4 w-4" />
               Servicios
+            </Link>
+            <Link
+              href="/dashboard/contabilidad"
+              className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
+            >
+              <div className="flex items-center gap-3">
+                <Wallet className="h-4 w-4 text-emerald-600" />
+                <span>Contabilidad</span>
+              </div>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">PRO</span>
+            </Link>
+            <Link
+              href="/dashboard/app-movil"
+              className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
+            >
+              <div className="flex items-center gap-3">
+                <Smartphone className="h-4 w-4 text-emerald-600" />
+                <span>App Móvil (APK)</span>
+              </div>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">PRO</span>
             </Link>
             <Link
               href="/dashboard/suscripcion"

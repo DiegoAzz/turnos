@@ -55,7 +55,21 @@ export async function GET(
         },
       });
 
-      bookedSlots = existingAppointments.map((a) => a.startTime);
+      for (const app of existingAppointments) {
+        const [sH, sM] = app.startTime.split(":").map(Number);
+        const [eH, eM] = app.endTime.split(":").map(Number);
+        let cur = sH * 60 + sM;
+        const end = eH * 60 + eM;
+        while (cur < end) {
+          const h = Math.floor(cur / 60);
+          const m = cur % 60;
+          const slotStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+          if (!bookedSlots.includes(slotStr)) {
+            bookedSlots.push(slotStr);
+          }
+          cur += 30;
+        }
+      }
     }
 
     return NextResponse.json({
@@ -68,6 +82,11 @@ export async function GET(
         address: business.address,
         currency: business.currency,
         plan: business.plan,
+        liveStatus: business.liveStatus || "OPEN",
+        statusMessage: business.statusMessage || null,
+        logoUrl: business.logoUrl || null,
+        category: business.category || "BARBERIA",
+        serviceModality: business.serviceModality || "LOCAL",
       },
       services: business.services,
       workingHours: business.workingHours,

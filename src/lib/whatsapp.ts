@@ -32,20 +32,25 @@ export function generateBookingConfirmationUrl(params: {
   dateStr: string;
   timeStr: string;
   address?: string | null;
+  rescheduleUrl?: string;
 }): string {
   const phone = cleanPhoneNumber(params.phone);
+  const rescheduleLink = params.rescheduleUrl || "https://turnos.appzplay.online";
+  const addressLine = params.address ? `\n📍 *Dirección / Lugar:* ${params.address}` : "";
+
   const text = `¡Hola ${params.clientName}! 👋
 
 Tu turno en *${params.businessName}* ha sido confirmado con éxito:
 🗓️ *Fecha:* ${params.dateStr}
 ⏰ *Hora:* ${params.timeStr}
-✂️ *Servicio:* ${params.serviceName}${
-    params.address ? `\n📍 *Dirección:* ${params.address}` : ""
-  }
+✂️ *Servicio:* ${params.serviceName}${addressLine}
 
-Si necesitas reagendar o cancelar con anticipación, por favor avísanos por este medio. ¡Te esperamos!`;
+🔗 Si necesitas consultar o reagendar tu cita en cualquier momento, ingresa aquí:
+${rescheduleLink}
 
-  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+Si tienes alguna consulta, puedes escribirnos por este medio. ¡Te esperamos! ✨`;
+
+  return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`;
 }
 
 export function generateReminderUrl(params: {
@@ -55,18 +60,27 @@ export function generateReminderUrl(params: {
   businessName: string;
   timeStr: string;
   dateStr: string;
+  address?: string | null;
+  rescheduleUrl?: string;
 }): string {
   const phone = cleanPhoneNumber(params.phone);
-  const text = `Hola ${params.clientName} 👋 Te recordamos tu cita hoy en *${params.businessName}*:
+  const rescheduleLink = params.rescheduleUrl || "https://turnos.appzplay.online";
+  const addressLine = params.address ? `\n📍 *Lugar / Dirección:* ${params.address}` : "";
 
+  const text = `Hola ${params.clientName} 👋 Te recordamos tu cita en *${params.businessName}*:
+
+📅 *Fecha:* ${params.dateStr}
 ⏰ *Hora:* ${params.timeStr}
-✂️ *Servicio:* ${params.serviceName}
+✂️ *Servicio:* ${params.serviceName}${addressLine}
 
-Por favor responde:
-👉 *1* para Confirmar asistencia
-👉 *2* para Cancelar o Reagendar
+Por favor responde a este mensaje:
+👉 *1* para Confirmar tu asistencia
+👉 *2* para Reagendar o Cancelar
 
-¡Muchas gracias!`;
+🔗 Si necesitas cambiar tu horario o reagendar de inmediato, pulsa este enlace:
+${rescheduleLink}
 
-  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+¡Muchas gracias! ✨`;
+
+  return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`;
 }

@@ -28,13 +28,26 @@ export async function PATCH(
 
     let reminderUrl = null;
     if (appointment.clientPhone) {
+      const d = new Date(appointment.date);
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(d.getUTCDate()).padStart(2, "0");
+      const dateFormatted = `${y}-${m}-${day}`;
+
+      const appAddress =
+        appointment.appointmentType === "DOMICILIO"
+          ? appointment.clientAddress
+          : appointment.business.address;
+
       reminderUrl = generateReminderUrl({
         phone: appointment.clientPhone,
         clientName: appointment.clientName,
         serviceName: appointment.service.name,
         businessName: appointment.business.name,
-        timeStr: appointment.startTime,
-        dateStr: appointment.date.toISOString().split("T")[0],
+        timeStr: `${appointment.startTime} - ${appointment.endTime}`,
+        dateStr: dateFormatted,
+        address: appAddress,
+        rescheduleUrl: `https://turnos.appzplay.online/p/${appointment.business.slug}`,
       });
     }
 

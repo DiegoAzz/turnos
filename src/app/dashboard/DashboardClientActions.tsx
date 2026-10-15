@@ -14,9 +14,13 @@ import {
   Clock,
   CheckCircle2,
   AlertTriangle,
+  Palette,
+  Activity,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import ReminderSettingsModal from "@/components/ReminderSettingsModal";
+import LiveStatusModal from "@/components/LiveStatusModal";
+import BusinessProfileModal from "@/components/BusinessProfileModal";
 import {
   playAlertChime,
   unlockAudio,
@@ -101,6 +105,8 @@ export default function DashboardClientActions({
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [newAppointmentNotification, setNewAppointmentNotification] = useState<any | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [currentBusiness, setCurrentBusiness] = useState(business);
   const [confirmModal, setConfirmModal] = useState<{
     appointment: any;
@@ -294,7 +300,42 @@ export default function DashboardClientActions({
           <span>Alertas en tiempo real activas (Suena en segundo plano)</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* BOTÓN ESTADO EN VIVO */}
+          <button
+            onClick={() => setIsStatusOpen(true)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border transition shadow-sm ${
+              currentBusiness.liveStatus === "LUNCH"
+                ? "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
+                : currentBusiness.liveStatus === "CLOSED_TODAY"
+                ? "bg-rose-50 text-rose-900 border-rose-300 hover:bg-rose-100"
+                : currentBusiness.liveStatus === "NOTICE"
+                ? "bg-blue-50 text-blue-900 border-blue-300 hover:bg-blue-100"
+                : "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
+            }`}
+            title="Cambiar estado en vivo visible para tus clientes"
+          >
+            <span>
+              {currentBusiness.liveStatus === "LUNCH"
+                ? "🟡 En Almuerzo"
+                : currentBusiness.liveStatus === "CLOSED_TODAY"
+                ? "🔴 Cerrado Hoy"
+                : currentBusiness.liveStatus === "NOTICE"
+                ? "📢 Novedad"
+                : "🟢 Abierto"}
+            </span>
+          </button>
+
+          {/* BOTÓN EDITAR PERFIL & LOGO */}
+          <button
+            onClick={() => setIsProfileOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition shadow-sm"
+            title="Personalizar logo, nombre, WhatsApp y dirección del negocio"
+          >
+            <Palette className="h-3.5 w-3.5 text-emerald-600" />
+            <span>Perfil & Logo</span>
+          </button>
+
           {/* BOTÓN CONFIGURACIÓN RECORDATORIOS */}
           <button
             onClick={() => setIsSettingsOpen(true)}
@@ -302,7 +343,7 @@ export default function DashboardClientActions({
             title="Configurar recordatorios automáticos de WhatsApp"
           >
             <Settings className="h-3.5 w-3.5 text-emerald-600" />
-            <span>⚙️ Recordatorios WhatsApp</span>
+            <span>WhatsApp</span>
           </button>
 
           {/* BOTÓN PROBAR / ACTIVAR SONIDO */}
@@ -335,6 +376,24 @@ export default function DashboardClientActions({
           </button>
         </div>
       </div>
+
+      {/* MODAL ESTADO EN VIVO */}
+      {isStatusOpen && (
+        <LiveStatusModal
+          business={currentBusiness}
+          onClose={() => setIsStatusOpen(false)}
+          onSaved={(updated) => setCurrentBusiness(updated)}
+        />
+      )}
+
+      {/* MODAL PERFIL DEL NEGOCIO & LOGO */}
+      {isProfileOpen && (
+        <BusinessProfileModal
+          business={currentBusiness}
+          onClose={() => setIsProfileOpen(false)}
+          onSaved={(updated) => setCurrentBusiness(updated)}
+        />
+      )}
 
       {/* MODAL CONFIGURACIÓN RECORDATORIOS */}
       {isSettingsOpen && (
@@ -399,10 +458,22 @@ export default function DashboardClientActions({
                     </td>
 
                     <td className="py-3.5 px-4">
-                      <span className="font-semibold text-gray-900">{appointment.clientName}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-gray-900">{appointment.clientName}</span>
+                        {appointment.appointmentType === "DOMICILIO" && (
+                          <span className="text-[10px] bg-teal-100 text-teal-800 font-bold px-1.5 py-0.5 rounded-md">
+                            🚗 Domicilio
+                          </span>
+                        )}
+                      </div>
                       <span className="block text-xs text-emerald-700 font-mono font-medium">
                         {formatDisplayPhone(appointment.clientPhone)}
                       </span>
+                      {appointment.clientAddress && (
+                        <span className="block text-[11px] text-gray-500 mt-0.5 max-w-xs truncate" title={appointment.clientAddress}>
+                          📍 {appointment.clientAddress}
+                        </span>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-4">

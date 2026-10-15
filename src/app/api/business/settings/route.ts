@@ -6,7 +6,19 @@ export const dynamic = "force-dynamic";
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { businessId, autoRemindersEnabled, reminderTiming, reminderMessageTemplate } = body;
+    const {
+      businessId,
+      autoRemindersEnabled,
+      reminderTiming,
+      reminderMessageTemplate,
+      liveStatus,
+      statusMessage,
+      name,
+      description,
+      address,
+      phone,
+      logoUrl,
+    } = body;
 
     if (!businessId) {
       return NextResponse.json({ error: "businessId requerido" }, { status: 400 });
@@ -21,6 +33,27 @@ export async function PATCH(req: NextRequest) {
     }
     if (reminderMessageTemplate !== undefined) {
       dataToUpdate.reminderMessageTemplate = reminderMessageTemplate;
+    }
+    if (liveStatus !== undefined) {
+      dataToUpdate.liveStatus = liveStatus;
+    }
+    if (statusMessage !== undefined) {
+      dataToUpdate.statusMessage = statusMessage;
+    }
+    if (name && name.trim()) {
+      dataToUpdate.name = name.trim();
+    }
+    if (description !== undefined) {
+      dataToUpdate.description = description;
+    }
+    if (address !== undefined) {
+      dataToUpdate.address = address;
+    }
+    if (phone !== undefined) {
+      dataToUpdate.phone = phone;
+    }
+    if (logoUrl !== undefined) {
+      dataToUpdate.logoUrl = logoUrl;
     }
 
     const updated = await prisma.business.update({

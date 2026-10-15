@@ -39,6 +39,11 @@ interface BusinessData {
   address: string | null;
   currency: string;
   plan: string;
+  logoUrl?: string | null;
+  liveStatus?: string;
+  statusMessage?: string | null;
+  category?: string;
+  serviceModality?: string;
 }
 
 export default function BookingPage({
@@ -66,6 +71,8 @@ export default function BookingPage({
   const [clientPhone, setClientPhone] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [clientNotes, setClientNotes] = useState("");
+  const [appointmentType, setAppointmentType] = useState<"LOCAL" | "DOMICILIO">("LOCAL");
+  const [clientAddress, setClientAddress] = useState("");
   const [isReturningClient, setIsReturningClient] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -79,11 +86,13 @@ export default function BookingPage({
         const savedPhone = localStorage.getItem("turnoya_client_phone");
         const savedEmail = localStorage.getItem("turnoya_client_email");
         const savedCountry = localStorage.getItem("turnoya_client_country");
+        const savedAddress = localStorage.getItem("turnoya_client_address");
 
         if (savedName) setClientName(savedName);
         if (savedPhone) setClientPhone(savedPhone);
         if (savedEmail) setClientEmail(savedEmail);
         if (savedCountry) setCountryCode(savedCountry);
+        if (savedAddress) setClientAddress(savedAddress);
 
         if (savedName || savedPhone) {
           setIsReturningClient(true);
@@ -98,19 +107,24 @@ export default function BookingPage({
       localStorage.removeItem("turnoya_client_phone");
       localStorage.removeItem("turnoya_client_email");
       localStorage.removeItem("turnoya_client_country");
+      localStorage.removeItem("turnoya_client_address");
     } catch (_) {}
     setClientName("");
     setClientPhone("");
     setClientEmail("");
+    setClientAddress("");
     setIsReturningClient(false);
   };
 
-  // Generar los próximos 14 días para reservar
+  // Generar los próximos 14 días para reservar con fecha LOCAL del usuario (evita salto de zona horaria UTC nocturno)
   const availableDates = Array.from({ length: 14 }).map((_, index) => {
     const d = new Date();
     d.setDate(d.getDate() + index);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
     return {
-      iso: d.toISOString().split("T")[0],
+      iso: `${y}-${m}-${day}`,
       dayName: d.toLocaleDateString("es-ES", { weekday: "short" }),
       dayNumber: d.getDate(),
       monthName: d.toLocaleDateString("es-ES", { month: "short" }),
@@ -233,6 +247,8 @@ export default function BookingPage({
           clientPhone: finalPhone,
           clientEmail,
           clientNotes,
+          appointmentType,
+          clientAddress: appointmentType === "DOMICILIO" ? clientAddress : null,
         }),
       });
 
@@ -246,6 +262,7 @@ export default function BookingPage({
           localStorage.setItem("turnoya_client_phone", cleanDigits);
           if (clientEmail) localStorage.setItem("turnoya_client_email", clientEmail);
           if (countryCode) localStorage.setItem("turnoya_client_country", countryCode);
+          if (clientAddress) localStorage.setItem("turnoya_client_address", clientAddress);
         }
       } catch (_) {}
 
@@ -286,10 +303,14 @@ export default function BookingPage({
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-gray-100 to-gray-50 py-8 px-4 sm:px-6">
+      <link rel="manifest" href={`/api/manifest?slug=${slug}`} />
+      <meta name="theme-color" content="#059669" />
+      <meta name="apple-mobile-web-app-capable" content="yes" />
+      <meta name="apple-mobile-web-app-title" content={business.name} />
       <div className="mx-auto max-w-xl">
         {/* ENCABEZADO DEL NEGOCIO */}
         <div className="mb-6 rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                 <Sparkles className="h-3 w-3" />
@@ -297,15 +318,65 @@ export default function BookingPage({
               </span>
               <h1 className="mt-2 text-2xl font-bold text-gray-900">{business.name}</h1>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-bold text-lg shadow-md shadow-emerald-500/20">
-              {business.name.substring(0, 2).toUpperCase()}
-            </div>
+            {business.logoUrl ? (
+              <img
+                src={business.logoUrl}
+                alt={business.name}
+                className="h-14 w-14 rounded-2xl object-cover border border-gray-100 shadow-md shrink-0"
+              />
+            ) : (
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-bold text-lg shadow-md shadow-emerald-500/20 shrink-0">
+                {business.name.substring(0, 2).toUpperCase()}
+              </div>
+            )}
           </div>
 
           {business.description && (
             <p className="mt-3 text-sm text-gray-600 leading-relaxed">
               {business.description}
             </p>
+          )}
+
+          {/* ESTADO EN VIVO DEL NEGOCIO */}
+          {business.liveStatus && (
+            <div
+              className={`mt-3.5 p-3 rounded-2xl text-xs flex items-center gap-2.5 border ${
+                business.liveStatus === "OPEN"
+                  ? "bg-emerald-50/90 text-emerald-900 border-emerald-200"
+                  : business.liveStatus === "LUNCH"
+                  ? "bg-amber-50/90 text-amber-900 border-amber-200"
+                  : business.liveStatus === "CLOSED_TODAY"
+                  ? "bg-rose-50/90 text-rose-900 border-rose-200"
+                  : "bg-blue-50/90 text-blue-900 border-blue-200"
+              }`}
+            >
+              <span className="text-base shrink-0">
+                {business.liveStatus === "OPEN"
+                  ? "🟢"
+                  : business.liveStatus === "LUNCH"
+                  ? "🟡"
+                  : business.liveStatus === "CLOSED_TODAY"
+                  ? "🔴"
+                  : "📢"}
+              </span>
+              <div>
+                <span className="font-bold">
+                  {business.liveStatus === "OPEN"
+                    ? "Abierto y Atendiendo"
+                    : business.liveStatus === "LUNCH"
+                    ? "En Horario de Almuerzo"
+                    : business.liveStatus === "CLOSED_TODAY"
+                    ? "Hoy No Labora / Festivo"
+                    : "Comunicado Oficial"}
+                </span>
+                <p className="text-[11px] opacity-85 mt-0.5">
+                  {business.statusMessage ||
+                    (business.liveStatus === "OPEN"
+                      ? "Turnos disponibles para reservar hoy con normalidad."
+                      : "Puedes consultar disponibilidad para los próximos días.")}
+                </p>
+              </div>
+            </div>
           )}
 
           <div className="mt-4 flex flex-wrap gap-4 border-t border-gray-100 pt-4 text-xs text-gray-500">
@@ -632,6 +703,61 @@ export default function BookingPage({
                   />
                 </div>
 
+                {/* MODALIDAD DE SERVICIO (LOCAL / DOMICILIO) */}
+                {(business.serviceModality === "DOMICILIO" ||
+                  business.serviceModality === "HIBRIDO") && (
+                  <div className="p-3.5 bg-teal-50 border border-teal-200 rounded-2xl space-y-3">
+                    <label className="block text-xs font-bold text-teal-950">
+                      Modalidad de Atención
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {business.serviceModality === "HIBRIDO" && (
+                        <button
+                          type="button"
+                          onClick={() => setAppointmentType("LOCAL")}
+                          className={`py-2 px-3 text-xs rounded-xl font-bold border transition text-center ${
+                            appointmentType === "LOCAL"
+                              ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                              : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                          }`}
+                        >
+                          🏢 En el Local
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setAppointmentType("DOMICILIO")}
+                        className={`py-2 px-3 text-xs rounded-xl font-bold border transition text-center ${
+                          appointmentType === "DOMICILIO"
+                            ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                            : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                        } ${business.serviceModality === "DOMICILIO" ? "col-span-2" : ""}`}
+                      >
+                        🚗 A Domicilio (Voy donde estés)
+                      </button>
+                    </div>
+
+                    {appointmentType === "DOMICILIO" && (
+                      <div>
+                        <label className="block text-xs font-semibold text-teal-950 mb-1">
+                          Dirección exacta / Ubicación del servicio *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ej. Calle 45 # 12-34 Apto 402, Envigado"
+                          value={clientAddress}
+                          onChange={(e) => setClientAddress(e.target.value)}
+                          className="w-full rounded-xl border border-teal-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                        <p className="mt-1 text-[11px] text-teal-700">
+                          La profesional se desplazará hasta esta dirección en el horario confirmado.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">
                     Comentario adicional o preferencia
@@ -688,6 +814,12 @@ export default function BookingPage({
                     {selectedDate} a las {selectedTime}
                   </span>
                 </div>
+                {appointmentType === "DOMICILIO" && clientAddress && (
+                  <div className="flex justify-between border-b pb-2">
+                    <span className="text-gray-500">Lugar / Dirección:</span>
+                    <span className="font-semibold text-emerald-800 text-right">{clientAddress} (A Domicilio)</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-500">Total:</span>
                   <span className="font-bold text-gray-900">

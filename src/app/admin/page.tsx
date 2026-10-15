@@ -33,6 +33,8 @@ interface BusinessAdmin {
   phone: string | null;
   currency: string;
   plan: string;
+  category?: string;
+  serviceModality?: string;
   active: boolean;
   adminPin: string;
   createdAt: string;
@@ -55,7 +57,9 @@ export default function AdminDashboardPage() {
     slug: "",
     email: "",
     phone: "",
-    currency: "USD",
+    currency: "COP",
+    category: "MANICURA_SPA",
+    serviceModality: "HIBRIDO",
     plan: "PRO",
     adminPin: "1234",
   });
@@ -119,7 +123,9 @@ export default function AdminDashboardPage() {
           slug: "",
           email: "",
           phone: "",
-          currency: "USD",
+          currency: "COP",
+          category: "MANICURA_SPA",
+          serviceModality: "HIBRIDO",
           plan: "PRO",
           adminPin: "1234",
         });
@@ -156,7 +162,12 @@ export default function AdminDashboardPage() {
 
   // Cambiar Plan
   const togglePlan = async (business: BusinessAdmin) => {
-    const nextPlan = business.plan === "PRO" ? "FREE" : "PRO";
+    const cycle: Record<string, string> = {
+      FREE: "INDEPENDIENTE",
+      INDEPENDIENTE: "PRO",
+      PRO: "FREE",
+    };
+    const nextPlan = cycle[business.plan] || "PRO";
     try {
       setActionLoading(business.id);
       const res = await fetch("/api/admin/businesses", {
@@ -427,7 +438,25 @@ export default function AdminDashboardPage() {
                     <tr key={b.id} className="hover:bg-slate-800/30 transition">
                       {/* Empresa */}
                       <td className="py-4 px-4">
-                        <div className="font-bold text-white text-sm">{b.name}</div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-white text-sm">{b.name}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold border border-slate-700">
+                            {b.category === "MANICURA_SPA"
+                              ? "💅 Manicura/Spa"
+                              : b.category === "BARBERIA"
+                              ? "💈 Barbería"
+                              : b.category === "LAVADERO"
+                              ? "🚗 Lavadero"
+                              : b.category === "SALUD_CONSULTORIO"
+                              ? "🩺 Salud"
+                              : "⚡ General"}
+                          </span>
+                          {b.serviceModality === "DOMICILIO" && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 font-bold border border-teal-500/30">
+                              🚗 Domicilio
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-1.5 mt-1">
                           <Link
                             href={`/p/${b.slug}`}
@@ -450,11 +479,13 @@ export default function AdminDashboardPage() {
                       <td className="py-4 px-4">
                         <button
                           onClick={() => togglePlan(b)}
-                          title="Clic para cambiar de plan"
+                          title="Clic para cambiar de plan (FREE -> INDEPENDIENTE -> PRO)"
                           disabled={actionLoading === b.id}
                           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border transition ${
                             b.plan === "PRO"
                               ? "bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20"
+                              : b.plan === "INDEPENDIENTE"
+                              ? "bg-teal-500/10 text-teal-400 border-teal-500/30 hover:bg-teal-500/20"
                               : "bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600"
                           }`}
                         >
@@ -636,6 +667,40 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Rubro / Tipo de Negocio *
+                  </label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="MANICURA_SPA">💅 Manicura, Uñas & Spa (45 a 120 min)</option>
+                    <option value="BARBERIA">💈 Barbería / Peluquería (20 a 45 min)</option>
+                    <option value="LAVADERO">🚗 Lavadero de Autos / Detailing (45 a 90 min)</option>
+                    <option value="SALUD_CONSULTORIO">🩺 Salud / Terapia / Consultorio</option>
+                    <option value="OTRO">⚡ Otro rubro / Servicios generales</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Modalidad de Atención *
+                  </label>
+                  <select
+                    value={formData.serviceModality}
+                    onChange={(e) => setFormData({ ...formData, serviceModality: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="HIBRIDO">🔄 Híbrido (En Local y Domicilio)</option>
+                    <option value="DOMICILIO">🚗 Solo a Domicilio (Manicuristas / Detailing)</option>
+                    <option value="LOCAL">🏢 Solo en Local Físico</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
@@ -646,9 +711,9 @@ export default function AdminDashboardPage() {
                     onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                   >
-                    <option value="USD">USD ($)</option>
+                    <option value="COP">COP ($ Pesos)</option>
+                    <option value="USD">USD ($ Dólar)</option>
                     <option value="MXN">MXN ($)</option>
-                    <option value="COP">COP ($)</option>
                     <option value="EUR">EUR (€)</option>
                   </select>
                 </div>
@@ -662,8 +727,9 @@ export default function AdminDashboardPage() {
                     onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                   >
-                    <option value="PRO">PRO</option>
-                    <option value="FREE">FREE</option>
+                    <option value="PRO">PRO ($19 USD - Contabilidad & APK)</option>
+                    <option value="INDEPENDIENTE">INDEPENDIENTE ($9 USD - Domicilio)</option>
+                    <option value="FREE">FREE ($0)</option>
                   </select>
                 </div>
 

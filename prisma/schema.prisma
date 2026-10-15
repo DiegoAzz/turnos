@@ -15,6 +15,7 @@ model Business {
   phone                  String?
   description            String?
   address                String?
+  logoUrl                String?        // Logo o imagen del negocio (URL o Base64)
   currency               String         @default("USD")
   plan                   String         @default("FREE") // "FREE" | "PRO"
   active                 Boolean        @default(true)
@@ -22,6 +23,10 @@ model Business {
   autoRemindersEnabled   Boolean        @default(true)
   reminderTiming         String         @default("2_HOURS_BEFORE") // "1_HOUR_BEFORE", "2_HOURS_BEFORE", "24_HOURS_BEFORE"
   reminderMessageTemplate String?
+  liveStatus             String         @default("OPEN") // "OPEN", "LUNCH", "CLOSED_TODAY", "SPECIAL_NOTICE"
+  statusMessage          String?        // Novedad o mensaje de estado visible para los clientes
+  category               String         @default("BARBERIA") // "BARBERIA", "MANICURA_SPA", "LAVADERO", "SALUD_CONSULTORIO", "OTRO"
+  serviceModality        String         @default("LOCAL") // "LOCAL", "DOMICILIO", "HIBRIDO"
   stripeCustomerId       String?
   stripeSubscriptionId   String?
   stripeCurrentPeriodEnd DateTime?
@@ -31,6 +36,7 @@ model Business {
   services     Service[]
   appointments Appointment[]
   workingHours WorkingHour[]
+  expenses     Expense[]
 }
 
 model Service {
@@ -70,6 +76,9 @@ model Appointment {
   clientPhone  String
   clientEmail  String?
   clientNotes  String?
+  appointmentType String @default("LOCAL") // "LOCAL", "DOMICILIO"
+  clientAddress   String? // Dirección en caso de servicio a domicilio
+  paymentMethod   String?   @default("EFECTIVO") // "EFECTIVO", "NEQUI", "BANCOLOMBIA", "TARJETA"
   date         DateTime  // Dia de la cita (UTC midnight o fecha seleccionada)
   startTime    String    // "14:30"
   endTime      String    // "15:00"
@@ -77,4 +86,15 @@ model Appointment {
   reminderSent Boolean   @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  description String
+  amount      Float
+  category    String   @default("INSUMOS") // "INSUMOS", "TRANSPORTE", "SERVICIOS", "ARRIENDO", "OTRO"
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
 }

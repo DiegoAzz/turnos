@@ -25,6 +25,9 @@ export async function POST(req: NextRequest) {
       clientPhone,
       clientEmail,
       clientNotes,
+      appointmentType = "LOCAL",
+      clientAddress,
+      paymentMethod = "EFECTIVO",
     } = body;
 
     if (!businessSlug || !serviceId || !date || !startTime || !clientName || !clientPhone) {
@@ -56,26 +59,39 @@ export async function POST(req: NextRequest) {
     // Parsear fecha
     const appointmentDate = new Date(`${date}T00:00:00.000Z`);
 
-    // Validar si ya existe una cita en el mismo horario que no esté cancelada
-    const existingAppointment = await prisma.appointment.findFirst({
+    // Validar si existe colisión de intervalos con citas ya reservadas
+    function toMinutes(t: string): number {
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + m;
+    }
+
+    const reqStartMin = toMinutes(startTime);
+    const reqEndMin = toMinutes(endTime);
+
+    const existingAppointments = await prisma.appointment.findMany({
       where: {
         businessId: business.id,
         date: appointmentDate,
-        startTime,
         status: { not: "CANCELLED" },
       },
     });
 
-    if (existingAppointment) {
+    const hasCollision = existingAppointments.some((app) => {
+      const appStartMin = toMinutes(app.startTime);
+      const appEndMin = toMinutes(app.endTime);
+      return reqStartMin < appEndMin && reqEndMin > appStartMin;
+    });
+
+    if (hasCollision) {
       return NextResponse.json(
-        { error: "Este horario ya ha sido reservado por otro cliente. Por favor elige otro." },
+        { error: "Este horario se cruza con otra cita ya reservada. Por favor elige otro horario." },
         { status: 409 }
       );
     }
 
     const formattedPhone = cleanPhoneNumber(clientPhone);
 
-    // Crear cita
+    // Crear cita con tipo (LOCAL o DOMICILIO) y dirección
     const appointment = await prisma.appointment.create({
       data: {
         businessId: business.id,
@@ -84,6 +100,9 @@ export async function POST(req: NextRequest) {
         clientPhone: formattedPhone,
         clientEmail: clientEmail || null,
         clientNotes: clientNotes || null,
+        appointmentType: appointmentType === "DOMICILIO" ? "DOMICILIO" : "LOCAL",
+        clientAddress: clientAddress || null,
+        paymentMethod: paymentMethod || "EFECTIVO",
         date: appointmentDate,
         startTime,
         endTime,
@@ -95,7 +114,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Generar enlace de WhatsApp para confirmación inmediata
+    // Dirección a mostrar en el comprobante: si es a domicilio, la del cliente; si no, la del local
+    const displayAddress =
+      appointmentType === "DOMICILIO" && clientAddress
+        ? `${clientAddress} (A Domicilio)`
+        : business.address;
+
+    // Generar enlace de WhatsApp para confirmación inmediata con link de reagendamiento
     const whatsappUrl = generateBookingConfirmationUrl({
       phone: formattedPhone,
       clientName,
@@ -103,7 +128,8 @@ export async function POST(req: NextRequest) {
       businessName: business.name,
       dateStr: date,
       timeStr: `${startTime} a ${endTime}`,
-      address: business.address,
+      address: displayAddress,
+      rescheduleUrl: `https://turnos.appzplay.online/p/${business.slug}`,
     });
 
     return NextResponse.json({
