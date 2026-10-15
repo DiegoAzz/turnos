@@ -15,6 +15,8 @@ import {
   MessageCircle,
   Clock,
   Zap,
+  Crown,
+  Building2,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -28,6 +30,11 @@ export default function AfiliadosPage() {
   const planPriceCOP = 60000; // ~60.000 COP al mes por negocio
   const monthlyEarningsCOP = Math.round(numClients * planPriceCOP * commissionRate);
   const yearlyEarningsCOP = monthlyEarningsCOP * 12;
+
+  // Tipo de postulación: Embajador (gratis, comisión) o Franquicia (dueño, territorio)
+  const [postulationType, setPostulationType] = useState<"AMBASSADOR" | "FRANCHISE">("AMBASSADOR");
+  const [franchiseName, setFranchiseName] = useState("");
+  const [franchiseCityCountry, setFranchiseCityCountry] = useState("");
 
   // Estado formulario registro
   const [name, setName] = useState("");
@@ -56,13 +63,21 @@ export default function AfiliadosPage() {
     }).format(val);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.location.hash) {
-      const hash = window.location.hash.substring(1);
-      const target = document.getElementById(hash);
-      if (target) {
-        setTimeout(() => {
-          target.scrollIntoView({ behavior: "smooth" });
-        }, 150);
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const isFranchiseQuery = searchParams.get("tipo") === "franquicia" || window.location.hash.includes("franquicia");
+      if (isFranchiseQuery) {
+        setPostulationType("FRANCHISE");
+      }
+
+      if (window.location.hash) {
+        const hash = window.location.hash.substring(1).split("?")[0];
+        const target = document.getElementById(hash);
+        if (target) {
+          setTimeout(() => {
+            target.scrollIntoView({ behavior: "smooth" });
+          }, 150);
+        }
       }
     }
   }, []);
@@ -90,6 +105,9 @@ export default function AfiliadosPage() {
           payoutMethod,
           payoutAccount: payoutAccount || fullPhone,
           customCode,
+          postulationType,
+          franchiseName,
+          franchiseCityCountry,
         }),
       });
 
@@ -332,56 +350,160 @@ export default function AfiliadosPage() {
               {!loginMode ? (
                 <div>
                   {registrationSuccess ? (
-                    <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-6 text-center space-y-4">
-                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/30">
-                        <CheckCircle2 className="h-8 w-8" />
+                    registrationSuccess.isFranchise ? (
+                      <div className="rounded-2xl bg-gradient-to-b from-amber-50 to-orange-50 border border-amber-300 p-6 text-center space-y-4">
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-600 text-white shadow-lg shadow-amber-600/30">
+                          <Crown className="h-8 w-8" />
+                        </div>
+                        <h3 className="text-xl font-extrabold text-gray-900">
+                          👑 ¡Postulación a Franquicia Enviada!
+                        </h3>
+                        <p className="text-xs sm:text-sm text-gray-700 leading-relaxed max-w-md mx-auto">
+                          Gracias <strong>{registrationSuccess.partner?.name}</strong>. Hemos registrado tu postulación para liderar la franquicia{" "}
+                          <strong>{registrationSuccess.partner?.franchiseName || "Oficial"}</strong> en{" "}
+                          <strong>{registrationSuccess.partner?.franchiseCityCountry || "tu territorio"}</strong>.
+                        </p>
+                        <div className="rounded-xl bg-white border border-amber-200 p-4 text-xs text-left text-gray-800 space-y-2 shadow-xs">
+                          <p>
+                            <strong>Código de Franquicia asignado:</strong>{" "}
+                            <span className="font-mono font-bold text-amber-700">
+                              {registrationSuccess.partner?.referralCode}
+                            </span>
+                          </p>
+                          <p>
+                            <strong>WhatsApp de contacto:</strong>{" "}
+                            <span className="font-medium">{registrationSuccess.partner?.phone}</span>
+                          </p>
+                          <p className="flex items-center gap-1.5">
+                            <strong>Estado de Franquicia:</strong>{" "}
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">
+                              🟡 En Revisión & Asignación de Territorio
+                            </span>
+                          </p>
+                        </div>
+                        <p className="text-xs text-gray-600">
+                          El Super Admin te contactará por WhatsApp para validar tu territorio, coordinar el pago de la inscripción de apertura ($99 USD / $400.000 COP) y habilitar tu plataforma oficial.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRegistrationSuccess(null);
+                            setLoginMode(true);
+                          }}
+                          className="inline-block mt-2 text-xs font-bold text-amber-800 hover:text-amber-900 underline"
+                        >
+                          ¿Ya fue activada tu franquicia? Iniciar Sesión aquí →
+                        </button>
                       </div>
-                      <h3 className="text-xl font-extrabold text-gray-900">
-                        ¡Postulación Enviada con Éxito!
-                      </h3>
-                      <p className="text-xs sm:text-sm text-gray-600 leading-relaxed max-w-md mx-auto">
-                        Gracias <strong>{registrationSuccess.partner?.name}</strong>. Tu perfil comercial ha sido enviado al administrador para validación y activación manual.
-                      </p>
-                      <div className="rounded-xl bg-white border border-emerald-100 p-4 text-xs text-left text-gray-700 space-y-2 shadow-xs">
-                        <p>
-                          <strong>Código solicitado:</strong>{" "}
-                          <span className="font-mono font-bold text-emerald-700">
-                            {registrationSuccess.partner?.referralCode}
-                          </span>
+                    ) : (
+                      <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-6 text-center space-y-4">
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/30">
+                          <CheckCircle2 className="h-8 w-8" />
+                        </div>
+                        <h3 className="text-xl font-extrabold text-gray-900">
+                          ¡Postulación Enviada con Éxito!
+                        </h3>
+                        <p className="text-xs sm:text-sm text-gray-600 leading-relaxed max-w-md mx-auto">
+                          Gracias <strong>{registrationSuccess.partner?.name}</strong>. Tu perfil comercial ha sido enviado al administrador para validación y activación manual.
                         </p>
-                        <p>
-                          <strong>WhatsApp de contacto:</strong>{" "}
-                          <span className="font-medium">{registrationSuccess.partner?.phone}</span>
+                        <div className="rounded-xl bg-white border border-emerald-100 p-4 text-xs text-left text-gray-700 space-y-2 shadow-xs">
+                          <p>
+                            <strong>Código solicitado:</strong>{" "}
+                            <span className="font-mono font-bold text-emerald-700">
+                              {registrationSuccess.partner?.referralCode}
+                            </span>
+                          </p>
+                          <p>
+                            <strong>WhatsApp de contacto:</strong>{" "}
+                            <span className="font-medium">{registrationSuccess.partner?.phone}</span>
+                          </p>
+                          <p className="flex items-center gap-1.5">
+                            <strong>Estado de la cuenta:</strong>{" "}
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">
+                              🟡 Pendiente de Aprobación
+                            </span>
+                          </p>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          Te contactaremos por WhatsApp para validar tu información y habilitar tu acceso al portal de comisiones.
                         </p>
-                        <p className="flex items-center gap-1.5">
-                          <strong>Estado de la cuenta:</strong>{" "}
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">
-                            🟡 Pendiente de Aprobación
-                          </span>
-                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRegistrationSuccess(null);
+                            setLoginMode(true);
+                          }}
+                          className="inline-block mt-2 text-xs font-bold text-emerald-700 hover:text-emerald-800 underline"
+                        >
+                          ¿Ya te validaron? Iniciar Sesión aquí →
+                        </button>
                       </div>
-                      <p className="text-xs text-gray-500">
-                        Te contactaremos por WhatsApp para validar tu información y habilitar tu acceso al portal de comisiones.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRegistrationSuccess(null);
-                          setLoginMode(true);
-                        }}
-                        className="inline-block mt-2 text-xs font-bold text-emerald-700 hover:text-emerald-800 underline"
-                      >
-                        ¿Ya te validaron? Iniciar Sesión aquí →
-                      </button>
-                    </div>
+                    )
                   ) : (
                     <>
-                      <h3 className="text-xl font-bold text-gray-900">
-                        Postúlate como Embajador
-                      </h3>
-                      <p className="text-xs text-gray-500 mt-1 mb-6">
-                        Envía tu información para validar tu perfil comercial y asignarte tu código oficial.
-                      </p>
+                      {/* SELECTOR DE MODALIDAD: EMBAJADOR vs FRANQUICIA */}
+                      <div className="mb-6 p-1.5 rounded-2xl bg-gray-100 border border-gray-200">
+                        <span className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider px-2 pt-1 pb-1.5">
+                          Selecciona tu tipo de postulación:
+                        </span>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setPostulationType("AMBASSADOR")}
+                            className={`rounded-xl p-3 text-left transition flex flex-col gap-1 ${
+                              postulationType === "AMBASSADOR"
+                                ? "bg-white text-gray-900 shadow-sm border-2 border-emerald-500"
+                                : "text-gray-600 hover:text-gray-900 bg-transparent"
+                            }`}
+                          >
+                            <span className="text-xs font-bold flex items-center gap-1.5">
+                              <span>🤝 Embajador</span>
+                            </span>
+                            <span className="text-[10px] text-gray-500">
+                              Sin costo inicial • Ganas comisiones mes a mes
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setPostulationType("FRANCHISE")}
+                            className={`rounded-xl p-3 text-left transition flex flex-col gap-1 ${
+                              postulationType === "FRANCHISE"
+                                ? "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-950 shadow-sm border-2 border-amber-500"
+                                : "text-gray-600 hover:text-gray-900 bg-transparent"
+                            }`}
+                          >
+                            <span className="text-xs font-bold flex items-center gap-1.5 text-amber-900">
+                              <Crown className="h-3.5 w-3.5 text-amber-600" />
+                              <span>👑 Dueño Franquicia</span>
+                            </span>
+                            <span className="text-[10px] text-amber-800 font-medium">
+                              Marca Propia • Cobras el 100% a tus negocios
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {postulationType === "FRANCHISE" ? (
+                        <div className="rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 border border-amber-500/40 p-4 mb-5 space-y-1.5">
+                          <div className="flex items-center gap-1.5 text-amber-900 font-extrabold text-xs">
+                            <Crown className="h-4 w-4 text-amber-600" />
+                            <span>Postulación a Dueño de Franquicia (Marca Propia)</span>
+                          </div>
+                          <p className="text-[11px] text-amber-900 leading-relaxed">
+                            Como franquiciado, eres el <strong>propietario comercial en tu ciudad o país</strong>: cobras el 100% de las suscripciones directamente en tus cuentas (Nequi, Bancolombia, etc.). Solo pagas una <strong>inscripción de apertura ($99 USD / $400.000 COP)</strong> y un canon mensual de tecnología ($29 USD / $100.000 COP/mes) por servidores y soporte continuo.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="mb-4">
+                          <h3 className="text-xl font-bold text-gray-900">
+                            Postúlate como Embajador
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Envía tu información para validar tu perfil comercial y asignarte tu código oficial.
+                          </p>
+                        </div>
+                      )}
 
                       {error && (
                         <div className="mb-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200">
@@ -390,6 +512,42 @@ export default function AfiliadosPage() {
                       )}
 
                       <form onSubmit={handleRegister} className="space-y-4">
+                        {/* CAMPOS EXCLUSIVOS DE FRANQUICIA */}
+                        {postulationType === "FRANCHISE" && (
+                          <div className="space-y-3 rounded-2xl bg-amber-50/60 border border-amber-200 p-4 mb-2">
+                            <div>
+                              <label className="block text-xs font-bold text-amber-900 mb-1">
+                                👑 Nombre de tu Franquicia o Marca Deseada *
+                              </label>
+                              <input
+                                type="text"
+                                required={postulationType === "FRANCHISE"}
+                                placeholder="Ej. TurnoYa Medellín, BarberPro Cali, MiAgenda Bogotá"
+                                value={franchiseName}
+                                onChange={(e) => setFranchiseName(e.target.value)}
+                                className="w-full rounded-xl border border-amber-300 bg-white px-3.5 py-2.5 text-sm font-bold text-gray-900 focus:border-amber-500 focus:outline-none"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-bold text-amber-900 mb-1">
+                                📍 Ciudad y País de Operación (Territorio Solicitado) *
+                              </label>
+                              <input
+                                type="text"
+                                required={postulationType === "FRANCHISE"}
+                                placeholder="Ej. Medellín, Colombia / Santiago, Chile / CDMX, México"
+                                value={franchiseCityCountry}
+                                onChange={(e) => setFranchiseCityCountry(e.target.value)}
+                                className="w-full rounded-xl border border-amber-300 bg-white px-3.5 py-2.5 text-sm font-medium text-gray-900 focus:border-amber-500 focus:outline-none"
+                              />
+                              <p className="mt-1 text-[11px] text-amber-800">
+                                Validamos exclusividad geográfica para asegurar que no haya otra franquicia activa en tu misma zona.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
                         <div>
                           <label className="block text-xs font-semibold text-gray-700 mb-1">
                             Tu Nombre Completo *
@@ -464,12 +622,18 @@ export default function AfiliadosPage() {
                         {/* CAMPO DE OBSERVACIONES / PERFIL COMERCIAL (REQUERIDO) */}
                         <div>
                           <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            Tu Perfil Comercial, Experiencia u Observaciones *
+                            {postulationType === "FRANCHISE"
+                              ? "Tu Plan Comercial para tu Franquicia / Experiencia *"
+                              : "Tu Perfil Comercial, Experiencia u Observaciones *"}
                           </label>
                           <textarea
                             required
                             rows={3}
-                            placeholder="Cuéntanos brevemente: ¿Qué experiencia tienes comercialmente? ¿En qué ciudad estás? ¿Qué barberías, spas o consultorios conoces para promover TurnoYa? (Obligatorio para que el administrador valide tu cuenta)"
+                            placeholder={
+                              postulationType === "FRANCHISE"
+                                ? "Cuéntanos: ¿Por qué te interesa ser franquiciado en tu ciudad? ¿Qué plan comercial o contactos tienes con barberías, estéticas o consultorios para afiliar en tu territorio?"
+                                : "Cuéntanos brevemente: ¿Qué experiencia tienes comercialmente? ¿En qué ciudad estás? ¿Qué barberías, spas o consultorios conoces para promover TurnoYa? (Obligatorio para que el administrador valide tu cuenta)"
+                            }
                             value={experience}
                             onChange={(e) => setExperience(e.target.value)}
                             className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none leading-relaxed"
@@ -517,7 +681,11 @@ export default function AfiliadosPage() {
                           </label>
                           <input
                             type="text"
-                            placeholder="Ej. CARLOS-PRO (dejar vacío para auto-generar)"
+                            placeholder={
+                              postulationType === "FRANCHISE"
+                                ? "Ej. MEDELLIN-PRO (dejar vacío para auto-generar FQ-...)"
+                                : "Ej. CARLOS-PRO (dejar vacío para auto-generar)"
+                            }
                             value={customCode}
                             onChange={(e) => setCustomCode(e.target.value)}
                             className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none uppercase font-mono"
@@ -527,10 +695,17 @@ export default function AfiliadosPage() {
                         <button
                           type="submit"
                           disabled={loading}
-                          style={{ backgroundColor: "#059669", color: "#ffffff" }}
-                          className="w-full mt-4 rounded-xl py-3 text-sm font-bold shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500 disabled:opacity-50"
+                          style={{
+                            backgroundColor: postulationType === "FRANCHISE" ? "#d97706" : "#059669",
+                            color: "#ffffff",
+                          }}
+                          className="w-full mt-4 rounded-xl py-3 text-sm font-bold shadow-lg transition hover:opacity-90 disabled:opacity-50"
                         >
-                          {loading ? "Enviando postulación..." : "Enviar Postulación para Validación →"}
+                          {loading
+                            ? "Enviando postulación..."
+                            : postulationType === "FRANCHISE"
+                            ? "Postularme como Dueño de Franquicia →"
+                            : "Enviar Postulación para Validación →"}
                         </button>
                       </form>
                     </>

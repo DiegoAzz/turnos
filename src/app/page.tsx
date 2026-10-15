@@ -456,7 +456,7 @@ export default function Home() {
 
                 <div className="mt-8">
                   <Link
-                    href="/afiliados"
+                    href="/afiliados?tipo=franquicia#registro"
                     className="block w-full text-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 py-3 text-xs font-black text-slate-950 shadow-lg shadow-amber-500/20 hover:from-amber-400 hover:to-orange-400 transition"
                   >
                     Adquirir mi Franquicia Oficial →

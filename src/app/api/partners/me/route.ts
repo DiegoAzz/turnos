@@ -117,6 +117,7 @@ export async function GET(req: NextRequest) {
       commissions: partner.commissions,
       payouts: partner.payouts,
       referralLink: `https://turnos.appzplay.online/?ref=${partner.referralCode}`,
+      platformWhatsapp: (await prisma.platformSettings.findUnique({ where: { id: "global" } }))?.whatsappPaymentNumber || "3001234567",
     });
   } catch (error) {
     console.error("Error al obtener datos del embajador:", error);

@@ -5,7 +5,7 @@ import SubscriptionManager from "./SubscriptionManager";
 export const dynamic = "force-dynamic";
 
 export default async function SuscripcionPage() {
-  const business = await getCurrentBusiness();
+  const business = await getCurrentBusiness({ partner: true });
 
   if (!business) redirect("/login");
 

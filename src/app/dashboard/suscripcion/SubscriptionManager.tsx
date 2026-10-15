@@ -18,6 +18,7 @@ import {
   ArrowRight,
   ShieldCheck,
   ExternalLink,
+  Crown,
 } from "lucide-react";
 
 interface PlatformSettingsData {
@@ -38,6 +39,10 @@ export default function SubscriptionManager({ business }: { business: any }) {
   const [loading, setLoading] = useState(false);
   const [wompiLoading, setWompiLoading] = useState(false);
 
+  // Comprobar si este negocio fue afiliado bajo una Franquicia oficial
+  const isFranchiseClient = Boolean(business?.partner?.isFranchise);
+  const franchise = business?.partner;
+
   // Configuración de la plataforma
   const [settings, setSettings] = useState<PlatformSettingsData>({
     paymentMode: "MANUAL",
@@ -52,7 +57,7 @@ export default function SubscriptionManager({ business }: { business: any }) {
 
   // Modal de activación
   const [selectedPlanForPayment, setSelectedPlanForPayment] = useState<"PRO" | "INDEPENDIENTE" | null>(null);
-  const [hybridMethodTab, setHybridMethodTab] = useState<"ONLINE" | "MANUAL">("ONLINE");
+  const [hybridMethodTab, setHybridMethodTab] = useState<"ONLINE" | "MANUAL">(isFranchiseClient ? "MANUAL" : "ONLINE");
   const [copiedAccount, setCopiedAccount] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -64,8 +69,8 @@ export default function SubscriptionManager({ business }: { business: any }) {
         if (res.ok) {
           const data = await res.json();
           setSettings(data);
-          // Si el modo es MANUAL, fijar tab por defecto a MANUAL
-          if (data.paymentMode === "MANUAL") {
+          // Si el modo es MANUAL o si es cliente de franquicia, fijar tab por defecto a MANUAL
+          if (data.paymentMode === "MANUAL" || isFranchiseClient) {
             setHybridMethodTab("MANUAL");
           } else {
             setHybridMethodTab("ONLINE");
@@ -624,101 +629,185 @@ export default function SubscriptionManager({ business }: { business: any }) {
             {/* CONTENIDO OPCIÓN 2: TRANSFERENCIA MANUAL */}
             {(hybridMethodTab === "MANUAL" || settings.paymentMode === "MANUAL") && (
               <>
-                <div className="space-y-3 mb-6">
-                  <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
-                    Cuentas Disponibles para Transferir:
-                  </h4>
-
-                  {/* NEQUI */}
-                  <div className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-gray-50/70">
-                    <div>
-                      <span className="text-xs font-bold text-gray-900 block">Nequi</span>
-                      <span className="text-sm font-mono font-bold text-gray-700">
-                        {settings.nequiNumber}
-                      </span>
+                {isFranchiseClient && franchise ? (
+                  /* VISTA CLIENTE DE FRANQUICIA: PAGO DIRECTO A SU FRANQUICIADO */
+                  <>
+                    <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 mb-4 space-y-1">
+                      <div className="flex items-center gap-2 text-amber-950 font-bold text-xs">
+                        <Crown className="h-4 w-4 text-amber-600" />
+                        <span>Franquicia Local: {franchise.franchiseName || franchise.name}</span>
+                      </div>
+                      <p className="text-[11px] text-amber-900 leading-relaxed">
+                        Tu negocio está registrado bajo la franquicia oficial de tu territorio{franchise.franchiseCityCountry ? ` (${franchise.franchiseCityCountry})` : ""}. Tu activación Pro y soporte se gestionan directamente transfiriendo a tu representante:
+                      </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        copyToClipboard(settings.nequiNumber.replace(/\s+/g, ""), "NEQUI")
-                      }
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-100"
-                    >
-                      {copiedAccount === "NEQUI" ? (
-                        <>
-                          <Check className="h-3.5 w-3.5 text-emerald-600" />
-                          ¡Copiado!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3.5 w-3.5" />
-                          Copiar
-                        </>
-                      )}
-                    </button>
-                  </div>
 
-                  {/* DAVIPLATA */}
-                  <div className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-gray-50/70">
-                    <div>
-                      <span className="text-xs font-bold text-gray-900 block">Daviplata</span>
-                      <span className="text-sm font-mono font-bold text-gray-700">
-                        {settings.daviplataNumber}
-                      </span>
+                    <div className="space-y-3 mb-6">
+                      <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
+                        Cuenta Autorizada del Franquiciado:
+                      </h4>
+
+                      <div className="flex items-center justify-between p-3.5 rounded-xl border border-amber-300 bg-amber-50/60">
+                        <div>
+                          <span className="text-xs font-bold text-amber-950 block">
+                            {franchise.payoutMethod || "Nequi / Transferencia"}
+                          </span>
+                          <span className="text-sm font-mono font-bold text-gray-900">
+                            {franchise.payoutAccount || franchise.phone}
+                          </span>
+                          <span className="text-[10px] text-gray-500 block">
+                            Titular: {franchise.name}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            copyToClipboard(
+                              (franchise.payoutAccount || franchise.phone).replace(/\s+/g, ""),
+                              "FRANCHISE"
+                            )
+                          }
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-amber-300 bg-white text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                        >
+                          {copiedAccount === "FRANCHISE" ? (
+                            <>
+                              <Check className="h-3.5 w-3.5 text-emerald-600" />
+                              ¡Copiado!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3.5 w-3.5" />
+                              Copiar
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        copyToClipboard(settings.daviplataNumber.replace(/\s+/g, ""), "DAVIPLATA")
-                      }
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-100"
-                    >
-                      {copiedAccount === "DAVIPLATA" ? (
-                        <>
-                          <Check className="h-3.5 w-3.5 text-emerald-600" />
-                          ¡Copiado!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3.5 w-3.5" />
-                          Copiar
-                        </>
-                      )}
-                    </button>
-                  </div>
 
-                  {/* BANCOLOMBIA */}
-                  <div className="p-3 rounded-xl border border-gray-200 bg-gray-50/70">
-                    <span className="text-xs font-bold text-gray-900 block">Bancolombia</span>
-                    <span className="text-xs text-gray-600">
-                      {settings.bancolombiaDetails || "Cuenta de Ahorros Bancolombia / QR disponible"}
-                    </span>
-                  </div>
-                </div>
+                    {/* BOTÓN WHATSAPP DIRECTO AL FRANQUICIADO */}
+                    <div className="space-y-3">
+                      <a
+                        href={`https://wa.me/${(franchise.phone || "").replace(/[^0-9]/g, "").startsWith("57") || (franchise.phone || "").replace(/[^0-9]/g, "").length > 10 ? (franchise.phone || "").replace(/[^0-9]/g, "") : `57${(franchise.phone || "").replace(/[^0-9]/g, "")}`}?text=${encodeURIComponent(
+                          `¡Hola! 👋 Acabo de realizar el pago para activar el ${
+                            selectedPlanForPayment === "PRO"
+                              ? `Plan PRO ($${proPrice.toLocaleString("es-CO")} COP)`
+                              : `Plan Independiente ($${indepPrice.toLocaleString("es-CO")} COP)`
+                          } de mi negocio "${business.name}" (Slug: ${business.slug}) a tu franquicia "${franchise.franchiseName || franchise.name}".\n\nAdjunto comprobante de consignación para activar mi acceso.`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ backgroundColor: "#d97706", color: "#ffffff" }}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-xs font-bold shadow-lg shadow-amber-600/25 hover:bg-amber-700 transition"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        <span>Enviar Comprobante a mi Franquiciado por WhatsApp</span>
+                      </a>
 
-                {/* BOTÓN WHATSAPP PARA ENVIAR COMPROBANTE */}
-                <div className="space-y-3">
-                  <a
-                    href={`https://wa.me/57${(settings.whatsappPaymentNumber || settings.nequiNumber).replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
-                      `¡Hola! 👋 Acabo de realizar la consignación para activar el ${
-                        selectedPlanForPayment === "PRO"
-                          ? `Plan PRO ($${proPrice.toLocaleString("es-CO")} COP)`
-                          : `Plan Independiente ($${indepPrice.toLocaleString("es-CO")} COP)`
-                      } de mi negocio "${business.name}" (Slug: ${business.slug}).\n\nAdjunto el comprobante de pago para su verificación y activación.`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ backgroundColor: "#059669", color: "#ffffff" }}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-xs font-bold shadow-lg shadow-emerald-600/25 hover:bg-emerald-500 transition"
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    <span>Enviar Comprobante por WhatsApp</span>
-                  </a>
+                      <p className="text-[11px] text-center text-gray-500">
+                        💡 Tu franquiciado local validará tu consignación y activará tu plan de inmediato.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  /* VISTA ESTÁNDAR: PAGO A LA CENTRAL TURNODAY */
+                  <>
+                    <div className="space-y-3 mb-6">
+                      <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
+                        Cuentas Disponibles para Transferir:
+                      </h4>
 
-                  <p className="text-[11px] text-center text-gray-400">
-                    💡 Verificamos tu consignación y activamos tu plan en minutos.
-                  </p>
-                </div>
+                      {/* NEQUI */}
+                      <div className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-gray-50/70">
+                        <div>
+                          <span className="text-xs font-bold text-gray-900 block">Nequi</span>
+                          <span className="text-sm font-mono font-bold text-gray-700">
+                            {settings.nequiNumber}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            copyToClipboard(settings.nequiNumber.replace(/\s+/g, ""), "NEQUI")
+                          }
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                        >
+                          {copiedAccount === "NEQUI" ? (
+                            <>
+                              <Check className="h-3.5 w-3.5 text-emerald-600" />
+                              ¡Copiado!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3.5 w-3.5" />
+                              Copiar
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* DAVIPLATA */}
+                      <div className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-gray-50/70">
+                        <div>
+                          <span className="text-xs font-bold text-gray-900 block">Daviplata</span>
+                          <span className="text-sm font-mono font-bold text-gray-700">
+                            {settings.daviplataNumber}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            copyToClipboard(settings.daviplataNumber.replace(/\s+/g, ""), "DAVIPLATA")
+                          }
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                        >
+                          {copiedAccount === "DAVIPLATA" ? (
+                            <>
+                              <Check className="h-3.5 w-3.5 text-emerald-600" />
+                              ¡Copiado!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3.5 w-3.5" />
+                              Copiar
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* BANCOLOMBIA */}
+                      <div className="p-3 rounded-xl border border-gray-200 bg-gray-50/70">
+                        <span className="text-xs font-bold text-gray-900 block">Bancolombia</span>
+                        <span className="text-xs text-gray-600">
+                          {settings.bancolombiaDetails || "Cuenta de Ahorros Bancolombia / QR disponible"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* BOTÓN WHATSAPP PARA ENVIAR COMPROBANTE A CENTRAL */}
+                    <div className="space-y-3">
+                      <a
+                        href={`https://wa.me/57${(settings.whatsappPaymentNumber || settings.nequiNumber).replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                          `¡Hola! 👋 Acabo de realizar la consignación para activar el ${
+                            selectedPlanForPayment === "PRO"
+                              ? `Plan PRO ($${proPrice.toLocaleString("es-CO")} COP)`
+                              : `Plan Independiente ($${indepPrice.toLocaleString("es-CO")} COP)`
+                          } de mi negocio "${business.name}" (Slug: ${business.slug}).\n\nAdjunto el comprobante de pago para su verificación y activación.`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ backgroundColor: "#059669", color: "#ffffff" }}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-xs font-bold shadow-lg shadow-emerald-600/25 hover:bg-emerald-500 transition"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        <span>Enviar Comprobante por WhatsApp</span>
+                      </a>
+
+                      <p className="text-[11px] text-center text-gray-400">
+                        💡 Verificamos tu consignación y activamos tu plan en minutos.
+                      </p>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>

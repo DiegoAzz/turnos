@@ -43,6 +43,7 @@ export default function PartnerPortalPage() {
   const [payoutAccount, setPayoutAccount] = useState("");
   const [submittingPayout, setSubmittingPayout] = useState(false);
   const [payoutSuccessMsg, setPayoutSuccessMsg] = useState<string | null>(null);
+  const [platformWhatsapp, setPlatformWhatsapp] = useState("573001234567");
 
   const formatCOP = (val: number) =>
     new Intl.NumberFormat("es-CO", {
@@ -69,6 +70,10 @@ export default function PartnerPortalPage() {
         setReferralLink(data.referralLink);
         setPayoutMethod(data.partner?.payoutMethod || "NEQUI");
         setPayoutAccount(data.partner?.payoutAccount || data.partner?.phone || "");
+        if (data.platformWhatsapp) {
+          const clean = data.platformWhatsapp.replace(/[^0-9]/g, "");
+          setPlatformWhatsapp(clean.startsWith("57") ? clean : `57${clean}`);
+        }
       } catch (err) {
         console.error(err);
         router.push("/afiliados");
@@ -339,7 +344,7 @@ export default function PartnerPortalPage() {
 
               <div className="shrink-0 flex flex-col gap-2">
                 <a
-                  href={`https://wa.me/573001234567?text=${encodeURIComponent(
+                  href={`https://wa.me/${platformWhatsapp}?text=${encodeURIComponent(
                     `Hola, soy ${partner.name} de la franquicia "${partner.franchiseName || "Oficial"}". Deseo reportar el pago de mi mensualidad de franquicia.`
                   )}`}
                   target="_blank"
@@ -374,7 +379,7 @@ export default function PartnerPortalPage() {
 
               <div className="shrink-0">
                 <a
-                  href={`https://wa.me/573001234567?text=${encodeURIComponent(
+                  href={`https://wa.me/${platformWhatsapp}?text=${encodeURIComponent(
                     `¡Hola! Soy ${partner?.name} (Embajador código: ${partner?.referralCode}). Estoy interesado en escalar y adquirir mi propia Franquicia SaaS de TurnoYa (Inscripción + Mensualidad) en mi ciudad. ¿Cómo podemos coordinarlo?`
                   )}`}
                   target="_blank"
