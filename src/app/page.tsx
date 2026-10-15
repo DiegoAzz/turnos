@@ -278,10 +278,10 @@ export default function Home() {
                 Planes Transparentes
               </span>
               <h2 className="mt-4 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-                Monetización Lista para tu SaaS
+                Planes Transparentes y Fáciles de Activar
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-base text-gray-600">
-                El sistema incluye la pasarela de Stripe configurada para cobrar suscripciones recurrentes a tus clientes.
+                Paga fácilmente mediante consignación o transferencia bancaria (Nequi, Daviplata o Bancolombia). Verificamos tu comprobante y habilitamos tu cuenta de inmediato. (Próximamente PSE y pasarela automatizada).
               </p>
             </div>
 
