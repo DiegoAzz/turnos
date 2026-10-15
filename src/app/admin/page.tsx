@@ -22,9 +22,11 @@ import {
   ArrowRight,
   Copy,
   MessageCircle,
+  CreditCard,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import AdminPartnersManager from "@/components/AdminPartnersManager";
+import AdminPaymentSettings from "@/components/AdminPaymentSettings";
 
 interface BusinessAdmin {
   id: string;
@@ -51,7 +53,7 @@ export default function AdminDashboardPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"BUSINESSES" | "PARTNERS">("BUSINESSES");
+  const [activeTab, setActiveTab] = useState<"BUSINESSES" | "PARTNERS" | "PAYMENTS">("BUSINESSES");
 
   // Formulario nueva empresa
   const [formData, setFormData] = useState({
@@ -372,6 +374,17 @@ export default function AdminDashboardPage() {
             <Users className="h-4 w-4" />
             Red de Embajadores & Comisiones Residuales
           </button>
+          <button
+            onClick={() => setActiveTab("PAYMENTS")}
+            className={`pb-3 px-4 text-sm font-bold border-b-2 transition flex items-center gap-2 ${
+              activeTab === "PAYMENTS"
+                ? "border-emerald-500 text-emerald-400"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <CreditCard className="h-4 w-4" />
+            Pasarela & Métodos de Pago
+          </button>
         </div>
 
         {activeTab === "BUSINESSES" ? (
@@ -605,8 +618,10 @@ export default function AdminDashboardPage() {
           )}
         </div>
         </>
-        ) : (
+        ) : activeTab === "PARTNERS" ? (
           <AdminPartnersManager />
+        ) : (
+          <AdminPaymentSettings />
         )}
       </main>
 

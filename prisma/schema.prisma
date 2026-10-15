@@ -191,3 +191,18 @@ model PartnerPayout {
   processedAt   DateTime?
 }
 
+model PlatformSettings {
+  id                    String   @id @default("global")
+  paymentMode           String   @default("MANUAL") // "MANUAL" (solo consignación), "GATEWAY" (solo pasarela Wompi/PSE), "HYBRID" (ambas)
+  wompiPublicKey        String?  @default("")
+  wompiIntegritySecret  String?  @default("")
+  wompiSandbox          Boolean  @default(true)
+  nequiNumber           String   @default("300 123 4567")
+  daviplataNumber       String   @default("300 123 4567")
+  bancolombiaDetails    String   @default("Cuenta de Ahorros Bancolombia")
+  whatsappPaymentNumber String   @default("300 123 4567")
+  proPriceCOP           Int      @default(60000)
+  independientePriceCOP Int      @default(35000)
+  updatedAt             DateTime @updatedAt
+}
+

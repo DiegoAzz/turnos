@@ -1,0 +1,27 @@
+import { prisma } from "@/lib/prisma";
+
+export async function getPlatformSettings() {
+  let settings = await prisma.platformSettings.findUnique({
+    where: { id: "global" },
+  });
+
+  if (!settings) {
+    settings = await prisma.platformSettings.create({
+      data: {
+        id: "global",
+        paymentMode: "MANUAL", // "MANUAL", "GATEWAY", "HYBRID"
+        wompiPublicKey: process.env.WOMPI_PUBLIC_KEY || "",
+        wompiIntegritySecret: process.env.WOMPI_INTEGRITY_SECRET || "",
+        wompiSandbox: true,
+        nequiNumber: "300 123 4567",
+        daviplataNumber: "300 123 4567",
+        bancolombiaDetails: "Cuenta de Ahorros Bancolombia - Preguntar por número o QR",
+        whatsappPaymentNumber: "300 123 4567",
+        proPriceCOP: 60000,
+        independientePriceCOP: 35000,
+      },
+    });
+  }
+
+  return settings;
+}
