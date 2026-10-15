@@ -59,6 +59,7 @@ export default function BookingPage({
   const [services, setServices] = useState<Service[]>([]);
   const [workingHours, setWorkingHours] = useState<WorkingHour[]>([]);
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
 
   // Wizard state
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
@@ -143,6 +144,7 @@ export default function BookingPage({
         setBusiness(data.business);
         setServices(data.services);
         setWorkingHours(data.workingHours);
+        setProducts(data.products || []);
         if (availableDates.length > 0) {
           setSelectedDate(availableDates[0].iso);
         }
@@ -855,6 +857,80 @@ export default function BookingPage({
             </div>
           )}
         </div>
+
+        {/* SECCIÓN DE PRODUCTOS EN VENTA DISPONIBLES EN EL ESTABLECIMIENTO */}
+        {products.length > 0 && (
+          <div className="mt-6 rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🛍️</span>
+                <div>
+                  <h3 className="font-extrabold text-gray-900 text-base">
+                    Productos & Artículos Disponibles
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Disponibles para adquirir directamente en nuestro establecimiento
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-bold bg-emerald-50 text-emerald-800 px-2.5 py-1 rounded-full border border-emerald-200">
+                {products.length} {products.length === 1 ? "artículo" : "artículos"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {products.map((p: any) => (
+                <div
+                  key={p.id}
+                  className="p-3.5 rounded-xl border border-gray-100 hover:border-emerald-300 bg-gray-50/50 hover:bg-white transition flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-bold text-xs text-gray-900 leading-tight">
+                        {p.name}
+                      </span>
+                      <span className="text-xs font-black text-emerald-700 shrink-0">
+                        {formatCurrency(p.price, business?.currency || "COP")}
+                      </span>
+                    </div>
+
+                    {p.category && (
+                      <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-gray-200 text-gray-600">
+                        {p.category}
+                      </span>
+                    )}
+
+                    {p.description && (
+                      <p className="text-[11px] text-gray-500 mt-1.5 line-clamp-2">
+                        {p.description}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-3 pt-2.5 border-t border-gray-200/60 flex items-center justify-between text-[11px]">
+                    <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
+                      {p.stock > 0 ? `${p.stock} disponibles` : "Disponible"}
+                    </span>
+
+                    {business?.phone && (
+                      <a
+                        href={`https://api.whatsapp.com/send?phone=${business.phone.replace(/[^0-9]/g, "")}&text=${encodeURIComponent(
+                          `Hola ${business.name} 👋 Me interesa comprar el producto: *${p.name}* (${formatCurrency(p.price, business?.currency || "COP")}). ¿Tienen disponibilidad?`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-emerald-700 hover:text-emerald-800 font-bold hover:underline"
+                      >
+                        Consultar 💬
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

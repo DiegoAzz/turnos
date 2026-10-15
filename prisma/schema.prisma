@@ -37,6 +37,8 @@ model Business {
   appointments Appointment[]
   workingHours WorkingHour[]
   expenses     Expense[]
+  products     Product[]
+  productSales ProductSale[]
 }
 
 model Service {
@@ -98,3 +100,37 @@ model Expense {
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
 }
+
+model Product {
+  id          String        @id @default(cuid())
+  businessId  String
+  business    Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  price       Float         @default(0)
+  costPrice   Float?        @default(0)
+  stock       Int           @default(0)
+  category    String        @default("GENERAL") // "CUIDADO", "BELLEZA", "ACCESORIOS", "GENERAL"
+  imageUrl    String?
+  active      Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  sales       ProductSale[]
+}
+
+model ProductSale {
+  id            String    @id @default(cuid())
+  businessId    String
+  business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity      Int       @default(1)
+  unitPrice     Float
+  total         Float
+  paymentMethod String    @default("EFECTIVO") // "EFECTIVO", "NEQUI", "BANCOLOMBIA", "TARJETA"
+  clientName    String?
+  date          DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+}
+

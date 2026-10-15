@@ -93,6 +93,52 @@ function formatCreatedAt(createdAtInput: string | Date | undefined): string {
   return `${day} ${monthName}, ${hours}:${mins} ${ampm}`;
 }
 
+// Extraer minutos de anticipación según la configuración guardada
+function parseReminderTimingMinutes(timingStr?: string): number {
+  if (!timingStr) return 15;
+  if (timingStr === "15_MINUTES_BEFORE") return 15;
+  if (timingStr === "30_MINUTES_BEFORE") return 30;
+  if (timingStr === "1_HOUR_BEFORE") return 60;
+  if (timingStr === "2_HOURS_BEFORE") return 120;
+  if (timingStr === "24_HOURS_BEFORE") return 1440;
+  if (timingStr.startsWith("CUSTOM_")) {
+    const parts = timingStr.split("_");
+    const val = parseInt(parts[1], 10) || 15;
+    const unit = parts[2] || "MINUTES";
+    if (unit === "HOURS") return val * 60;
+    if (unit === "DAYS") return val * 1440;
+    return val;
+  }
+  return 15;
+}
+
+// Calcular minutos restantes para una cita
+function getMinutesUntilAppointment(app: any): number | null {
+  if (!app?.date || !app?.startTime) return null;
+  try {
+    const dateStr = typeof app.date === "string" ? app.date : new Date(app.date).toISOString();
+    const [yearStr, monthStr, dayStr] = dateStr.slice(0, 10).split("-");
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10) - 1;
+    const day = parseInt(dayStr, 10);
+
+    const parts = app.startTime.trim().split(":");
+    let hours = parseInt(parts[0], 10);
+    let mins = parseInt(parts[1], 10) || 0;
+
+    if (app.startTime.toUpperCase().includes("PM") && hours < 12) hours += 12;
+    if (app.startTime.toUpperCase().includes("AM") && hours === 12) hours = 0;
+
+    const appDate = new Date(year, month, day, hours, mins, 0, 0);
+    const now = new Date();
+
+    const diffMs = appDate.getTime() - now.getTime();
+    return Math.floor(diffMs / 60000);
+  } catch {
+    return null;
+  }
+}
+
 export default function DashboardClientActions({
   initialAppointments,
   business,
@@ -104,6 +150,7 @@ export default function DashboardClientActions({
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [newAppointmentNotification, setNewAppointmentNotification] = useState<any | null>(null);
+  const [dueReminder, setDueReminder] = useState<{ appointment: any; diffMinutes: number } | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -117,6 +164,9 @@ export default function DashboardClientActions({
   const knownIdsRef = useRef<Set<string>>(
     new Set((initialAppointments || []).map((a) => a.id))
   );
+
+  // Referencia para no disparar recordatorios duplicados repetidamente
+  const remindedAlertedIdsRef = useRef<Set<string>>(new Set());
 
   // 1. Desbloquear audio del navegador al primer clic o toque en cualquier parte
   useEffect(() => {
@@ -213,6 +263,54 @@ export default function DashboardClientActions({
       if (titleInterval) clearInterval(titleInterval);
     };
   }, [business?.id, soundEnabled]);
+
+  // 3. Efecto para monitorear recordatorios automáticos según la anticipación configurada (ej. 24 min)
+  useEffect(() => {
+    if (currentBusiness?.autoRemindersEnabled === false) return;
+
+    const targetMinutes = parseReminderTimingMinutes(currentBusiness?.reminderTiming);
+
+    const checkReminders = () => {
+      for (const app of appointments) {
+        if (app.status === "CANCELLED" || app.status === "COMPLETED" || app.reminderSent) {
+          continue;
+        }
+
+        const diff = getMinutesUntilAppointment(app);
+        if (diff !== null && diff <= targetMinutes && diff >= -30) {
+          if (!remindedAlertedIdsRef.current.has(app.id)) {
+            remindedAlertedIdsRef.current.add(app.id);
+
+            // Alerta Sonora
+            if (soundEnabled) {
+              playAlertChime();
+            }
+
+            // Vibración en celulares
+            if (typeof window !== "undefined" && "vibrate" in navigator) {
+              try {
+                navigator.vibrate([200, 100, 200]);
+              } catch (_) {}
+            }
+
+            // Notificación del Sistema Operativo
+            showSystemNotification(
+              "⏰ ¡Momento de Enviar Recordatorio!",
+              `${app.clientName} tiene turno a las ${app.startTime}. Toca para abrir WhatsApp.`
+            );
+
+            // Mostrar Banner Flotante de Acción Inmediata
+            setDueReminder({ appointment: app, diffMinutes: diff });
+            break;
+          }
+        }
+      }
+    };
+
+    checkReminders();
+    const reminderInterval = setInterval(checkReminders, 5000);
+    return () => clearInterval(reminderInterval);
+  }, [appointments, currentBusiness, soundEnabled]);
 
   // Manejar envío de recordatorio por WhatsApp
   const handleSendReminder = async (appointment: any) => {
@@ -404,6 +502,47 @@ export default function DashboardClientActions({
         />
       )}
 
+      {/* BANNER DE RECORDATORIO DEBIDO EN TIEMPO REAL */}
+      {dueReminder && (
+        <div className="mt-4 p-4 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white rounded-2xl shadow-xl border-2 border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-white/20 rounded-xl shrink-0">
+              <Clock className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <div className="font-extrabold text-sm flex items-center gap-2">
+                <span>⏰ ¡Momento de Enviar Recordatorio Automático!</span>
+                <span className="bg-white text-orange-950 text-xs px-2 py-0.5 rounded-full font-bold">
+                  {dueReminder.diffMinutes <= 0 ? "¡Turno Ahora!" : `Faltan ${dueReminder.diffMinutes} min`}
+                </span>
+              </div>
+              <p className="text-xs text-amber-50 mt-0.5">
+                Cliente: <strong>{dueReminder.appointment.clientName}</strong> · Turno: <strong>{dueReminder.appointment.startTime}</strong> ({dueReminder.appointment.service?.name})
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <button
+              onClick={() => {
+                handleSendReminder(dueReminder.appointment);
+                setDueReminder(null);
+              }}
+              className="bg-white text-emerald-950 hover:bg-emerald-50 px-4 py-2 rounded-xl text-xs font-extrabold shadow flex items-center gap-1.5 transition"
+            >
+              <MessageCircle className="h-4 w-4 text-emerald-600" />
+              <span>Enviar WhatsApp Ahora</span>
+            </button>
+            <button
+              onClick={() => setDueReminder(null)}
+              className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-xl text-xs"
+              title="Cerrar aviso"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* TABLA DE CITAS */}
       <div className="overflow-x-auto mt-4">
         {appointments.length === 0 ? (
@@ -508,19 +647,54 @@ export default function DashboardClientActions({
 
                     <td className="py-3.5 px-4 text-right space-x-1.5">
                       {/* Boton Enviar Recordatorio WhatsApp */}
-                      <button
-                        onClick={() => handleSendReminder(appointment)}
-                        disabled={loadingId === appointment.id || isCancelled}
-                        title="Enviar recordatorio por WhatsApp con el número corregido"
-                        className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold shadow-sm transition ${
-                          appointment.reminderSent
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-                            : "bg-emerald-600 text-white hover:bg-emerald-500"
-                        }`}
-                      >
-                        <MessageCircle className="h-3.5 w-3.5" />
-                        {appointment.reminderSent ? "Recordatorio Enviado" : "Enviar WhatsApp"}
-                      </button>
+                      {(() => {
+                        const diff = getMinutesUntilAppointment(appointment);
+                        const targetMinutes = parseReminderTimingMinutes(currentBusiness?.reminderTiming);
+                        const isDue = diff !== null && diff <= targetMinutes && diff >= -30 && !appointment.reminderSent && !isCompleted && !isCancelled;
+
+                        if (isDue) {
+                          return (
+                            <button
+                              onClick={() => handleSendReminder(appointment)}
+                              disabled={loadingId === appointment.id}
+                              title="¡Es hora de enviar el recordatorio!"
+                              className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md animate-pulse ring-2 ring-amber-300 ring-offset-1"
+                            >
+                              <Clock className="h-3.5 w-3.5" />
+                              <span>⏰ Recordar ({diff <= 0 ? "¡Ahora!" : `${diff}m`})</span>
+                            </button>
+                          );
+                        }
+
+                        return (
+                          <button
+                            onClick={() => handleSendReminder(appointment)}
+                            disabled={loadingId === appointment.id || isCancelled}
+                            title="Enviar recordatorio por WhatsApp con el número corregido"
+                            className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold shadow-sm transition ${
+                              appointment.reminderSent
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
+                                : "bg-emerald-600 text-white hover:bg-emerald-500"
+                            }`}
+                          >
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            {appointment.reminderSent ? "Recordatorio Enviado" : "Enviar WhatsApp"}
+                          </button>
+                        );
+                      })()}
+
+                      {/* Opción rápida SMS (Abre app nativa de SMS del celular sin costo adicional) */}
+                      {appointment.clientPhone && !isCancelled && !isCompleted && (
+                        <a
+                          href={`sms:${appointment.clientPhone.replace(/[^0-9]/g, "")}?body=${encodeURIComponent(
+                            `Hola ${appointment.clientName}, te recordamos tu cita hoy a las ${appointment.startTime} en ${currentBusiness?.name || "nuestro local"}. ¡Te esperamos!`
+                          )}`}
+                          title="Enviar SMS gratis usando la app de mensajería de tu celular"
+                          className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 hover:text-gray-900 transition"
+                        >
+                          💬 SMS
+                        </a>
+                      )}
 
                       {/* Marcar como Completada con Modal de Confirmación */}
                       {!isCompleted && !isCancelled && (

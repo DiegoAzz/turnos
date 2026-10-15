@@ -24,6 +24,10 @@ export async function GET(req: NextRequest) {
         expenses: {
           orderBy: { date: "desc" },
         },
+        productSales: {
+          include: { product: true },
+          orderBy: { date: "desc" },
+        },
       },
     });
 
@@ -31,14 +35,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
     }
 
-    // Calcular ingresos totales por citas completadas
+    // 1. Ingresos por servicios / citas completadas
     const completedAppointments = business.appointments || [];
-    const totalIncome = completedAppointments.reduce(
+    const ingresosServicios = completedAppointments.reduce(
       (sum, a) => sum + (a.service?.price || 0),
       0
     );
 
-    // Desglose de ingresos por método de pago
+    // 2. Ingresos por venta de productos en mostrador / tienda
+    const productSales = business.productSales || [];
+    const ingresosProductos = productSales.reduce((sum, s) => sum + s.total, 0);
+
+    // 3. Ingresos totales combinados
+    const totalIncome = ingresosServicios + ingresosProductos;
+
+    // Desglose de ingresos por método de pago (Servicios + Productos)
     const incomeByMethod: Record<string, number> = {
       EFECTIVO: 0,
       NEQUI: 0,
@@ -47,27 +58,34 @@ export async function GET(req: NextRequest) {
     };
 
     completedAppointments.forEach((a) => {
-      const method = a.paymentMethod || "EFECTIVO";
+      const method = (a.paymentMethod || "EFECTIVO").toUpperCase();
       const price = a.service?.price || 0;
-      if (!incomeByMethod[method]) {
-        incomeByMethod[method] = 0;
-      }
+      if (!incomeByMethod[method]) incomeByMethod[method] = 0;
       incomeByMethod[method] += price;
+    });
+
+    productSales.forEach((s) => {
+      const method = (s.paymentMethod || "EFECTIVO").toUpperCase();
+      if (!incomeByMethod[method]) incomeByMethod[method] = 0;
+      incomeByMethod[method] += s.total;
     });
 
     // Gastos
     const expenses = business.expenses || [];
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
 
-    // Ganancia Neta
+    // Ganancia Neta Real
     const netProfit = totalIncome - totalExpenses;
 
     return NextResponse.json({
       totalIncome,
+      ingresosServicios,
+      ingresosProductos,
       totalExpenses,
       netProfit,
       incomeByMethod,
       expenses,
+      productSales: productSales.slice(0, 30),
       completedAppointments: completedAppointments.slice(0, 50),
       currency: business.currency || "COP",
       plan: business.plan,

@@ -253,6 +253,19 @@ Por favor responde:
             />
           </div>
 
+          {/* EXPLICACIÓN DE FUNCIONAMIENTO */}
+          <div className="p-3.5 bg-blue-50/80 border border-blue-200/80 rounded-2xl text-xs text-blue-950 space-y-1.5">
+            <div className="font-bold flex items-center gap-1.5 text-blue-900">
+              <span>💡 ¿Cómo se envían los recordatorios automáticos?</span>
+            </div>
+            <p className="text-[11px] text-blue-800 leading-relaxed">
+              Mientras tengas tu panel de control abierto, el sistema monitorea tus citas en tiempo real. Cuando falten exactamente los minutos configurados (ej. <strong>{timing === "CUSTOM" ? `${customValue} ${customUnit === "MINUTES" ? "minutos" : "horas"}` : "15 minutos"}</strong>), sonará una campana 🔔, recibirás una alerta en pantalla y se abrirá WhatsApp con el mensaje redactado en un solo clic.
+            </p>
+            <p className="text-[10px] text-blue-600 font-medium">
+              🔒 Salen directamente desde tu propio WhatsApp personal, sin pagar APIs de Meta ni costos adicionales.
+            </p>
+          </div>
+
           {/* VISTA PREVIA ESTILO BURBUJA WHATSAPP */}
           <div>
             <label className="text-[11px] font-bold text-gray-500 block mb-1">

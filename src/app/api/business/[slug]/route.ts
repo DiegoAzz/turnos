@@ -22,6 +22,10 @@ export async function GET(
         workingHours: {
           orderBy: { dayOfWeek: "asc" },
         },
+        products: {
+          where: { active: true, stock: { gt: 0 } },
+          orderBy: { name: "asc" },
+        },
       },
     });
 
@@ -90,6 +94,7 @@ export async function GET(
       },
       services: business.services,
       workingHours: business.workingHours,
+      products: business.products || [],
       bookedSlots,
     });
   } catch (error) {
