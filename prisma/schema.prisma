@@ -148,7 +148,7 @@ model Partner {
   email           String              @unique
   phone           String              // WhatsApp para coordinar retiros y avisos
   referralCode    String              @unique // ej: "CARLOS10", "PRO-BOGOTA"
-  commissionRate  Float               @default(0.30) // 30% de comisión recurrente vitalicia
+  commissionRate  Float               @default(0.20) // Comisión recurrente vitalicia personalizada
   balance         Float               @default(0)    // Saldo disponible para retirar
   totalEarned     Float               @default(0)    // Total acumulado histórico ganado
   payoutMethod    String              @default("NEQUI") // "NEQUI", "DAVIPLATA", "BANCOLOMBIA", "PAYPAL", "EFECTIVO"
@@ -169,8 +169,8 @@ model PartnerCommission {
   businessId         String
   business           Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   subscriptionAmount Float     // Monto del pago de la suscripción (ej: 60000 COP o 19 USD)
-  commissionRate     Float     // Tasa aplicada (ej: 0.30)
-  amount             Float     // Comisión ganada (ej: 18000 COP o 5.70 USD)
+  commissionRate     Float     // Tasa aplicada personalizada (ej: 0.20 para 20%)
+  amount             Float     // Comisión ganada (calculada con su tasa asignada)
   description        String    // ej: "Comisión mensual recurrente Plan PRO"
   createdAt          DateTime  @default(now())
 }

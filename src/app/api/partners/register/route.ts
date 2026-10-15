@@ -45,14 +45,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Crear el embajador
+    // Heredar la tasa de comisión configurada por el administrador (o 0.20 por defecto)
+    const latestPartner = await prisma.partner.findFirst({
+      orderBy: { createdAt: "desc" },
+      select: { commissionRate: true },
+    });
+    const defaultRate = latestPartner?.commissionRate ?? 0.20;
+
+    // Crear el embajador con la comisión definida por el administrador
     const partner = await prisma.partner.create({
       data: {
         name,
         email,
         phone,
         referralCode: finalCode,
-        commissionRate: 0.30, // 30% recurrente vitalicio
+        commissionRate: defaultRate,
         payoutMethod,
         payoutAccount: payoutAccount || phone,
         status: "ACTIVE",

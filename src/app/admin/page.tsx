@@ -370,7 +370,7 @@ export default function AdminDashboardPage() {
             }`}
           >
             <Users className="h-4 w-4" />
-            Red de Embajadores & Comisiones (30% Vitalicio)
+            Red de Embajadores & Comisiones Residuales
           </button>
         </div>
 

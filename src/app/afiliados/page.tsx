@@ -24,8 +24,8 @@ export default function AfiliadosPage() {
 
   // Calculadora interactiva
   const [numClients, setNumClients] = useState(25);
+  const [commissionRate, setCommissionRate] = useState(0.20); // Porcentaje personalizable (ej. 20%)
   const planPriceCOP = 60000; // ~60.000 COP al mes por negocio
-  const commissionRate = 0.30; // 30% recurrente
   const monthlyEarningsCOP = Math.round(numClients * planPriceCOP * commissionRate);
   const yearlyEarningsCOP = monthlyEarningsCOP * 12;
 
@@ -128,14 +128,14 @@ export default function AfiliadosPage() {
 
               <p className="mt-6 text-lg sm:text-xl text-gray-300 leading-relaxed">
                 Recomienda <strong>TurnoYa</strong> a barberías, estéticas y consultorios. 
-                Gana el <strong>30% de comisión mes a mes</strong> mientras tu cliente siga usando la app. 
+                Gana una <strong>comisión recurrente mes a mes</strong> mientras tu cliente siga usando la app. 
                 Si tu cliente paga durante 5 años, ¡tú ganas comisiones esos 5 años!
               </p>
             </div>
 
             {/* CALCULADORA INTERACTIVA DE INGRESOS PASIVOS */}
             <div className="mt-16 mx-auto max-w-2xl rounded-3xl bg-white/5 border border-white/10 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 pb-4 mb-6 gap-3">
                 <div>
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-emerald-400" />
@@ -145,9 +145,23 @@ export default function AfiliadosPage() {
                     Desliza para ver cuánto ganarías de comisión recurrente cada mes
                   </p>
                 </div>
-                <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-400 border border-emerald-500/30">
-                  30% Vitalicio
-                </span>
+                <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                  <span className="text-xs text-gray-400 mr-1">Comisión:</span>
+                  {[15, 20, 25, 30, 40].map((pct) => (
+                    <button
+                      key={pct}
+                      type="button"
+                      onClick={() => setCommissionRate(pct / 100)}
+                      className={`px-2 py-1 text-xs font-bold rounded-lg transition ${
+                        Math.round(commissionRate * 100) === pct
+                          ? "bg-emerald-500 text-slate-950 shadow-sm"
+                          : "bg-white/10 text-gray-300 hover:text-white"
+                      }`}
+                    >
+                      {pct}%
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-6">
@@ -240,7 +254,7 @@ export default function AfiliadosPage() {
                   Cobras mes tras mes de por vida
                 </h3>
                 <p className="mt-2 text-sm text-gray-600 leading-relaxed">
-                  A diferencia de una comisión de una sola vez, aquí ganas el 30% cada 30 días automáticamente. Si el cliente dura 3 años, cobras los 36 meses.
+                  A diferencia de una comisión de una sola vez, aquí ganas tu comisión recurrente cada mes automáticamente. Si el cliente dura 3 años, cobras los 36 meses.
                 </p>
               </div>
 

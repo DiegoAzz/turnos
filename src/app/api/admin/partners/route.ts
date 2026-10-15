@@ -81,7 +81,14 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { partnerId, commissionRate, status } = body;
+    const { partnerId, commissionRate, status, updateAll } = body;
+
+    if (updateAll && typeof commissionRate === "number") {
+      await prisma.partner.updateMany({
+        data: { commissionRate },
+      });
+      return NextResponse.json({ success: true, message: `Comisión de todos los embajadores actualizada a ${commissionRate * 100}%` });
+    }
 
     const dataToUpdate: any = {};
     if (typeof commissionRate === "number") dataToUpdate.commissionRate = commissionRate;

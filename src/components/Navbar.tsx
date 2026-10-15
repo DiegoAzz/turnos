@@ -43,7 +43,7 @@ export default function Navbar() {
             className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full border border-emerald-200 transition"
           >
             <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-            Sé Embajador (Gana 30% Mes a Mes)
+            Sé Embajador (Comisiones Recurrentes)
           </Link>
         </nav>
 

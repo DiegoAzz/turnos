@@ -16,6 +16,8 @@ import {
   Play,
   ArrowRight,
   ShieldAlert,
+  Settings2,
+  Edit2,
 } from "lucide-react";
 
 interface PartnerAdmin {
@@ -45,6 +47,75 @@ export default function AdminPartnersManager() {
   // Modal simulación
   const [simulateAmount, setSimulateAmount] = useState(60000);
   const [simulateSuccess, setSimulateSuccess] = useState<any | null>(null);
+  const [globalRateInput, setGlobalRateInput] = useState("20");
+
+  // Editar porcentaje de un embajador individual
+  const handleEditCommissionRate = async (partner: PartnerAdmin) => {
+    const currentPct = Math.round(partner.commissionRate * 100);
+    const input = prompt(
+      `Personalizar porcentaje de comisión para "${partner.name}":\n\nIngresa el porcentaje deseado (ej: 15 para 15%, 25 para 25%, 40 para 40%):`,
+      String(currentPct)
+    );
+    if (input === null) return;
+
+    const newRateNum = parseFloat(input);
+    if (isNaN(newRateNum) || newRateNum < 0 || newRateNum > 100) {
+      alert("Por favor ingresa un número válido entre 0 y 100.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/admin/partners", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          partnerId: partner.id,
+          commissionRate: newRateNum / 100,
+        }),
+      });
+
+      if (res.ok) {
+        alert(`¡Comisión de ${partner.name} actualizada a ${newRateNum}% con éxito!`);
+        await loadPartners();
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al actualizar comisión.");
+    }
+  };
+
+  // Guardar y aplicar porcentaje global a todos los embajadores
+  const handleApplyGlobalRate = async () => {
+    const rateNum = parseFloat(globalRateInput);
+    if (isNaN(rateNum) || rateNum < 0 || rateNum > 100) {
+      alert("Por favor ingresa un porcentaje válido entre 0 y 100.");
+      return;
+    }
+
+    const confirmApply = confirm(
+      `¿Deseas fijar la comisión al ${rateNum}% para TODOS los embajadores registrados y nuevos?`
+    );
+    if (!confirmApply) return;
+
+    try {
+      const res = await fetch("/api/admin/partners", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          updateAll: true,
+          commissionRate: rateNum / 100,
+        }),
+      });
+
+      if (res.ok) {
+        alert(`¡Comisión global fijada al ${rateNum}% con éxito!`);
+        await loadPartners();
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al aplicar comisión global.");
+    }
+  };
 
   const formatCOP = (val: number) =>
     new Intl.NumberFormat("es-CO", {
@@ -178,26 +249,65 @@ export default function AdminPartnersManager() {
         </div>
       </div>
 
-      {/* BANNER INFORMATIVO */}
-      <div className="rounded-2xl bg-gradient-to-r from-emerald-950/80 via-slate-900 to-slate-950 border border-emerald-500/20 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div>
-          <h4 className="text-sm font-bold text-white flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-emerald-400" />
-            Modelo de Ingreso Residual Recurrente (30% Vitalicio)
-          </h4>
-          <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-            Cada vez que una barbería o consultorio renueva su suscripción ($60.000 COP / $19 USD), el embajador que lo trajo recibe automáticamente el 30% ($18.000 COP / $5.70 USD) directo a su billetera. ¡Si el cliente paga 5 años, el embajador cobra esos 5 años!
-          </p>
+      {/* BANNER INFORMATIVO & CONFIGURADOR GLOBAL */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Banner explicativo */}
+        <div className="lg:col-span-2 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-slate-900 to-slate-950 border border-emerald-500/20 p-5 flex flex-col justify-between gap-4">
+          <div>
+            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-emerald-400" />
+              Modelo de Ingreso Residual Recurrente (100% Personalizable)
+            </h4>
+            <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+              Cada vez que una barbería o negocio renueva su suscripción ($60.000 COP / $19 USD), el embajador recibe automáticamente su porcentaje acordado directo a su billetera. Puedes personalizar la tasa global o cambiarla individualmente para cada promotor.
+            </p>
+          </div>
+
+          <div>
+            <a
+              href="/afiliados"
+              target="_blank"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 shadow-md shadow-emerald-600/20 transition"
+            >
+              <span>Ver Landing de Afiliados</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </a>
+          </div>
         </div>
 
-        <a
-          href="/afiliados"
-          target="_blank"
-          className="whitespace-nowrap rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 shadow-md shadow-emerald-600/20 transition flex items-center gap-1.5"
-        >
-          <span>Ver Landing de Afiliados</span>
-          <ArrowRight className="h-3.5 w-3.5" />
-        </a>
+        {/* Tarjeta de configuración de comisión global */}
+        <div className="rounded-2xl border border-emerald-500/30 bg-slate-950 p-5 flex flex-col justify-between">
+          <div>
+            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Settings2 className="h-4 w-4" />
+              Comisión Global
+            </span>
+            <p className="text-xs text-slate-400 mt-1">
+              Fija el porcentaje predeterminado y aplícalo a todos los embajadores:
+            </p>
+          </div>
+
+          <div className="mt-4 flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={globalRateInput}
+                onChange={(e) => setGlobalRateInput(e.target.value)}
+                className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white font-bold pr-8 focus:border-emerald-500 focus:outline-none"
+                placeholder="20"
+              />
+              <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">%</span>
+            </div>
+            <button
+              onClick={handleApplyGlobalRate}
+              className="rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-3.5 py-2.5 transition whitespace-nowrap shadow-sm"
+            >
+              Fijar a Todos
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* TABLA DE EMBAJADORES */}
@@ -260,7 +370,14 @@ export default function AdminPartnersManager() {
                       </td>
 
                       <td className="py-3.5 px-4 font-bold text-emerald-400">
-                        {Math.round(p.commissionRate * 100)}% vitalicio
+                        <button
+                          onClick={() => handleEditCommissionRate(p)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold transition group"
+                          title="Click para cambiar el porcentaje de comisión de este embajador"
+                        >
+                          <span>{Math.round(p.commissionRate * 100)}% vitalicio</span>
+                          <Edit2 className="h-3 w-3 text-slate-400 group-hover:text-emerald-300 transition" />
+                        </button>
                       </td>
 
                       <td className="py-3.5 px-4">
@@ -303,7 +420,7 @@ export default function AdminPartnersManager() {
                           onClick={() => handleSimulateCommission(p)}
                           disabled={actionLoading === p.id}
                           className="inline-flex items-center gap-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 px-2.5 py-1.5 rounded-lg border border-amber-500/30"
-                          title="Simular renovación mensual del cliente y acreditar 30%"
+                          title={`Simular renovación mensual del cliente y acreditar ${Math.round(p.commissionRate * 100)}%`}
                         >
                           <Play className="h-3.5 w-3.5" />
                           <span>+ Pagar Comisión</span>

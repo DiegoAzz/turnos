@@ -381,7 +381,9 @@ export default function PartnerPortalPage() {
                           {b._count?.appointments || 0} citas
                         </td>
                         <td className="py-2.5 px-3 text-right font-bold text-emerald-700">
-                          {b.plan === "PRO" ? "30% recurrente" : "En prueba"}
+                          {b.plan === "PRO"
+                            ? `${partner?.commissionRate ? Math.round(partner.commissionRate * 100) : 20}% recurrente`
+                            : "En prueba"}
                         </td>
                       </tr>
                     ))}
