@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { generateBookingConfirmationUrl } from "@/lib/whatsapp";
+import { generateBookingConfirmationUrl, cleanPhoneNumber } from "@/lib/whatsapp";
 
 // Función auxiliar para sumar minutos a una hora "HH:mm"
 function addMinutes(timeStr: string, minutes: number): string {
@@ -73,13 +73,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const formattedPhone = cleanPhoneNumber(clientPhone);
+
     // Crear cita
     const appointment = await prisma.appointment.create({
       data: {
         businessId: business.id,
         serviceId: service.id,
         clientName,
-        clientPhone,
+        clientPhone: formattedPhone,
         clientEmail: clientEmail || null,
         clientNotes: clientNotes || null,
         date: appointmentDate,
@@ -95,7 +97,7 @@ export async function POST(req: NextRequest) {
 
     // Generar enlace de WhatsApp para confirmación inmediata
     const whatsappUrl = generateBookingConfirmationUrl({
-      phone: clientPhone,
+      phone: formattedPhone,
       clientName,
       serviceName: service.name,
       businessName: business.name,

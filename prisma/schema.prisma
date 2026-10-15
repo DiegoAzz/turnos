@@ -19,6 +19,9 @@ model Business {
   plan                   String         @default("FREE") // "FREE" | "PRO"
   active                 Boolean        @default(true)
   adminPin               String         @default("1234")
+  autoRemindersEnabled   Boolean        @default(true)
+  reminderTiming         String         @default("2_HOURS_BEFORE") // "1_HOUR_BEFORE", "2_HOURS_BEFORE", "24_HOURS_BEFORE"
+  reminderMessageTemplate String?
   stripeCustomerId       String?
   stripeSubscriptionId   String?
   stripeCurrentPeriodEnd DateTime?
