@@ -37,8 +37,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const business = await prisma.business.findUnique({
-      where: { slug: businessSlug },
+    const decodedSlug = decodeURIComponent(businessSlug).trim();
+    const cleanLower = decodedSlug.toLowerCase();
+
+    const business = await prisma.business.findFirst({
+      where: {
+        OR: [
+          { slug: decodedSlug },
+          { slug: cleanLower },
+          { slug: { equals: decodedSlug, mode: "insensitive" } },
+          { id: decodedSlug },
+        ],
+      },
     });
 
     if (!business) {
