@@ -69,6 +69,23 @@ export async function POST(req: NextRequest) {
     // Parsear fecha
     const appointmentDate = new Date(`${date}T00:00:00.000Z`);
 
+    // Validar que no se reserve una hora que ya pasó en la fecha de hoy
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+    if (date === todayStr) {
+      const [reqH, reqM] = startTime.split(":").map(Number);
+      const reqMinutes = reqH * 60 + reqM;
+      // Margen de tolerancia de 5 minutos
+      const currentMinutes = now.getHours() * 60 + now.getMinutes() - 5;
+      if (reqMinutes < currentMinutes) {
+        return NextResponse.json(
+          { error: "El horario seleccionado ya ha pasado para el día de hoy. Por favor elige una hora a partir de este momento." },
+          { status: 400 }
+        );
+      }
+    }
+
     // Validar si existe colisión de intervalos con citas ya reservadas
     function toMinutes(t: string): number {
       const [h, m] = t.split(":").map(Number);

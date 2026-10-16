@@ -179,44 +179,59 @@ export default function BookingPage({
   const generateSlotsForSelectedDate = () => {
     if (!selectedDate) return [];
 
+    let rawSlots: string[] = [];
+
     // Modo 1: Todas las horas (horario extendido de 06:00 a 23:30 para barberos o turnos especiales)
     if (scheduleMode === "ALL_HOURS") {
-      const allSlots: string[] = [];
       let currentMin = 6 * 60; // 06:00 AM
       const endMin = 23 * 60 + 30; // 23:30 PM
       while (currentMin <= endMin) {
         const h = Math.floor(currentMin / 60);
         const m = currentMin % 60;
-        allSlots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+        rawSlots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
         currentMin += 30;
       }
-      return allSlots;
+    } else {
+      // Modo 2: Horario habitual configurado por el negocio
+      if (workingHours.length === 0) return [];
+      const dateObj = new Date(`${selectedDate}T12:00:00.000Z`);
+      const dayOfWeek = dateObj.getDay();
+
+      const wh = workingHours.find((w) => w.dayOfWeek === dayOfWeek);
+      if (!wh || wh.isClosed) return [];
+
+      const [startH, startM] = wh.openTime.split(":").map(Number);
+      const [endH, endM] = wh.closeTime.split(":").map(Number);
+
+      let currentMin = startH * 60 + startM;
+      const endMin = endH * 60 + endM;
+
+      // Intervalo estándar de 30 minutos
+      while (currentMin + 30 <= endMin) {
+        const h = Math.floor(currentMin / 60);
+        const m = currentMin % 60;
+        rawSlots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+        currentMin += 30;
+      }
     }
 
-    // Modo 2: Horario habitual configurado por el negocio
-    if (workingHours.length === 0) return [];
-    const dateObj = new Date(`${selectedDate}T12:00:00.000Z`);
-    const dayOfWeek = dateObj.getDay();
+    // SI LA FECHA ES HOY: Ocultar horarios anteriores a la hora actual (ej. si son las 3pm, no mostrar las 2pm)
+    const now = new Date();
+    const todayYear = now.getFullYear();
+    const todayMonth = String(now.getMonth() + 1).padStart(2, "0");
+    const todayDay = String(now.getDate()).padStart(2, "0");
+    const todayIso = `${todayYear}-${todayMonth}-${todayDay}`;
 
-    const wh = workingHours.find((w) => w.dayOfWeek === dayOfWeek);
-    if (!wh || wh.isClosed) return [];
-
-    const slots: string[] = [];
-    const [startH, startM] = wh.openTime.split(":").map(Number);
-    const [endH, endM] = wh.closeTime.split(":").map(Number);
-
-    let currentMin = startH * 60 + startM;
-    const endMin = endH * 60 + endM;
-
-    // Intervalo estándar de 30 minutos
-    while (currentMin + 30 <= endMin) {
-      const h = Math.floor(currentMin / 60);
-      const m = currentMin % 60;
-      slots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
-      currentMin += 30;
+    if (selectedDate === todayIso) {
+      const currentMinutesNow = now.getHours() * 60 + now.getMinutes();
+      rawSlots = rawSlots.filter((slot) => {
+        const [h, m] = slot.split(":").map(Number);
+        const slotMinutes = h * 60 + m;
+        return slotMinutes >= currentMinutesNow;
+      });
     }
 
-    return slots;
+    return rawSlots;
   };
 
   const timeSlots = generateSlotsForSelectedDate();
@@ -572,16 +587,40 @@ export default function BookingPage({
 
               {timeSlots.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500 bg-gray-50/50">
-                  <p className="font-semibold text-gray-700">El negocio no tiene horario habitual configurado para este día.</p>
-                  <p className="text-xs text-gray-400 mt-1">¿El profesional está disponible fuera de hora habitual?</p>
-                  <button
-                    type="button"
-                    onClick={() => setScheduleMode("ALL_HOURS")}
-                    className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm transition"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>Ver todas las horas disponibles (Extendido)</span>
-                  </button>
+                  <p className="font-semibold text-gray-700">
+                    {(() => {
+                      const now = new Date();
+                      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+                      return selectedDate === todayStr
+                        ? "Los turnos habituales de hoy anteriores a la hora actual ya han pasado."
+                        : "El negocio no tiene horario habitual configurado para este día.";
+                    })()}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Puedes consultar el horario extendido de hoy o agendar para mañana.
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setScheduleMode("ALL_HOURS")}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm transition"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>Ver horario extendido</span>
+                    </button>
+                    {availableDates.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedDate(availableDates[1].iso);
+                          setScheduleMode("DEFAULT");
+                        }}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
+                      >
+                        <span>Ver turnos para Mañana →</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
