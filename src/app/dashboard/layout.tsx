@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import BusinessSwitcher from "@/components/BusinessSwitcher";
+import DashboardLogoutButton from "@/components/DashboardLogoutButton";
 import { getVerifiedBusinessSlug, verifyAdminSession } from "@/lib/auth-security";
 
 export const dynamic = "force-dynamic";
@@ -181,14 +182,7 @@ export default async function DashboardLayout({
               <span style={{ color: "#ffffff" }} className="font-bold">Volver a Super Admin</span>
             </Link>
           ) : (
-            <Link
-              href="/api/auth/logout"
-              style={{ color: "#4b5563", backgroundColor: "#ffffff" }}
-              className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2 text-xs font-semibold hover:bg-gray-100 transition"
-            >
-              <LogOut className="h-3.5 w-3.5 text-gray-500" />
-              <span>Cerrar Sesión</span>
-            </Link>
+            <DashboardLogoutButton />
           )}
 
           <Link
