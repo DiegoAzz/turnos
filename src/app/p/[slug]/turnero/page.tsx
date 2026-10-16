@@ -177,11 +177,23 @@ export default function SmartTvTurneroPage({
     return () => clearInterval(interval);
   }, [slug, soundEnabled]);
 
-  const bookingPortalUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/p/${slug}`
-    : `https://turnos.appzplay.online/p/${slug}`;
+  // Slug canónico del negocio o fallback al de la URL
+  const canonicalSlug = business?.slug || decodeURIComponent(slug).trim();
 
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
+  // Si se visualiza en localhost, generar el QR con la URL pública para que el celular no intente abrir localhost
+  const isLocalHost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1");
+
+  const appBaseUrl =
+    typeof window !== "undefined" && !isLocalHost
+      ? window.location.origin
+      : "https://turnos.appzplay.online";
+
+  const bookingPortalUrl = `${appBaseUrl}/p/${canonicalSlug}`;
+
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(
     bookingPortalUrl
   )}&margin=10`;
 
@@ -522,6 +534,14 @@ export default function SmartTvTurneroPage({
               <p className="text-xs text-slate-400 mt-1">
                 Solicita tu turno virtual y sigue tu turno en tiempo real sin esperar de pie.
               </p>
+              <a
+                href={bookingPortalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-1.5 text-[11px] font-mono font-medium text-emerald-400 hover:text-emerald-300 underline break-all"
+              >
+                {bookingPortalUrl.replace(/^https?:\/\//, "")}
+              </a>
             </div>
           </div>
         </div>

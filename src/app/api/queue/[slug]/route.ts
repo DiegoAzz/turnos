@@ -35,8 +35,18 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const dateQuery = searchParams.get("date");
 
-    const business = await prisma.business.findUnique({
-      where: { slug },
+    const decodedSlug = decodeURIComponent(slug).trim();
+    const cleanLower = decodedSlug.toLowerCase();
+
+    const business = await prisma.business.findFirst({
+      where: {
+        OR: [
+          { slug: decodedSlug },
+          { slug: cleanLower },
+          { slug: { equals: decodedSlug, mode: "insensitive" } },
+          { id: decodedSlug },
+        ],
+      },
       select: {
         id: true,
         name: true,
