@@ -526,7 +526,7 @@ export default function AfiliadosPage() {
                           franchiseCityCountry={franchiseCityCountry}
                           onSuccess={(data) => {
                             if (data.isExisting && data.status === "ACTIVE") {
-                              router.push("/afiliados/portal");
+                              window.location.href = "/afiliados/portal";
                             } else {
                               setRegistrationSuccess(data);
                             }
@@ -763,7 +763,7 @@ export default function AfiliadosPage() {
                       text="Entrar a mi Portal con Google / Gmail"
                       onSuccess={(data) => {
                         if (data.isExisting && data.status === "ACTIVE") {
-                          router.push("/afiliados/portal");
+                          window.location.href = "/afiliados/portal";
                         } else {
                           setLoginError(data.message || "Tu cuenta vinculada a Gmail está en revisión.");
                         }

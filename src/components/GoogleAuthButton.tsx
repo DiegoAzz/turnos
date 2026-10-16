@@ -140,7 +140,7 @@ export default function GoogleAuthButton({
       if (onSuccess) {
         onSuccess(data);
       } else if (data.redirectUrl) {
-        router.push(data.redirectUrl);
+        window.location.href = data.redirectUrl;
       }
     } catch (err: any) {
       setError(err.message || "Error al conectar con Google.");

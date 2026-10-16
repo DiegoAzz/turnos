@@ -15,8 +15,8 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
 import BusinessSwitcher from "@/components/BusinessSwitcher";
+import { getVerifiedBusinessSlug, verifyAdminSession } from "@/lib/auth-security";
 
 export const dynamic = "force-dynamic";
 
@@ -25,10 +25,8 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const selectedSlug = cookieStore.get("selected_business_slug")?.value;
-  const adminSession = cookieStore.get("turnos_admin_session")?.value;
-  const isAdmin = adminSession === "authenticated";
+  const selectedSlug = await getVerifiedBusinessSlug();
+  const isAdmin = await verifyAdminSession();
 
   // Obtenemos todos los negocios disponibles
   const allBusinesses = await prisma.business.findMany({

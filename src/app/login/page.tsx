@@ -29,7 +29,7 @@ export default function BusinessLoginPage() {
       if (!res.ok) {
         setError(data.error || "Datos de acceso incorrectos.");
       } else {
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
       }
     } catch (err) {
       setError("Error de conexión al servidor.");

@@ -31,7 +31,9 @@ export function verifySignedValue(signedValue?: string | null): string | null {
   const signature = signedValue.substring(lastDotIndex + 1);
 
   const expectedSignature = createSignature(value);
-  if (crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+  const sigBuf = Buffer.from(signature);
+  const expBuf = Buffer.from(expectedSignature);
+  if (sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf)) {
     return value;
   }
   return null;
