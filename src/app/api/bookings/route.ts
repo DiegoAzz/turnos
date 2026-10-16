@@ -69,10 +69,49 @@ export async function POST(req: NextRequest) {
     // Parsear fecha
     const appointmentDate = new Date(`${date}T00:00:00.000Z`);
 
-    // Validar que no se reserve una hora que ya pasó en la fecha de hoy
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
+    // Validar si el negocio está cerrado el día de hoy mediante liveStatus
+    if (date === todayStr && business.liveStatus === "CLOSED_TODAY") {
+      return NextResponse.json(
+        { error: "El establecimiento se encuentra cerrado el día de hoy. Por favor selecciona otra fecha disponible." },
+        { status: 400 }
+      );
+    }
+
+    // Validar si el día de la semana está configurado como CERRADO
+    const [dYear, dMonth, dDay] = date.split("-").map(Number);
+    const dateForDayOfWeek = new Date(dYear, dMonth - 1, dDay);
+    const dayOfWeek = dateForDayOfWeek.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+    const dayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const dayName = dayNames[dayOfWeek] || "este día";
+
+    const workingHour = await prisma.workingHour.findUnique({
+      where: {
+        businessId_dayOfWeek: {
+          businessId: business.id,
+          dayOfWeek,
+        },
+      },
+    });
+
+    if (workingHour) {
+      if (workingHour.isClosed) {
+        return NextResponse.json(
+          { error: `El establecimiento no presta servicio los días ${dayName} (Cerrado todo el día). Por favor selecciona otro día en el calendario.` },
+          { status: 400 }
+        );
+      }
+    } else if (dayOfWeek === 0) {
+      // Por defecto, si no hay horario configurado, domingo es cerrado
+      return NextResponse.json(
+        { error: `El establecimiento no presta servicio los días Domingo (Cerrado todo el día). Por favor selecciona otro día en el calendario.` },
+        { status: 400 }
+      );
+    }
+
+    // Validar que no se reserve una hora que ya pasó en la fecha de hoy
     if (date === todayStr) {
       const [reqH, reqM] = startTime.split(":").map(Number);
       const reqMinutes = reqH * 60 + reqM;

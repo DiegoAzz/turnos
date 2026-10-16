@@ -134,6 +134,21 @@ export default function BookingPage({
     };
   });
 
+  // Verificar si un día específico está cerrado (por horario semanal o liveStatus)
+  const isDayClosed = (dayOfWeek: number, isoDate: string) => {
+    const now = new Date();
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    if (isoDate === todayIso && business?.liveStatus === "CLOSED_TODAY") {
+      return true;
+    }
+    const wh = workingHours.find((w) => w.dayOfWeek === dayOfWeek);
+    if (wh) {
+      return wh.isClosed;
+    }
+    // Por defecto domingo (0) cerrado
+    return dayOfWeek === 0;
+  };
+
   // Cargar datos del negocio
   useEffect(() => {
     async function fetchBusiness() {
@@ -144,10 +159,24 @@ export default function BookingPage({
         const data = await res.json();
         setBusiness(data.business);
         setServices(data.services);
-        setWorkingHours(data.workingHours);
+        const whList: WorkingHour[] = data.workingHours || [];
+        setWorkingHours(whList);
         setProducts(data.products || []);
+
+        // Auto-seleccionar el PRIMER día ABIERTO disponible para no caer en un día cerrado
+        const now = new Date();
+        const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
         if (availableDates.length > 0) {
-          setSelectedDate(availableDates[0].iso);
+          const firstOpen = availableDates.find((item) => {
+            if (item.iso === todayIso && data.business?.liveStatus === "CLOSED_TODAY") {
+              return false;
+            }
+            const wh = whList.find((w) => w.dayOfWeek === item.dayOfWeek);
+            if (wh) return !wh.isClosed;
+            return item.dayOfWeek !== 0;
+          });
+          setSelectedDate(firstOpen ? firstOpen.iso : availableDates[0].iso);
         }
       } catch (err: any) {
         setError(err.message || "Error al cargar la información.");
@@ -179,9 +208,17 @@ export default function BookingPage({
   const generateSlotsForSelectedDate = () => {
     if (!selectedDate) return [];
 
+    const dateObj = new Date(`${selectedDate}T12:00:00.000Z`);
+    const dayOfWeek = dateObj.getDay();
+
+    // Si el día está cerrado, no se ofrecen turnos
+    if (isDayClosed(dayOfWeek, selectedDate)) {
+      return [];
+    }
+
     let rawSlots: string[] = [];
 
-    // Modo 1: Todas las horas (horario extendido de 06:00 a 23:30 para barberos o turnos especiales)
+    // Modo 1: Todas las horas (horario extendido de 06:00 a 23:30 para barberos o turnos especiales en días abiertos)
     if (scheduleMode === "ALL_HOURS") {
       let currentMin = 6 * 60; // 06:00 AM
       const endMin = 23 * 60 + 30; // 23:30 PM
@@ -194,8 +231,6 @@ export default function BookingPage({
     } else {
       // Modo 2: Horario habitual configurado por el negocio
       if (workingHours.length === 0) return [];
-      const dateObj = new Date(`${selectedDate}T12:00:00.000Z`);
-      const dayOfWeek = dateObj.getDay();
 
       const wh = workingHours.find((w) => w.dayOfWeek === dayOfWeek);
       if (!wh || wh.isClosed) return [];
@@ -233,6 +268,11 @@ export default function BookingPage({
 
     return rawSlots;
   };
+
+  const selectedDateItem = availableDates.find((d) => d.iso === selectedDate);
+  const isCurrentDateClosed = selectedDateItem
+    ? isDayClosed(selectedDateItem.dayOfWeek, selectedDateItem.iso)
+    : false;
 
   const timeSlots = generateSlotsForSelectedDate();
 
@@ -503,24 +543,38 @@ export default function BookingPage({
 
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
                 {availableDates.map((item) => {
+                  const isClosed = isDayClosed(item.dayOfWeek, item.iso);
                   const isSelected = selectedDate === item.iso;
                   return (
                     <button
                       key={item.iso}
-                      onClick={() => setSelectedDate(item.iso)}
-                      className={`flex flex-col items-center justify-center rounded-xl p-3 text-center border transition ${
-                        isSelected
-                          ? "border-emerald-600 bg-emerald-600 text-white shadow-sm"
+                      disabled={isClosed}
+                      onClick={() => {
+                        if (!isClosed) setSelectedDate(item.iso);
+                      }}
+                      className={`flex flex-col items-center justify-center rounded-xl p-3 text-center border transition relative ${
+                        isClosed
+                          ? "border-gray-200 bg-gray-100/80 text-gray-400 cursor-not-allowed opacity-60"
+                          : isSelected
+                          ? "border-emerald-600 bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/20"
                           : "border-gray-200 bg-white hover:border-emerald-500 hover:bg-emerald-50/50"
                       }`}
                     >
-                      <span className={`text-[10px] uppercase font-bold ${isSelected ? "text-emerald-100" : "text-gray-400"}`}>
+                      <span className={`text-[10px] uppercase font-bold ${isClosed ? "text-gray-400" : isSelected ? "text-emerald-100" : "text-gray-400"}`}>
                         {item.dayName}
                       </span>
-                      <span className="my-0.5 text-lg font-extrabold">{item.dayNumber}</span>
-                      <span className={`text-[10px] ${isSelected ? "text-emerald-100" : "text-gray-400"}`}>
-                        {item.monthName}
+                      <span className={`my-0.5 text-lg font-extrabold ${isClosed ? "line-through text-gray-400" : ""}`}>
+                        {item.dayNumber}
                       </span>
+                      {isClosed ? (
+                        <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1 py-0.5 rounded-md mt-0.5 border border-rose-200/60">
+                          Cerrado
+                        </span>
+                      ) : (
+                        <span className={`text-[10px] ${isSelected ? "text-emerald-100" : "text-gray-400"}`}>
+                          {item.monthName}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -528,7 +582,7 @@ export default function BookingPage({
 
               <div className="mt-6 flex justify-end">
                 <button
-                  disabled={!selectedDate}
+                  disabled={!selectedDate || isCurrentDateClosed}
                   onClick={() => setStep(3)}
                   className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 transition disabled:opacity-50"
                 >
@@ -556,32 +610,34 @@ export default function BookingPage({
                     <p className="text-xs text-gray-500">Horarios para {selectedDate}</p>
                   </div>
 
-                  {/* Selector Horario Habitual vs Horario Extendido (Todas las Horas) */}
-                  <div className="flex items-center bg-gray-100 p-1 rounded-xl self-start sm:self-auto border border-gray-200">
-                    <button
-                      type="button"
-                      onClick={() => setScheduleMode("DEFAULT")}
-                      className={`px-3 py-1.5 text-xs rounded-lg transition ${
-                        scheduleMode === "DEFAULT"
-                          ? "bg-white text-emerald-800 shadow-sm font-bold"
-                          : "text-gray-500 hover:text-gray-900 font-medium"
-                      }`}
-                    >
-                      Horario habitual
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setScheduleMode("ALL_HOURS")}
-                      className={`px-3 py-1.5 text-xs rounded-lg transition flex items-center gap-1.5 ${
-                        scheduleMode === "ALL_HOURS"
-                          ? "bg-white text-emerald-800 shadow-sm font-bold"
-                          : "text-gray-500 hover:text-gray-900 font-medium"
-                      }`}
-                    >
-                      <span>Todas las horas (Extendido)</span>
-                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1 py-0.2 rounded font-bold">24h</span>
-                    </button>
-                  </div>
+                  {/* Selector Horario Habitual vs Horario Extendido (Solo si el día está abierto) */}
+                  {!isCurrentDateClosed && (
+                    <div className="flex items-center bg-gray-100 p-1 rounded-xl self-start sm:self-auto border border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => setScheduleMode("DEFAULT")}
+                        className={`px-3 py-1.5 text-xs rounded-lg transition ${
+                          scheduleMode === "DEFAULT"
+                            ? "bg-white text-emerald-800 shadow-sm font-bold"
+                            : "text-gray-500 hover:text-gray-900 font-medium"
+                        }`}
+                      >
+                        Horario habitual
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setScheduleMode("ALL_HOURS")}
+                        className={`px-3 py-1.5 text-xs rounded-lg transition flex items-center gap-1.5 ${
+                          scheduleMode === "ALL_HOURS"
+                            ? "bg-white text-emerald-800 shadow-sm font-bold"
+                            : "text-gray-500 hover:text-gray-900 font-medium"
+                        }`}
+                      >
+                        <span>Todas las horas (Extendido)</span>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1 py-0.2 rounded font-bold">24h</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -589,6 +645,9 @@ export default function BookingPage({
                 <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500 bg-gray-50/50">
                   <p className="font-semibold text-gray-700">
                     {(() => {
+                      if (isCurrentDateClosed) {
+                        return "🚫 El establecimiento permanece CERRADO este día.";
+                      }
                       const now = new Date();
                       const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
                       return selectedDate === todayStr
@@ -597,28 +656,48 @@ export default function BookingPage({
                     })()}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    Puedes consultar el horario extendido de hoy o agendar para mañana.
+                    {isCurrentDateClosed
+                      ? "Este día está configurado como día de descanso del establecimiento. Por favor selecciona otro día en el calendario."
+                      : "Puedes consultar el horario extendido de hoy o agendar para mañana."}
                   </p>
                   <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setScheduleMode("ALL_HOURS")}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm transition"
-                    >
-                      <Sparkles className="h-3.5 w-3.5" />
-                      <span>Ver horario extendido</span>
-                    </button>
-                    {availableDates.length > 1 && (
+                    {isCurrentDateClosed ? (
                       <button
                         type="button"
-                        onClick={() => {
-                          setSelectedDate(availableDates[1].iso);
-                          setScheduleMode("DEFAULT");
-                        }}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
+                        onClick={() => setStep(2)}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm transition"
                       >
-                        <span>Ver turnos para Mañana →</span>
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                        <span>Ver calendario y días abiertos</span>
                       </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setScheduleMode("ALL_HOURS")}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm transition"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                          <span>Ver horario extendido</span>
+                        </button>
+                        {availableDates.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nextOpen = availableDates.find((d, idx) => idx > 0 && !isDayClosed(d.dayOfWeek, d.iso));
+                              if (nextOpen) {
+                                setSelectedDate(nextOpen.iso);
+                              } else {
+                                setSelectedDate(availableDates[1].iso);
+                              }
+                              setScheduleMode("DEFAULT");
+                            }}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
+                          >
+                            <span>Ver turnos para Mañana →</span>
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

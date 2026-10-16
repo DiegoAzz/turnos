@@ -32,6 +32,7 @@ import LiveStatusModal from "@/components/LiveStatusModal";
 import BusinessProfileModal from "@/components/BusinessProfileModal";
 import OnboardingModal from "@/components/OnboardingModal";
 import BarberQueueManager from "@/components/BarberQueueManager";
+import WorkingHoursModal from "@/components/WorkingHoursModal";
 import {
   playAlertChime,
   unlockAudio,
@@ -196,6 +197,7 @@ export default function DashboardClientActions({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isHoursOpen, setIsHoursOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(() => {
     if (typeof window !== "undefined") {
       if (sessionStorage.getItem("turnoya_onboarding_dismissed")) {
@@ -699,6 +701,16 @@ export default function DashboardClientActions({
             <span>Perfil & Logo</span>
           </button>
 
+          {/* BOTÓN HORARIOS DE ATENCIÓN */}
+          <button
+            onClick={() => setIsHoursOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-teal-200 bg-teal-50 text-teal-900 hover:bg-teal-100 transition shadow-sm"
+            title="Configurar qué días abre el negocio y qué días descansa"
+          >
+            <Clock className="h-3.5 w-3.5 text-teal-600" />
+            <span>Horarios</span>
+          </button>
+
           {/* BOTÓN CONFIGURAR RUBRO & ESPECIALIDAD */}
           <button
             onClick={() => setIsOnboardingOpen(true)}
@@ -770,6 +782,14 @@ export default function DashboardClientActions({
           business={currentBusiness}
           onClose={() => setIsProfileOpen(false)}
           onSaved={(updated) => setCurrentBusiness(updated)}
+        />
+      )}
+
+      {/* MODAL HORARIOS DE ATENCIÓN */}
+      {isHoursOpen && (
+        <WorkingHoursModal
+          business={currentBusiness}
+          onClose={() => setIsHoursOpen(false)}
         />
       )}
 
