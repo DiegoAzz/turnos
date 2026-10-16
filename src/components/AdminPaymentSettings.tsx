@@ -385,6 +385,18 @@ export default function AdminPaymentSettings() {
                 ⚠️ Atención: La clave ingresada no parece ser un Secreto de Integridad. Debe empezar obligatoriamente por <code className="bg-rose-950/60 px-1 py-0.5 rounded">test_integrity_</code> o <code className="bg-rose-950/60 px-1 py-0.5 rounded">prod_integrity_</code>. Asegúrate de no haber copiado el &quot;Secreto de Eventos&quot;.
               </p>
             )}
+
+            {wompiPublicKey.startsWith("pub_prod_") && wompiIntegritySecret.startsWith("test_integrity_") && (
+              <p className="mt-1.5 text-xs text-rose-400 font-semibold bg-rose-500/10 border border-rose-500/30 p-2 rounded-lg">
+                ⚠️ Incompatibilidad detectada: Tu Llave Pública es de PRODUCCIÓN (<code className="bg-rose-950/60 px-1 py-0.5 rounded">pub_prod_...</code>) pero tu Secreto de Integridad es de PRUEBAS (<code className="bg-rose-950/60 px-1 py-0.5 rounded">test_integrity_...</code>). Debes copiar el Secreto de Integridad de Producción que empieza por <code className="bg-rose-950/60 px-1 py-0.5 rounded">prod_integrity_</code>.
+              </p>
+            )}
+
+            {wompiPublicKey.startsWith("pub_test_") && wompiIntegritySecret.startsWith("prod_integrity_") && (
+              <p className="mt-1.5 text-xs text-rose-400 font-semibold bg-rose-500/10 border border-rose-500/30 p-2 rounded-lg">
+                ⚠️ Incompatibilidad detectada: Tu Llave Pública es de PRUEBAS (<code className="bg-rose-950/60 px-1 py-0.5 rounded">pub_test_...</code>) pero tu Secreto de Integridad es de PRODUCCIÓN (<code className="bg-rose-950/60 px-1 py-0.5 rounded">prod_integrity_...</code>). Ambos deben pertenecer al mismo entorno.
+              </p>
+            )}
             <p className="mt-1 text-[11px] text-slate-500">
               ⚠️ <strong>Importante:</strong> En el panel de Wompi, haz clic dentro del campo de Integridad y presiona <kbd className="bg-slate-800 text-slate-300 px-1 rounded">Ctrl + A</kbd> para asegurarte de copiar la clave completa sin recortar caracteres.
             </p>

@@ -46,8 +46,19 @@ export async function POST(req: NextRequest) {
     // Generar firma de integridad si el secreto está configurado
     let signature: string | undefined = undefined;
     if (settings.wompiIntegritySecret && settings.wompiIntegritySecret.trim()) {
-      const stringToSign = `${reference}${amountInCents}${currency}${settings.wompiIntegritySecret.trim()}`;
+      const cleanSecret = settings.wompiIntegritySecret.trim();
+      const stringToSign = `${reference}${amountInCents}${currency}${cleanSecret}`;
       signature = crypto.createHash("sha256").update(stringToSign).digest("hex");
+      console.log("[Wompi Checkout] Firma calculada:", {
+        reference,
+        amountInCents,
+        currency,
+        secretPrefix: cleanSecret.substring(0, 15),
+        secretLength: cleanSecret.length,
+        signaturePrefix: signature.substring(0, 12) + "...",
+      });
+    } else {
+      console.warn("[Wompi Checkout] Advertencia: wompiIntegritySecret no está configurado en settings!");
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://turnos.appzplay.online";
