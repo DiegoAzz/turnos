@@ -365,6 +365,41 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // 8. BLOQUEAR CLIENTE / LISTA NEGRA ANTI-SPAM
+    if (action === "BLOCK_CLIENT") {
+      if (!appointmentId) {
+        return NextResponse.json({ error: "Falta appointmentId" }, { status: 400 });
+      }
+
+      const target = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+      });
+
+      if (!target) {
+        return NextResponse.json({ error: "Turno no encontrado" }, { status: 404 });
+      }
+
+      // Marcar el turno y todas las citas activas de este teléfono como BLOQUEADAS
+      await prisma.appointment.updateMany({
+        where: {
+          businessId: business.id,
+          clientPhone: target.clientPhone,
+          status: { in: ["CONFIRMED", "PENDING", "POSTPONED"] },
+        },
+        data: { status: "BLOCKED" },
+      });
+
+      await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: { status: "BLOCKED" },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `El cliente con teléfono ${target.clientPhone} ha sido bloqueado y no podrá volver a solicitar turnos en este establecimiento.`,
+      });
+    }
+
     return NextResponse.json({ error: "Acción no reconocida" }, { status: 400 });
   } catch (error) {
     console.error("Error en queue actions:", error);

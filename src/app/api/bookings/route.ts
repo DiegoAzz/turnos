@@ -118,6 +118,60 @@ export async function POST(req: NextRequest) {
 
     const formattedPhone = cleanPhoneNumber(clientPhone);
 
+    // 1. REGLA ANTI-SPAM: Validar que sea un número móvil verosímil
+    const digitsOnly = clientPhone.replace(/[^0-9]/g, "");
+    if (digitsOnly.length < 10) {
+      return NextResponse.json(
+        { error: "Por favor ingresa un número de celular/WhatsApp válido de al menos 10 dígitos." },
+        { status: 400 }
+      );
+    }
+
+    const isRepetitive = /^(\d)\1+$/.test(digitsOnly);
+    const isDummySequence = ["1234567890", "0123456789", "9876543210"].includes(digitsOnly.slice(-10));
+    if (isRepetitive || isDummySequence) {
+      return NextResponse.json(
+        { error: "El número de teléfono ingresado no parece ser un número real. Por favor escribe tu número verdadero." },
+        { status: 400 }
+      );
+    }
+
+    // 2. REGLA ANTI-SPAM: Verificar si el número está en Lista Negra (bloqueado por el negocio)
+    const isBlocked = await prisma.appointment.findFirst({
+      where: {
+        businessId: business.id,
+        clientPhone: formattedPhone,
+        status: { in: ["BLOCKED", "SPAM"] },
+      },
+    });
+
+    if (isBlocked) {
+      return NextResponse.json(
+        { error: "No es posible solicitar turnos con este número en este establecimiento. Comunícate directamente con el administrador." },
+        { status: 403 }
+      );
+    }
+
+    // 3. REGLA ANTI-SPAM: Máximo 1 turno activo por número de celular para la misma fecha
+    const activeAppointmentSamePhone = await prisma.appointment.findFirst({
+      where: {
+        businessId: business.id,
+        date: appointmentDate,
+        clientPhone: formattedPhone,
+        status: { in: ["CONFIRMED", "PENDING", "IN_PROGRESS"] },
+      },
+      include: { service: true },
+    });
+
+    if (activeAppointmentSamePhone) {
+      return NextResponse.json(
+        {
+          error: `Ya tienes un turno activo (#${activeAppointmentSamePhone.startTime} - ${activeAppointmentSamePhone.service?.name}) para esta fecha. No puedes pedir más turnos hasta que seas atendido o canceles el anterior.`,
+        },
+        { status: 429 }
+      );
+    }
+
     // Crear cita con tipo (LOCAL o DOMICILIO) y dirección
     const appointment = await prisma.appointment.create({
       data: {

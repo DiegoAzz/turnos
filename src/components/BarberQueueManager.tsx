@@ -19,6 +19,7 @@ import {
   ExternalLink,
   ChevronRight,
   Sparkles,
+  Ban,
 } from "lucide-react";
 import { playTurnCall } from "@/lib/sound";
 
@@ -508,10 +509,29 @@ export default function BarberQueueManager({
                               });
                             }
                           }}
-                          className="p-1.5 text-gray-400 hover:text-rose-600 transition"
+                          className="p-1.5 text-gray-400 hover:text-gray-700 transition"
                           title="Cancelar turno"
                         >
                           <X className="h-4 w-4" />
+                        </button>
+
+                        <button
+                          disabled={actionLoading}
+                          onClick={() => {
+                            const isSpam = confirm(
+                              `¿El turno de "${turn.clientName}" (${turn.clientPhone || "sin celular"}) es SPAM o una broma?\n\nAl presionar ACEPTAR:\n1. Se cancelará el turno de inmediato.\n2. Se BLOQUEARÁ este número para que nunca más pueda pedir turnos en tu negocio.`
+                            );
+                            if (isSpam) {
+                              handleQueueAction({
+                                action: "BLOCK_CLIENT",
+                                appointmentId: turn.id,
+                              });
+                            }
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          title="Bloquear cliente / Reportar como Spam (Lista Negra)"
+                        >
+                          <Ban className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
@@ -599,10 +619,29 @@ export default function BarberQueueManager({
                               });
                             }
                           }}
-                          className="p-1.5 text-gray-400 hover:text-rose-600 transition"
-                          title="Eliminar"
+                          className="p-1.5 text-gray-400 hover:text-gray-700 transition"
+                          title="Eliminar turno"
                         >
                           <X className="h-4 w-4" />
+                        </button>
+
+                        <button
+                          disabled={actionLoading}
+                          onClick={() => {
+                            const isSpam = confirm(
+                              `¿El turno de "${turn.clientName}" (${turn.clientPhone || "sin celular"}) era una broma y nunca vino?\n\nAl presionar ACEPTAR:\n1. Se eliminará de la fila.\n2. Se BLOQUEARÁ este número para que no vuelva a molestar en tu negocio.`
+                            );
+                            if (isSpam) {
+                              handleQueueAction({
+                                action: "BLOCK_CLIENT",
+                                appointmentId: turn.id,
+                              });
+                            }
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          title="Bloquear cliente / Reportar como Spam (Lista Negra)"
+                        >
+                          <Ban className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
