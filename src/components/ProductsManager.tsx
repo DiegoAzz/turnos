@@ -247,7 +247,8 @@ export default function ProductsManager({ business }: { business: any }) {
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <a
             href="/dashboard/suscripcion"
-            className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition"
+            style={{ backgroundColor: "#059669", color: "#ffffff" }}
+            className="px-6 py-2.5 rounded-xl text-white font-bold text-xs shadow-md hover:opacity-90 transition inline-flex items-center justify-center"
           >
             Actualizar al Plan PRO ($19/mes)
           </a>

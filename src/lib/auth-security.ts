@@ -102,3 +102,20 @@ export async function getVerifiedBusinessSlug(): Promise<string | null> {
   // Soporte transicional para cookies legadas existentes no firmadas
   return rawCookie;
 }
+
+/**
+ * Elimina la cookie de sesión de Super Admin para aislar la sesión a nivel de negocio.
+ */
+export async function clearAdminSessionCookie(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete("turnos_admin_session");
+}
+
+/**
+ * Elimina la cookie de sesión del negocio actual.
+ */
+export async function clearBusinessSessionCookie(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete("selected_business_slug");
+}
+

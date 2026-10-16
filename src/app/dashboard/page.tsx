@@ -67,7 +67,8 @@ export default async function DashboardPage() {
 
           <Link
             href="/dashboard/servicios"
-            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500 transition"
+            style={{ backgroundColor: "#059669", color: "#ffffff" }}
+            className="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold text-white shadow-sm hover:opacity-90 transition"
           >
             <Plus className="h-3.5 w-3.5" />
             Nuevo Servicio

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { setBusinessSessionCookie } from "@/lib/auth-security";
+import { setBusinessSessionCookie, clearAdminSessionCookie } from "@/lib/auth-security";
 
 export const dynamic = "force-dynamic";
 
@@ -155,7 +155,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Crear sesión criptográfica segura
+    // 3. Aislar sesión: borrar cookie de Super Admin si existiera en este navegador
+    await clearAdminSessionCookie();
+
+    // 4. Crear sesión criptográfica segura de negocio
     await setBusinessSessionCookie(business.slug);
 
     return NextResponse.json({

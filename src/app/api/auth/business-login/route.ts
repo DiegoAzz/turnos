@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { setBusinessSessionCookie } from "@/lib/auth-security";
+import { setBusinessSessionCookie, clearAdminSessionCookie } from "@/lib/auth-security";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +47,9 @@ export async function POST(req: NextRequest) {
         { status: 403 }
       );
     }
+
+    // Aislar sesión: eliminar cookie de Super Admin si existiera en este navegador
+    await clearAdminSessionCookie();
 
     await setBusinessSessionCookie(business.slug);
 

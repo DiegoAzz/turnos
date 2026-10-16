@@ -102,7 +102,8 @@ export default function ServiciosManager({
 
           <Link
             href="/dashboard/suscripcion"
-            className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-500 transition"
+            style={{ backgroundColor: "#059669", color: "#ffffff" }}
+            className="rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90 transition inline-flex items-center justify-center shrink-0"
           >
             Actualizar a Pro →
           </Link>

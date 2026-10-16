@@ -28,11 +28,13 @@ export default async function DashboardLayout({
   const selectedSlug = await getVerifiedBusinessSlug();
   const isAdmin = await verifyAdminSession();
 
-  // Obtenemos todos los negocios disponibles
-  const allBusinesses = await prisma.business.findMany({
-    orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, slug: true, plan: true, active: true },
-  });
+  // Obtenemos todos los negocios disponibles SOLO si el usuario es Super Admin autenticado
+  const allBusinesses = isAdmin
+    ? await prisma.business.findMany({
+        orderBy: { createdAt: "asc" },
+        select: { id: true, name: true, slug: true, plan: true, active: true },
+      })
+    : [];
 
   let business = null;
   if (selectedSlug) {
@@ -43,9 +45,7 @@ export default async function DashboardLayout({
 
   // Solo el Super Admin tiene acceso fallback al primer negocio si no ha seleccionado ninguno
   if (!business && isAdmin && allBusinesses.length > 0) {
-    business = await prisma.business.findFirst({
-      orderBy: { createdAt: "asc" },
-    });
+    business = allBusinesses[0];
   }
 
   // Si no hay negocio conectado ni es Super Admin, redirigir a inicio de sesión
@@ -182,12 +182,12 @@ export default async function DashboardLayout({
             </Link>
           ) : (
             <Link
-              href="/login"
+              href="/api/auth/logout"
               style={{ color: "#4b5563", backgroundColor: "#ffffff" }}
               className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2 text-xs font-semibold hover:bg-gray-100 transition"
             >
               <LogOut className="h-3.5 w-3.5 text-gray-500" />
-              <span>Cambiar de Negocio</span>
+              <span>Cerrar Sesión</span>
             </Link>
           )}
 
