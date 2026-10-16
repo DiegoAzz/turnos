@@ -142,13 +142,7 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {appointments.length === 0 ? (
-          <div className="p-8 text-center text-sm text-gray-400">
-            No hay citas agendadas aún. Comparte tu enlace de reserva para empezar a recibir clientes.
-          </div>
-        ) : (
-          <DashboardClientActions initialAppointments={appointments} business={business} />
-        )}
+        <DashboardClientActions initialAppointments={appointments} business={business} />
       </div>
     </div>
   );

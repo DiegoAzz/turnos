@@ -28,6 +28,7 @@ import { formatCurrency } from "@/lib/utils";
 import ReminderSettingsModal from "@/components/ReminderSettingsModal";
 import LiveStatusModal from "@/components/LiveStatusModal";
 import BusinessProfileModal from "@/components/BusinessProfileModal";
+import OnboardingModal from "@/components/OnboardingModal";
 import {
   playAlertChime,
   unlockAudio,
@@ -192,6 +193,13 @@ export default function DashboardClientActions({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(() => {
+    return (
+      !business?.category ||
+      business.category === "PENDIENTE" ||
+      Boolean(business?.name && business.name.toLowerCase().endsWith("(turnos)"))
+    );
+  });
   const [currentBusiness, setCurrentBusiness] = useState(business);
 
   // Modal de confirmación para Completar / Cancelar
@@ -659,6 +667,28 @@ export default function DashboardClientActions({
             <span>Perfil & Logo</span>
           </button>
 
+          {/* BOTÓN CONFIGURAR RUBRO & ESPECIALIDAD */}
+          <button
+            onClick={() => setIsOnboardingOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-purple-200 bg-purple-50 text-purple-900 hover:bg-purple-100 transition shadow-sm"
+            title="Cambiar rubro, profesión o servicios sugeridos de tu negocio"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-purple-600" />
+            <span>
+              {currentBusiness.category === "MANICURA_SPA"
+                ? "💅 Manicura & Spa"
+                : currentBusiness.category === "SALUD_CONSULTORIO"
+                ? "🩺 Salud & Consultorio"
+                : currentBusiness.category === "LAVADERO"
+                ? "🚗 Lavadero & Autos"
+                : currentBusiness.category === "VETERINARIA"
+                ? "🐾 Veterinaria"
+                : currentBusiness.category === "OTRO"
+                ? "⚡ Servicios"
+                : "💈 Barbería"}
+            </span>
+          </button>
+
           {/* BOTÓN CONFIGURACIÓN RECORDATORIOS */}
           <button
             onClick={() => setIsSettingsOpen(true)}
@@ -708,6 +738,19 @@ export default function DashboardClientActions({
           business={currentBusiness}
           onClose={() => setIsProfileOpen(false)}
           onSaved={(updated) => setCurrentBusiness(updated)}
+        />
+      )}
+
+      {/* ASISTENTE ONBOARDING DE RUBRO */}
+      {isOnboardingOpen && (
+        <OnboardingModal
+          business={currentBusiness}
+          onClose={() => setIsOnboardingOpen(false)}
+          onComplete={(updated) => {
+            setCurrentBusiness(updated);
+            setIsOnboardingOpen(false);
+            window.location.reload();
+          }}
         />
       )}
 

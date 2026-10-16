@@ -70,6 +70,12 @@ export async function PATCH(req: NextRequest) {
     if (body.smsSenderId !== undefined) {
       dataToUpdate.smsSenderId = body.smsSenderId?.trim() || "TurnoYa";
     }
+    if (body.category) {
+      dataToUpdate.category = body.category.trim();
+    }
+    if (body.serviceModality) {
+      dataToUpdate.serviceModality = body.serviceModality.trim();
+    }
 
     const updated = await prisma.business.update({
       where: { id: businessId },

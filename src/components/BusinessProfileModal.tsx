@@ -32,6 +32,8 @@ export default function BusinessProfileModal({
   const [phone, setPhone] = useState(business.phone || "");
   const [logoUrl, setLogoUrl] = useState(business.logoUrl || "");
   const [currency, setCurrency] = useState(business.currency || "COP");
+  const [category, setCategory] = useState(business.category || "BARBERIA");
+  const [serviceModality, setServiceModality] = useState(business.serviceModality || "LOCAL");
   const [liveStatus, setLiveStatus] = useState(business.liveStatus || "OPEN");
   const [statusMessage, setStatusMessage] = useState(business.statusMessage || "");
 
@@ -82,6 +84,8 @@ export default function BusinessProfileModal({
         body: JSON.stringify({
           businessId: business.id,
           name: name.trim(),
+          category,
+          serviceModality,
           description: description.trim() || null,
           address: address.trim() || null,
           phone: phone.trim() || null,
@@ -229,6 +233,42 @@ export default function BusinessProfileModal({
             <p className="mt-1 text-[11px] text-gray-400">
               Puedes cambiar el nombre comercial sin alterar tu enlace de reservas (<code className="text-emerald-700">/p/{business.slug}</code>).
             </p>
+          </div>
+
+          {/* RUBRO Y MODALIDAD DE ATENCIÓN */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label className="block text-xs font-bold text-gray-800 mb-1">
+                Rubro / Tipo de Negocio
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2 text-xs text-gray-900 font-semibold focus:outline-none focus:border-emerald-500"
+              >
+                <option value="BARBERIA">💈 Barbería / Peluquería</option>
+                <option value="MANICURA_SPA">💅 Manicura, Uñas & Spa</option>
+                <option value="SALUD_CONSULTORIO">🩺 Salud / Terapia / Consultorio</option>
+                <option value="LAVADERO">🚗 Lavadero de Autos / Detailing</option>
+                <option value="VETERINARIA">🐾 Veterinaria & Mascotas</option>
+                <option value="OTRO">⚡ Otro Rubro / Servicios Generales</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-800 mb-1">
+                Modalidad de Atención
+              </label>
+              <select
+                value={serviceModality}
+                onChange={(e) => setServiceModality(e.target.value)}
+                className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2 text-xs text-gray-900 font-semibold focus:outline-none focus:border-emerald-500"
+              >
+                <option value="LOCAL">🏢 Solo en Local Físico</option>
+                <option value="DOMICILIO">🚗 Solo a Domicilio</option>
+                <option value="HIBRIDO">🔄 Híbrido (En Local y Domicilio)</option>
+              </select>
+            </div>
           </div>
 
           {/* DIRECCIÓN Y WHATSAPP */}

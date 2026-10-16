@@ -106,11 +106,11 @@ export async function POST(req: NextRequest) {
           slug: newSlug,
           email: userEmail,
           logoUrl: userPicture || null,
-          currency: "USD",
+          currency: "COP",
           plan: "FREE",
           active: true,
           adminPin: "1234",
-          category: "BARBERIA",
+          category: "PENDIENTE",
           serviceModality: "LOCAL",
         },
       });
