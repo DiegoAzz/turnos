@@ -194,12 +194,24 @@ export default function DashboardClientActions({
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      if (sessionStorage.getItem("turnoya_onboarding_dismissed")) {
+        return false;
+      }
+    }
     return (
       !business?.category ||
       business.category === "PENDIENTE" ||
       Boolean(business?.name && business.name.toLowerCase().endsWith("(turnos)"))
     );
   });
+
+  const handleCloseOnboarding = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("turnoya_onboarding_dismissed", "true");
+    }
+    setIsOnboardingOpen(false);
+  };
   const [currentBusiness, setCurrentBusiness] = useState(business);
 
   // Modal de confirmación para Completar / Cancelar
@@ -745,7 +757,7 @@ export default function DashboardClientActions({
       {isOnboardingOpen && (
         <OnboardingModal
           business={currentBusiness}
-          onClose={() => setIsOnboardingOpen(false)}
+          onClose={handleCloseOnboarding}
           onComplete={(updated) => {
             setCurrentBusiness(updated);
             setIsOnboardingOpen(false);

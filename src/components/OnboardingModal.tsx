@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Sparkles,
   Scissors,
@@ -14,6 +14,7 @@ import {
   HelpCircle,
   ArrowRight,
   Check,
+  X,
 } from "lucide-react";
 
 interface OnboardingModalProps {
@@ -136,9 +137,25 @@ export default function OnboardingModal({
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-8">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto cursor-pointer"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-8 cursor-default"
+      >
         {/* ENCABEZADO DE BIENVENIDA */}
         <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 px-6 py-6 text-white text-center sm:text-left sm:flex sm:items-center sm:justify-between">
           <div>
@@ -155,12 +172,23 @@ export default function OnboardingModal({
           </div>
 
           {onClose && (
-            <button
-              onClick={onClose}
-              className="text-white/80 hover:text-white text-xs underline font-semibold mt-2 sm:mt-0"
-            >
-              Omitir por ahora
-            </button>
+            <div className="flex items-center gap-3 mt-3 sm:mt-0 justify-center sm:justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-white/80 hover:text-white text-xs underline font-semibold cursor-pointer"
+              >
+                Omitir por ahora
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="h-8 w-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition cursor-pointer"
+                title="Cerrar modal (Esc)"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           )}
         </div>
 
