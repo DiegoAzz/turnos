@@ -382,6 +382,30 @@ export default function BookingPage({
             </div>
           )}
 
+          {/* BANNER TURNERO EN VIVO / PANTALLA SMART TV */}
+          <Link
+            href={`/p/${slug}/turnero`}
+            className="mt-3.5 flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white text-xs border border-slate-800 shadow-md hover:border-emerald-500/60 transition group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0">
+                📺
+              </span>
+              <div>
+                <span className="font-extrabold flex items-center gap-1.5 text-slate-100">
+                  <span>Pantalla de Turnero en Vivo</span>
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                </span>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Mira quién está en la silla y el orden de los turnos en tiempo real
+                </p>
+              </div>
+            </div>
+            <span className="text-emerald-400 font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform shrink-0">
+              Ver Fila →
+            </span>
+          </Link>
+
           <div className="mt-4 flex flex-wrap gap-4 border-t border-gray-100 pt-4 text-xs text-gray-500">
             {business.address && (
               <div className="flex items-center gap-1.5">
@@ -875,6 +899,14 @@ export default function BookingPage({
                   Enviar comprobante por WhatsApp
                 </a>
               )}
+
+              {/* BOTÓN SEGUIR TURNO EN VIVO */}
+              <Link
+                href={`/p/${slug}/turnero`}
+                className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-slate-800 transition mb-3"
+              >
+                <span>📺 Ver Pantalla de Turnos en Vivo</span>
+              </Link>
 
               <button
                 onClick={() => {

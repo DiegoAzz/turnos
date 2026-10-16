@@ -86,3 +86,42 @@ ${rescheduleLink}
 
   return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`;
 }
+
+export function generatePostponedNotificationUrl(params: {
+  phone: string;
+  clientName: string;
+  serviceName: string;
+  businessName: string;
+  turnNumber: number | string;
+  turneroUrl?: string;
+}): string {
+  const phone = cleanPhoneNumber(params.phone);
+  const turneroLink = params.turneroUrl || "https://turnos.appzplay.online";
+
+  const text = `¡Hola ${params.clientName}! 👋 Te llamamos para tu turno *#${params.turnNumber}* (${params.serviceName}) en *${params.businessName}*, pero aún no estabas en la sala de espera.
+
+Para no frenar el orden del día, hemos pospuesto temporalmente tu turno para atender al cliente siguiente. ⏳
+
+👉 *¡No has perdido tu turno!* Apenas llegues a la barbería, acércate al mostrador o respóndenos aquí para subirte a la silla de inmediato. 💈
+
+🔗 Puedes seguir el estado de la fila en vivo aquí:
+${turneroLink}`;
+
+  return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`;
+}
+
+export function generateNowCallingNotificationUrl(params: {
+  phone: string;
+  clientName: string;
+  serviceName: string;
+  businessName: string;
+  turnNumber: number | string;
+}): string {
+  const phone = cleanPhoneNumber(params.phone);
+
+  const text = `¡Hola ${params.clientName}! 🔔✂️ ¡Es tu turno *#${params.turnNumber}* en *${params.businessName}*!
+
+Tu barbero ya está listo para atenderte en el servicio: *${params.serviceName}*. Por favor pasa a la silla. ¡Te esperamos!`;
+
+  return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`;
+}

@@ -187,3 +187,38 @@ export function showSystemNotification(title: string, body: string) {
     }
   }
 }
+
+// Locución por voz usando SpeechSynthesis (Web Speech API)
+export function speakTurnAnnouncement(turnNumber: number | string, clientName?: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const cleanTurn = String(turnNumber).replace(/^#/, "");
+    const text = clientName
+      ? `Turno número ${cleanTurn}. ${clientName}. Favor pasar a la silla.`
+      : `Turno número ${cleanTurn}. Favor pasar a la silla.`;
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "es-ES";
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const esVoice = voices.find((v) => v.lang.startsWith("es"));
+    if (esVoice) utterance.voice = esVoice;
+
+    window.speechSynthesis.speak(utterance);
+  } catch (err) {
+    console.warn("Error en locución de turno:", err);
+  }
+}
+
+// Llamar turno con campana Ding-Dong + locución de voz
+export function playTurnCall(turnNumber: number | string, clientName?: string) {
+  playAlertChime();
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    setTimeout(() => {
+      speakTurnAnnouncement(turnNumber, clientName);
+    }, 650);
+  }
+}

@@ -1,0 +1,376 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getCurrentBusiness } from "@/lib/current-business";
+import {
+  generatePostponedNotificationUrl,
+  generateNowCallingNotificationUrl,
+} from "@/lib/whatsapp";
+
+export const dynamic = "force-dynamic";
+
+function getTodayRange(dateStrParam?: string | null) {
+  const now = new Date();
+  let year = now.getFullYear();
+  let month = now.getMonth() + 1;
+  let day = now.getDate();
+
+  if (dateStrParam && /^\d{4}-\d{2}-\d{2}$/.test(dateStrParam)) {
+    const [y, m, d] = dateStrParam.split("-").map(Number);
+    year = y;
+    month = m;
+    day = d;
+  }
+
+  const mStr = String(month).padStart(2, "0");
+  const dStr = String(day).padStart(2, "0");
+  const dateStr = `${year}-${mStr}-${dStr}`;
+
+  const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
+  const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
+
+  return { dateStr, startOfDay, endOfDay };
+}
+
+function getCurrentTimeFormatted(): string {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, "0");
+  const mins = String(now.getMinutes()).padStart(2, "0");
+  return `${hours}:${mins}`;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { action, businessId, appointmentId, autoCallNext, clientName, clientPhone, serviceId, startImmediately } = body;
+
+    // Verificar sesión del negocio actual o businessId válido
+    let business = await getCurrentBusiness();
+    if (!business && businessId) {
+      business = await prisma.business.findUnique({
+        where: { id: businessId },
+      });
+    }
+
+    if (!business) {
+      return NextResponse.json(
+        { error: "No autorizado o negocio no encontrado." },
+        { status: 401 }
+      );
+    }
+
+    const { dateStr, startOfDay, endOfDay } = getTodayRange();
+
+    // 1. LLAMAR SIGUIENTE EN FILA
+    if (action === "CALL_NEXT") {
+      // Si hay uno en progreso, completarlo
+      await prisma.appointment.updateMany({
+        where: {
+          businessId: business.id,
+          date: { gte: startOfDay, lte: endOfDay },
+          status: "IN_PROGRESS",
+        },
+        data: {
+          status: "COMPLETED",
+        },
+      });
+
+      // Encontrar el siguiente turno confirmado o pendiente
+      const nextAppointment = await prisma.appointment.findFirst({
+        where: {
+          businessId: business.id,
+          date: { gte: startOfDay, lte: endOfDay },
+          status: { in: ["CONFIRMED", "PENDING"] },
+        },
+        include: { service: true },
+        orderBy: [{ startTime: "asc" }, { createdAt: "asc" }],
+      });
+
+      if (!nextAppointment) {
+        return NextResponse.json({
+          success: true,
+          message: "No hay más turnos en espera por hoy.",
+          calledAppointment: null,
+        });
+      }
+
+      const updated = await prisma.appointment.update({
+        where: { id: nextAppointment.id },
+        data: { status: "IN_PROGRESS" },
+        include: { service: true },
+      });
+
+      let whatsappUrl = null;
+      if (updated.clientPhone) {
+        whatsappUrl = generateNowCallingNotificationUrl({
+          phone: updated.clientPhone,
+          clientName: updated.clientName,
+          serviceName: updated.service.name,
+          businessName: business.name,
+          turnNumber: updated.startTime,
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        calledAppointment: updated,
+        whatsappUrl,
+      });
+    }
+
+    // 2. LLAMAR A UN TURNO ESPECÍFICO
+    if (action === "CALL_SPECIFIC") {
+      if (!appointmentId) {
+        return NextResponse.json({ error: "Falta appointmentId" }, { status: 400 });
+      }
+
+      // Si había alguien en progreso que no sea este mismo, marcarlo como completado
+      await prisma.appointment.updateMany({
+        where: {
+          businessId: business.id,
+          date: { gte: startOfDay, lte: endOfDay },
+          status: "IN_PROGRESS",
+          id: { not: appointmentId },
+        },
+        data: { status: "COMPLETED" },
+      });
+
+      const updated = await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: { status: "IN_PROGRESS" },
+        include: { service: true },
+      });
+
+      let whatsappUrl = null;
+      if (updated.clientPhone) {
+        whatsappUrl = generateNowCallingNotificationUrl({
+          phone: updated.clientPhone,
+          clientName: updated.clientName,
+          serviceName: updated.service.name,
+          businessName: business.name,
+          turnNumber: updated.startTime,
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        calledAppointment: updated,
+        whatsappUrl,
+      });
+    }
+
+    // 3. POSPONER (CLIENTE DIGITAL O LLAMADO QUE NO HA LLEGADO A LA SALA)
+    if (action === "POSTPONE") {
+      let targetId = appointmentId;
+
+      // Si no se envió ID, posponer al que esté actualmente en progreso
+      if (!targetId) {
+        const inProgress = await prisma.appointment.findFirst({
+          where: {
+            businessId: business.id,
+            date: { gte: startOfDay, lte: endOfDay },
+            status: "IN_PROGRESS",
+          },
+        });
+        targetId = inProgress?.id;
+      }
+
+      if (!targetId) {
+        return NextResponse.json(
+          { error: "No hay ningún turno seleccionado o en progreso para posponer." },
+          { status: 400 }
+        );
+      }
+
+      const postponedApp = await prisma.appointment.update({
+        where: { id: targetId },
+        data: { status: "POSTPONED" },
+        include: { service: true },
+      });
+
+      // Generar link de WhatsApp para avisar al cliente retrasado
+      let whatsappNoticeUrl = null;
+      if (postponedApp.clientPhone) {
+        whatsappNoticeUrl = generatePostponedNotificationUrl({
+          phone: postponedApp.clientPhone,
+          clientName: postponedApp.clientName,
+          serviceName: postponedApp.service.name,
+          businessName: business.name,
+          turnNumber: postponedApp.startTime,
+          turneroUrl: `https://turnos.appzplay.online/p/${business.slug}/turnero`,
+        });
+      }
+
+      // Si autoCallNext es true, llamar de inmediato al siguiente en fila para no perder tiempo
+      let nextCalled = null;
+      if (autoCallNext) {
+        const next = await prisma.appointment.findFirst({
+          where: {
+            businessId: business.id,
+            date: { gte: startOfDay, lte: endOfDay },
+            status: { in: ["CONFIRMED", "PENDING"] },
+          },
+          include: { service: true },
+          orderBy: [{ startTime: "asc" }, { createdAt: "asc" }],
+        });
+
+        if (next) {
+          nextCalled = await prisma.appointment.update({
+            where: { id: next.id },
+            data: { status: "IN_PROGRESS" },
+            include: { service: true },
+          });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        postponedAppointment: postponedApp,
+        whatsappNoticeUrl,
+        nextCalled,
+      });
+    }
+
+    // 4. REINCORPORAR POSPUESTO
+    if (action === "RECALL_POSTPONED") {
+      if (!appointmentId) {
+        return NextResponse.json({ error: "Falta appointmentId" }, { status: 400 });
+      }
+
+      const updated = await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: {
+          status: startImmediately ? "IN_PROGRESS" : "CONFIRMED",
+        },
+        include: { service: true },
+      });
+
+      if (startImmediately) {
+        // Completar cualquier otro en progreso
+        await prisma.appointment.updateMany({
+          where: {
+            businessId: business.id,
+            date: { gte: startOfDay, lte: endOfDay },
+            status: "IN_PROGRESS",
+            id: { not: appointmentId },
+          },
+          data: { status: "COMPLETED" },
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        appointment: updated,
+      });
+    }
+
+    // 5. COMPLETAR SERVICIO ACTUAL
+    if (action === "COMPLETE_CURRENT") {
+      let targetId = appointmentId;
+      if (!targetId) {
+        const inProgress = await prisma.appointment.findFirst({
+          where: {
+            businessId: business.id,
+            date: { gte: startOfDay, lte: endOfDay },
+            status: "IN_PROGRESS",
+          },
+        });
+        targetId = inProgress?.id;
+      }
+
+      if (targetId) {
+        await prisma.appointment.update({
+          where: { id: targetId },
+          data: { status: "COMPLETED" },
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Servicio finalizado con éxito.",
+      });
+    }
+
+    // 6. AÑADIR TURNO PRESENCIAL (WALK-IN) CON 1 TOQUE
+    if (action === "ADD_WALK_IN") {
+      const nowTime = getCurrentTimeFormatted();
+
+      // Buscar servicio por defecto si no se especificó
+      let chosenServiceId = serviceId;
+      if (!chosenServiceId) {
+        const defaultService = await prisma.service.findFirst({
+          where: { businessId: business.id, active: true },
+          orderBy: { createdAt: "asc" },
+        });
+        chosenServiceId = defaultService?.id;
+      }
+
+      if (!chosenServiceId) {
+        return NextResponse.json(
+          { error: "No hay servicios disponibles en el negocio para asignar." },
+          { status: 400 }
+        );
+      }
+
+      const service = await prisma.service.findUnique({
+        where: { id: chosenServiceId },
+      });
+
+      // Si se atiende de inmediato, completar al que esté en progreso
+      if (startImmediately) {
+        await prisma.appointment.updateMany({
+          where: {
+            businessId: business.id,
+            date: { gte: startOfDay, lte: endOfDay },
+            status: "IN_PROGRESS",
+          },
+          data: { status: "COMPLETED" },
+        });
+      }
+
+      const appointment = await prisma.appointment.create({
+        data: {
+          businessId: business.id,
+          serviceId: chosenServiceId,
+          clientName: clientName?.trim() || "Cliente en Sala",
+          clientPhone: clientPhone?.trim() || "Presencial",
+          appointmentType: "WALK_IN",
+          date: startOfDay,
+          startTime: nowTime,
+          endTime: nowTime,
+          status: startImmediately ? "IN_PROGRESS" : "CONFIRMED",
+        },
+        include: { service: true },
+      });
+
+      return NextResponse.json({
+        success: true,
+        appointment,
+      });
+    }
+
+    // 7. CANCELAR TURNO
+    if (action === "CANCEL_TURN") {
+      if (!appointmentId) {
+        return NextResponse.json({ error: "Falta appointmentId" }, { status: 400 });
+      }
+
+      await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: { status: "CANCELLED" },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: "Turno cancelado.",
+      });
+    }
+
+    return NextResponse.json({ error: "Acción no reconocida" }, { status: 400 });
+  } catch (error) {
+    console.error("Error en queue actions:", error);
+    return NextResponse.json(
+      { error: "Error procesando la acción del turnero." },
+      { status: 500 }
+    );
+  }
+}

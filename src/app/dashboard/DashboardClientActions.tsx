@@ -23,12 +23,15 @@ import {
   ChevronsRight,
   CalendarClock,
   RotateCcw,
+  Scissors,
+  Tv,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import ReminderSettingsModal from "@/components/ReminderSettingsModal";
 import LiveStatusModal from "@/components/LiveStatusModal";
 import BusinessProfileModal from "@/components/BusinessProfileModal";
 import OnboardingModal from "@/components/OnboardingModal";
+import BarberQueueManager from "@/components/BarberQueueManager";
 import {
   playAlertChime,
   unlockAudio,
@@ -219,6 +222,23 @@ export default function DashboardClientActions({
     appointment: any;
     action: "COMPLETED" | "CANCELLED";
   } | null>(null);
+
+  // Modo de visualización: Turnero en Vivo vs Agenda Calendario
+  const [viewMode, setViewMode] = useState<"QUEUE" | "CALENDAR">("QUEUE");
+
+  // Refrescar citas para sincronizar turnero y tabla
+  const refreshAppointments = async () => {
+    try {
+      const res = await fetch(`/api/appointments?businessId=${currentBusiness?.id || business.id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.appointments) {
+        setAppointments(data.appointments);
+      }
+    } catch (err) {
+      console.error("Error al refrescar citas:", err);
+    }
+  };
 
   // Estados de Búsqueda y Paginación Super Rápida
   const [searchQuery, setSearchQuery] = useState("");
@@ -807,8 +827,59 @@ export default function DashboardClientActions({
         </div>
       )}
 
-      {/* BARRA DE BÚSQUEDA Y PAGINACIÓN SUPER RÁPIDA */}
-      <div className="mt-4 bg-gray-50/90 rounded-2xl p-3 sm:p-4 border border-gray-200/80 space-y-3">
+      {/* SELECTOR DE VISTA: TURNERO EN VIVO VS HISTORIAL / CALENDARIO */}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 bg-gray-100/90 p-1.5 rounded-2xl border border-gray-200">
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setViewMode("QUEUE")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm ${
+              viewMode === "QUEUE"
+                ? "bg-slate-900 text-white shadow"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <Scissors className="h-4 w-4 text-emerald-400" />
+            <span>⚡ Turnero en Vivo (Silla & Fila Virtual)</span>
+            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-semibold">
+              Hoy
+            </span>
+          </button>
+
+          <button
+            onClick={() => setViewMode("CALENDAR")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm ${
+              viewMode === "CALENDAR"
+                ? "bg-slate-900 text-white shadow"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <Calendar className="h-4 w-4 text-sky-400" />
+            <span>📅 Historial & Calendario Completo ({appointments.length})</span>
+          </button>
+        </div>
+
+        <a
+          href={`/p/${currentBusiness.slug}/turnero`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-300 text-xs font-bold text-gray-700 hover:text-emerald-700 hover:border-emerald-500 transition shadow-sm"
+        >
+          <Tv className="h-3.5 w-3.5 text-emerald-600" />
+          <span>Pantalla Smart TV 📺</span>
+        </a>
+      </div>
+
+      {viewMode === "QUEUE" ? (
+        <div className="mt-4">
+          <BarberQueueManager
+            business={currentBusiness}
+            onRefreshData={refreshAppointments}
+          />
+        </div>
+      ) : (
+        <>
+          {/* BARRA DE BÚSQUEDA Y PAGINACIÓN SUPER RÁPIDA */}
+          <div className="mt-4 bg-gray-50/90 rounded-2xl p-3 sm:p-4 border border-gray-200/80 space-y-3">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* BUSCADOR INSTANTÁNEO */}
           <div className="relative flex-1">
@@ -1303,6 +1374,8 @@ export default function DashboardClientActions({
             </div>
           )}
         </div>
+      )}
+        </>
       )}
 
       {/* MODAL PARA REAGENDAR CITA (OPCIÓN 2 DE WHATSAPP) */}
