@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       credential,
+      accessToken,
       email: manualEmail,
       name: manualName,
       postulationType = "AMBASSADOR",
@@ -34,7 +35,20 @@ export async function POST(req: NextRequest) {
     let userEmail: string | null = null;
     let userName: string | null = null;
 
-    if (credential) {
+    if (accessToken) {
+      try {
+        const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (userInfoRes.ok) {
+          const uInfo = await userInfoRes.json();
+          userEmail = uInfo.email?.toLowerCase().trim();
+          userName = uInfo.name;
+        }
+      } catch (err) {
+        console.warn("Fallo obtener userinfo con accessToken de Google en partner:", err);
+      }
+    } else if (credential) {
       try {
         const verifyRes = await fetch(
           `https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`

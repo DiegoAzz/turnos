@@ -23,13 +23,27 @@ function decodeJwtPayload(token: string): any {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { credential, email: manualEmail, name: manualName, photoUrl: manualPhoto } = body;
+    const { credential, accessToken, email: manualEmail, name: manualName, photoUrl: manualPhoto } = body;
 
     let userEmail: string | null = null;
     let userName: string | null = null;
     let userPicture: string | null = null;
 
-    if (credential) {
+    if (accessToken) {
+      try {
+        const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (userInfoRes.ok) {
+          const uInfo = await userInfoRes.json();
+          userEmail = uInfo.email?.toLowerCase().trim();
+          userName = uInfo.name;
+          userPicture = uInfo.picture;
+        }
+      } catch (err) {
+        console.warn("Fallo obtener userinfo con accessToken de Google:", err);
+      }
+    } else if (credential) {
       // Intentar validar directamente con la API de Google si hay conectividad
       try {
         const verifyRes = await fetch(

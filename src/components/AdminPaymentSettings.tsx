@@ -27,6 +27,7 @@ export default function AdminPaymentSettings() {
   const [wompiPublicKey, setWompiPublicKey] = useState("");
   const [wompiIntegritySecret, setWompiIntegritySecret] = useState("");
   const [wompiSandbox, setWompiSandbox] = useState(true);
+  const [googleClientId, setGoogleClientId] = useState("");
   const [nequiNumber, setNequiNumber] = useState("300 123 4567");
   const [daviplataNumber, setDaviplataNumber] = useState("300 123 4567");
   const [bancolombiaDetails, setBancolombiaDetails] = useState("Cuenta de Ahorros Bancolombia");
@@ -46,6 +47,7 @@ export default function AdminPaymentSettings() {
         setWompiPublicKey(data.wompiPublicKey || "");
         if (data.wompiIntegritySecret) setWompiIntegritySecret(data.wompiIntegritySecret);
         setWompiSandbox(data.wompiSandbox ?? true);
+        if (data.googleClientId) setGoogleClientId(data.googleClientId);
         setNequiNumber(data.nequiNumber || "300 123 4567");
         setDaviplataNumber(data.daviplataNumber || "300 123 4567");
         setBancolombiaDetails(data.bancolombiaDetails || "Cuenta de Ahorros Bancolombia");
@@ -77,6 +79,7 @@ export default function AdminPaymentSettings() {
           wompiPublicKey,
           wompiIntegritySecret,
           wompiSandbox,
+          googleClientId,
           nequiNumber,
           daviplataNumber,
           bancolombiaDetails,
@@ -432,6 +435,72 @@ export default function AdminPaymentSettings() {
             <div className="mt-2 text-xs font-mono text-emerald-400 bg-slate-950 p-2 rounded-lg truncate">
               {webhookUrl}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* FORMULARIO DE AUTENTICACIÓN CON GOOGLE / GMAIL */}
+      <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-6 sm:p-8 shadow-xl space-y-6">
+        <div className="border-b border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <svg className="h-5 w-5" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+              </svg>
+              <span>Acceso con Google / Gmail (OAuth 2.0)</span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Habilita la ventana oficial de Google para que negocios y embajadores entren con 1 solo clic:
+            </p>
+          </div>
+
+          <a
+            href="https://console.cloud.google.com/apis/credentials"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 font-semibold self-start sm:self-auto"
+          >
+            <span>Google Cloud Console</span>
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-slate-300">
+                Google Client ID (ID de Cliente de OAuth)
+              </label>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${googleClientId ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-amber-500/20 text-amber-300 border border-amber-500/30"}`}>
+                {googleClientId ? "✓ Activo en Vivo" : "Pendiente de Configurar"}
+              </span>
+            </div>
+            <input
+              type="text"
+              value={googleClientId}
+              onChange={(e) => setGoogleClientId(e.target.value.trim())}
+              className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none"
+              placeholder="1234567890-abcdef123456.apps.googleusercontent.com"
+            />
+            <p className="mt-1 text-[11px] text-slate-500">
+              Pega aquí el Client ID creado para el dominio <code>https://turnos.appzplay.online</code>.
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-4 space-y-2 text-xs text-slate-300">
+            <span className="font-bold text-white block">Pasos para obtener tu Google Client ID gratis en 2 minutos:</span>
+            <ol className="list-decimal pl-4 space-y-1 text-slate-400 text-[11px]">
+              <li>Ingresa a <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">console.cloud.google.com</a> y crea o selecciona un proyecto.</li>
+              <li>Ve a <strong>Pantalla de consentimiento de OAuth</strong> ➔ Selecciona <strong>Externo</strong> ➔ Pon nombre &quot;TurnoYa&quot; y tu correo.</li>
+              <li>Ve a <strong>Credenciales ➔ Crear credenciales ➔ ID de cliente de OAuth</strong> (Tipo: <em>Aplicación web</em>).</li>
+              <li>En <strong>Orígenes autorizados de JavaScript</strong>, agrega:
+                <code className="block mt-1 bg-slate-950 text-emerald-400 p-1.5 rounded font-mono select-all">https://turnos.appzplay.online</code>
+              </li>
+              <li>Copia el <strong>ID de cliente</strong> que termina en <code>.apps.googleusercontent.com</code> y pégalo arriba.</li>
+            </ol>
           </div>
         </div>
       </div>

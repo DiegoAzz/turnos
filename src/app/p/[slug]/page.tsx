@@ -12,6 +12,7 @@ import {
   MessageCircle,
   ArrowLeft,
   Sparkles,
+  Ticket,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
@@ -800,8 +801,40 @@ export default function BookingPage({
                 Hemos reservado tu lugar en {business.name}.
               </p>
 
+              {/* TICKET DEL TURNO ASIGNADO */}
+              <div className="my-5 p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-2 border-emerald-500/40 shadow-sm flex items-center justify-between">
+                <div className="text-left">
+                  <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-emerald-800">
+                    <Ticket className="h-4 w-4 text-emerald-600" />
+                    <span>Tu Posición de Turno</span>
+                  </div>
+                  <p className="text-xs text-gray-700 font-medium mt-1">
+                    {(bookingSuccess?.turnNumber === 1 || !bookingSuccess?.aheadCount) ? (
+                      <span className="text-emerald-700 font-bold">🥇 ¡Eres el primer turno del día!</span>
+                    ) : (
+                      <span>
+                        Tienes <strong className="text-gray-900">{bookingSuccess?.aheadCount} turno(s)</strong> programados antes que tú.
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    Prográmate para llegar 5 a 10 minutos antes de tu horario.
+                  </p>
+                </div>
+                <div className="flex flex-col items-center justify-center bg-emerald-600 text-white rounded-2xl px-4 py-2.5 shadow-md shadow-emerald-600/30 shrink-0 ml-3">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-100">TURNO</span>
+                  <span className="text-3xl font-black leading-none">#{bookingSuccess?.turnNumber || 1}</span>
+                </div>
+              </div>
+
               {/* CARD DE DETALLE */}
               <div className="my-6 rounded-2xl bg-gray-50 p-4 border border-gray-200 text-left text-sm space-y-2">
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-gray-500">Número de Turno:</span>
+                  <span className="font-extrabold text-emerald-800 bg-emerald-100/90 px-2.5 py-0.5 rounded-lg text-xs">
+                    Turno #{bookingSuccess?.turnNumber || 1} del día
+                  </span>
+                </div>
                 <div className="flex justify-between border-b pb-2">
                   <span className="text-gray-500">Cliente:</span>
                   <span className="font-semibold text-gray-900">{clientName}</span>

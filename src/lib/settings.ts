@@ -13,6 +13,7 @@ export async function getPlatformSettings() {
         wompiPublicKey: process.env.WOMPI_PUBLIC_KEY || "",
         wompiIntegritySecret: process.env.WOMPI_INTEGRITY_SECRET || "",
         wompiSandbox: true,
+        googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "",
         nequiNumber: "300 123 4567",
         daviplataNumber: "300 123 4567",
         bancolombiaDetails: "Cuenta de Ahorros Bancolombia - Preguntar por número o QR",

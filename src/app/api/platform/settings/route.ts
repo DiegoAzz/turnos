@@ -17,6 +17,7 @@ export async function GET() {
       wompiPublicKey: settings.wompiPublicKey,
       wompiIntegritySecret: isAdmin ? (settings.wompiIntegritySecret || "") : undefined,
       wompiSandbox: settings.wompiSandbox,
+      googleClientId: settings.googleClientId || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "",
       nequiNumber: settings.nequiNumber,
       daviplataNumber: settings.daviplataNumber,
       bancolombiaDetails: settings.bancolombiaDetails,
@@ -65,6 +66,7 @@ export async function PATCH(req: NextRequest) {
       wompiPublicKey,
       wompiIntegritySecret,
       wompiSandbox,
+      googleClientId,
       nequiNumber,
       daviplataNumber,
       bancolombiaDetails,
@@ -84,6 +86,7 @@ export async function PATCH(req: NextRequest) {
       dataToUpdate.wompiIntegritySecret = wompiIntegritySecret.trim();
     }
     if (typeof wompiSandbox === "boolean") dataToUpdate.wompiSandbox = wompiSandbox;
+    if (typeof googleClientId === "string") dataToUpdate.googleClientId = googleClientId.trim();
     if (typeof nequiNumber === "string") dataToUpdate.nequiNumber = nequiNumber.trim();
     if (typeof daviplataNumber === "string") dataToUpdate.daviplataNumber = daviplataNumber.trim();
     if (typeof bancolombiaDetails === "string") dataToUpdate.bancolombiaDetails = bancolombiaDetails.trim();

@@ -33,14 +33,16 @@ export function generateBookingConfirmationUrl(params: {
   timeStr: string;
   address?: string | null;
   rescheduleUrl?: string;
+  turnNumber?: number;
 }): string {
   const phone = cleanPhoneNumber(params.phone);
   const rescheduleLink = params.rescheduleUrl || "https://turnos.appzplay.online";
   const addressLine = params.address ? `\n📍 *Dirección / Lugar:* ${params.address}` : "";
+  const turnLine = params.turnNumber ? `\n🎫 *Turno Asignado:* #${params.turnNumber} del día` : "";
 
   const text = `¡Hola ${params.clientName}! 👋
 
-Tu turno en *${params.businessName}* ha sido confirmado con éxito:
+Tu turno en *${params.businessName}* ha sido confirmado con éxito:${turnLine}
 🗓️ *Fecha:* ${params.dateStr}
 ⏰ *Hora:* ${params.timeStr}
 ✂️ *Servicio:* ${params.serviceName}${addressLine}

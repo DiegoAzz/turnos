@@ -235,6 +235,7 @@ model PlatformSettings {
   wompiPublicKey        String?  @default("")
   wompiIntegritySecret  String?  @default("")
   wompiSandbox          Boolean  @default(true)
+  googleClientId        String?  @default("")
   nequiNumber           String   @default("300 123 4567")
   daviplataNumber       String   @default("300 123 4567")
   bancolombiaDetails    String   @default("Cuenta de Ahorros Bancolombia")

@@ -114,13 +114,29 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Calcular posición y número de turno para el día según orden de hora
+    const allAppointmentsDay = await prisma.appointment.findMany({
+      where: {
+        businessId: business.id,
+        date: appointmentDate,
+        status: { not: "CANCELLED" },
+      },
+      orderBy: {
+        startTime: "asc",
+      },
+    });
+
+    const turnIndex = allAppointmentsDay.findIndex((app) => app.id === appointment.id);
+    const turnNumber = turnIndex !== -1 ? turnIndex + 1 : allAppointmentsDay.length;
+    const aheadCount = Math.max(0, turnNumber - 1);
+
     // Dirección a mostrar en el comprobante: si es a domicilio, la del cliente; si no, la del local
     const displayAddress =
       appointmentType === "DOMICILIO" && clientAddress
         ? `${clientAddress} (A Domicilio)`
         : business.address;
 
-    // Generar enlace de WhatsApp para confirmación inmediata con link de reagendamiento
+    // Generar enlace de WhatsApp para confirmación inmediata con link de reagendamiento y turno asignado
     const whatsappUrl = generateBookingConfirmationUrl({
       phone: formattedPhone,
       clientName,
@@ -130,11 +146,15 @@ export async function POST(req: NextRequest) {
       timeStr: `${startTime} a ${endTime}`,
       address: displayAddress,
       rescheduleUrl: `https://turnos.appzplay.online/p/${business.slug}`,
+      turnNumber,
     });
 
     return NextResponse.json({
       success: true,
       appointment,
+      turnNumber,
+      aheadCount,
+      totalTurnsDay: allAppointmentsDay.length,
       whatsappUrl,
     });
   } catch (error) {

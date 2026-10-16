@@ -38,31 +38,77 @@ export default function GoogleAuthButton({
   const [fallbackEmail, setFallbackEmail] = useState("");
   const [fallbackName, setFallbackName] = useState("");
 
-  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const [activeClientId, setActiveClientId] = useState<string>(
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""
+  );
+  const tokenClientRef = useState<any>(null);
 
+  // Cargar Client ID desde settings si no está en process.env
   useEffect(() => {
-    // Si hay Client ID configurado, cargar script oficial de Google GIS
-    if (googleClientId && typeof window !== "undefined") {
-      const scriptId = "google-jssdk";
-      if (!document.getElementById(scriptId)) {
-        const script = document.createElement("script");
-        script.id = scriptId;
-        script.src = "https://accounts.google.com/gsi/client";
-        script.async = true;
-        script.defer = true;
-        script.onload = () => {
-          if (window.google?.accounts?.id) {
-            window.google.accounts.id.initialize({
-              client_id: googleClientId,
-              callback: handleGoogleResponse,
-              auto_select: false,
-            });
+    if (!activeClientId) {
+      fetch("/api/platform/settings")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.googleClientId) {
+            setActiveClientId(data.googleClientId);
           }
-        };
-        document.body.appendChild(script);
-      }
+        })
+        .catch(() => {});
     }
-  }, [googleClientId]);
+  }, [activeClientId]);
+
+  // Cargar e inicializar el SDK oficial de Google Identity Services
+  useEffect(() => {
+    if (!activeClientId || typeof window === "undefined") return;
+
+    const scriptId = "google-jssdk";
+    const initGsi = () => {
+      if (window.google?.accounts?.oauth2) {
+        try {
+          const client = window.google.accounts.oauth2.initTokenClient({
+            client_id: activeClientId,
+            scope: "email profile openid",
+            callback: async (response: any) => {
+              if (response.error) {
+                setError(response.error_description || response.error || "Inicio con Google cancelado.");
+                return;
+              }
+              if (response.access_token) {
+                await sendAuthPayload({ accessToken: response.access_token });
+              }
+            },
+          });
+          tokenClientRef[1](client);
+        } catch (e) {
+          console.warn("Error al inicializar OAuth2 TokenClient:", e);
+        }
+      }
+
+      if (window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: activeClientId,
+            callback: handleGoogleResponse,
+            auto_select: false,
+          });
+        } catch (e) {
+          console.warn("Error al inicializar GSI ID Client:", e);
+        }
+      }
+    };
+
+    if (!document.getElementById(scriptId)) {
+      const script = document.createElement("script");
+      script.id = scriptId;
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.onload = initGsi;
+      document.body.appendChild(script);
+    } else if (window.google?.accounts) {
+      initGsi();
+    }
+  }, [activeClientId]);
 
   const handleGoogleResponse = async (response: any) => {
     if (!response?.credential) return;
@@ -104,11 +150,14 @@ export default function GoogleAuthButton({
   };
 
   const handleButtonClick = () => {
-    if (googleClientId && window.google?.accounts?.id) {
+    const tokenClient = tokenClientRef[0];
+    if (tokenClient) {
+      // Abre la ventana emergente oficial de selección de cuentas Google
+      tokenClient.requestAccessToken({ prompt: "select_account" });
+    } else if (activeClientId && window.google?.accounts?.id) {
       window.google.accounts.id.prompt();
     } else {
-      // Si aún no han colocado el NEXT_PUBLIC_GOOGLE_CLIENT_ID en producción,
-      // mostramos el modal para simular/ingresar el correo de Google de forma inmediata
+      // Si aún no se ha ingresado el Client ID en el panel Super Admin
       setShowFallbackModal(true);
     }
   };
