@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateBookingConfirmationUrl, cleanPhoneNumber } from "@/lib/whatsapp";
+import { getLocalNow } from "@/lib/date-utils";
 
 // Función auxiliar para sumar minutos a una hora "HH:mm"
 function addMinutes(timeStr: string, minutes: number): string {
@@ -69,8 +70,9 @@ export async function POST(req: NextRequest) {
     // Parsear fecha
     const appointmentDate = new Date(`${date}T00:00:00.000Z`);
 
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    // Obtener fecha y hora en la zona horaria del negocio (Colombia UTC-5)
+    const localNow = getLocalNow();
+    const todayStr = localNow.todayStr;
 
     // Validar si el negocio está cerrado el día de hoy mediante liveStatus
     if (date === todayStr && business.liveStatus === "CLOSED_TODAY") {
@@ -115,8 +117,8 @@ export async function POST(req: NextRequest) {
     if (date === todayStr) {
       const [reqH, reqM] = startTime.split(":").map(Number);
       const reqMinutes = reqH * 60 + reqM;
-      // Margen de tolerancia de 5 minutos
-      const currentMinutes = now.getHours() * 60 + now.getMinutes() - 5;
+      // Margen de tolerancia de 5 minutos según la hora local de Colombia
+      const currentMinutes = localNow.totalMinutes - 5;
       if (reqMinutes < currentMinutes) {
         return NextResponse.json(
           { error: "El horario seleccionado ya ha pasado para el día de hoy. Por favor elige una hora a partir de este momento." },

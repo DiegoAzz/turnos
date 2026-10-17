@@ -4,6 +4,8 @@ import { generateReminderUrl } from "@/lib/whatsapp";
 import { sendLabsMobileSms } from "@/lib/sms";
 import { verifyAdminSession } from "@/lib/auth-security";
 
+import { getLocalNow, getTodayUtcRange } from "@/lib/date-utils";
+
 export const dynamic = "force-dynamic";
 
 function parseReminderTimingMinutes(timingStr?: string): number {
@@ -43,16 +45,15 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const now = new Date();
-    // Consultar citas de hoy con recordatorio no enviado y estado confirmado/pendiente
-    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
-    const todayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59));
+    const localNow = getLocalNow();
+    const { startOfDay, endOfDay } = getTodayUtcRange();
 
+    // Consultar citas de hoy con recordatorio no enviado y estado confirmado/pendiente
     const appointments = await prisma.appointment.findMany({
       where: {
         date: {
-          gte: todayStart,
-          lte: todayEnd,
+          gte: startOfDay,
+          lte: endOfDay,
         },
         reminderSent: false,
         status: { notIn: ["CANCELLED", "COMPLETED"] },
@@ -78,12 +79,8 @@ export async function GET(req: NextRequest) {
       if (app.startTime.toUpperCase().includes("PM") && hours < 12) hours += 12;
       if (app.startTime.toUpperCase().includes("AM") && hours === 12) hours = 0;
 
-      const appDateTime = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hours, mins, 0)
-      );
-
-      const diffMs = appDateTime.getTime() - now.getTime();
-      const diffMinutes = Math.floor(diffMs / 60000);
+      const appMinutes = hours * 60 + mins;
+      const diffMinutes = appMinutes - localNow.totalMinutes;
 
       // Si la cita está dentro de la ventana de anticipación
       if (diffMinutes <= targetMinutes && diffMinutes >= -30) {
@@ -145,7 +142,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      timestamp: now.toISOString(),
+      timestamp: new Date().toISOString(),
       pendingDueCount: dueReminders.length,
       dueReminders,
     });

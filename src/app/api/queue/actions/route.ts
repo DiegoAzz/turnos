@@ -5,37 +5,16 @@ import {
   generatePostponedNotificationUrl,
   generateNowCallingNotificationUrl,
 } from "@/lib/whatsapp";
+import { getLocalNow, getTodayUtcRange } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
 function getTodayRange(dateStrParam?: string | null) {
-  const now = new Date();
-  let year = now.getFullYear();
-  let month = now.getMonth() + 1;
-  let day = now.getDate();
-
-  if (dateStrParam && /^\d{4}-\d{2}-\d{2}$/.test(dateStrParam)) {
-    const [y, m, d] = dateStrParam.split("-").map(Number);
-    year = y;
-    month = m;
-    day = d;
-  }
-
-  const mStr = String(month).padStart(2, "0");
-  const dStr = String(day).padStart(2, "0");
-  const dateStr = `${year}-${mStr}-${dStr}`;
-
-  const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
-  const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
-
-  return { dateStr, startOfDay, endOfDay };
+  return getTodayUtcRange("America/Bogota", dateStrParam);
 }
 
 function getCurrentTimeFormatted(): string {
-  const now = new Date();
-  const hours = String(now.getHours()).padStart(2, "0");
-  const mins = String(now.getMinutes()).padStart(2, "0");
-  return `${hours}:${mins}`;
+  return getLocalNow("America/Bogota").timeStr;
 }
 
 export async function POST(req: NextRequest) {
