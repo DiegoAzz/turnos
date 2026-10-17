@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
     // Calcular métricas
     const totalClientes = partner.referredBusinesses.length;
     const clientesProActivos = partner.referredBusinesses.filter(
-      (b) => b.plan !== "FREE" && b.active
+      (b: any) => b.plan !== "FREE" && b.active
     ).length;
 
     // Ingreso mensual recurrente estimado (MRR estimado del socio)

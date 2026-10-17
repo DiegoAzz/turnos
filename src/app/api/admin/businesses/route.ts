@@ -307,6 +307,11 @@ export async function PATCH(req: NextRequest) {
     if (typeof active === "boolean") dataToUpdate.active = active;
     if (plan && (plan === "FREE" || plan === "INDEPENDIENTE" || plan === "PRO")) {
       dataToUpdate.plan = plan;
+      if (plan === "FREE") {
+        dataToUpdate.stripeCurrentPeriodEnd = null;
+      } else {
+        dataToUpdate.stripeCurrentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      }
     }
     if (category) dataToUpdate.category = category;
     if (serviceModality) dataToUpdate.serviceModality = serviceModality;

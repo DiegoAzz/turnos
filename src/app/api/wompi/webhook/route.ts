@@ -32,12 +32,24 @@ export async function POST(req: NextRequest) {
       });
 
       if (business) {
-        // Actualizar el plan del negocio a PRO o INDEPENDIENTE
+        // Calcular 30 días de suscripción (o extender 30 días si el plan ya estaba vigente)
+        const now = new Date();
+        const baseDate =
+          business.stripeCurrentPeriodEnd &&
+          new Date(business.stripeCurrentPeriodEnd) > now
+            ? new Date(business.stripeCurrentPeriodEnd)
+            : now;
+        const newPeriodEnd = new Date(
+          baseDate.getTime() + 30 * 24 * 60 * 60 * 1000
+        );
+
+        // Actualizar el plan del negocio a PRO o INDEPENDIENTE con su fecha de vigencia
         await prisma.business.update({
           where: { id: business.id },
           data: {
             plan: targetPlan,
             active: true,
+            stripeCurrentPeriodEnd: newPeriodEnd,
           },
         });
 
@@ -49,7 +61,7 @@ export async function POST(req: NextRequest) {
           planName: `Plan ${targetPlan} (Wompi PSE/Tarjeta - Ref: ${id})`,
         });
 
-        console.log(`[Wompi Webhook] Negocio ${business.name} actualizado exitosamente a ${targetPlan}`);
+        console.log(`[Wompi Webhook] Negocio ${business.name} actualizado exitosamente a ${targetPlan} hasta ${newPeriodEnd.toISOString()}`);
       }
     }
 

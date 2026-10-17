@@ -48,9 +48,9 @@ export async function GET() {
       }
     } catch (e) {}
 
-    const data = partners.map((p) => {
+    const data = partners.map((p: any) => {
       const activePayingClients = p.referredBusinesses.filter(
-        (b) => b.plan !== "FREE" && b.active
+        (b: any) => b.plan !== "FREE" && b.active
       ).length;
 
       return {

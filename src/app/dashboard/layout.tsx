@@ -33,7 +33,7 @@ export default async function DashboardLayout({
   const allBusinesses = isAdmin
     ? await prisma.business.findMany({
         orderBy: { createdAt: "asc" },
-        select: { id: true, name: true, slug: true, plan: true, active: true },
+        select: { id: true, name: true, slug: true, plan: true, active: true, stripeCurrentPeriodEnd: true },
       })
     : [];
 
@@ -52,6 +52,20 @@ export default async function DashboardLayout({
   // Si no hay negocio conectado ni es Super Admin, redirigir a inicio de sesión
   if (!business) {
     redirect("/login");
+  }
+
+  // Verificación autónoma de suscripción:
+  // Si venció el periodo pagado (30 días) y no ha renovado, degradar automáticamente a FREE sin intervención manual
+  if (
+    business.plan !== "FREE" &&
+    business.stripeCurrentPeriodEnd &&
+    new Date(business.stripeCurrentPeriodEnd) < new Date()
+  ) {
+    business = await prisma.business.update({
+      where: { id: business.id },
+      data: { plan: "FREE" },
+    });
+    console.log(`[Autonomía TurnoYa] Negocio ${business.name} venció su periodo. Plan degradado automáticamente a FREE.`);
   }
 
   // Si la empresa está suspendida y no es el Super Admin

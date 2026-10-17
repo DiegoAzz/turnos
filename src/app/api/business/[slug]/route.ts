@@ -46,6 +46,19 @@ export async function GET(
       );
     }
 
+    // Comprobación autónoma de vigencia del plan
+    if (
+      business.plan !== "FREE" &&
+      business.stripeCurrentPeriodEnd &&
+      new Date(business.stripeCurrentPeriodEnd) < new Date()
+    ) {
+      await prisma.business.update({
+        where: { id: business.id },
+        data: { plan: "FREE" },
+      });
+      business.plan = "FREE";
+    }
+
     if (!business.active) {
       return NextResponse.json(
         { error: "Este establecimiento se encuentra temporalmente inactivo.", inactive: true },

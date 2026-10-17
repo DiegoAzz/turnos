@@ -88,6 +88,30 @@ export async function POST(req: NextRequest) {
     });
 
     if (!business) {
+      // Leer cookie de embajador si el usuario fue invitado por un referido
+      const partnerCookie = req.cookies.get("turnoya_partner_ref")?.value;
+      let partnerId: string | null = null;
+
+      if (partnerCookie) {
+        try {
+          const partner = await prisma.partner.findFirst({
+            where: {
+              OR: [
+                { referralCode: partnerCookie.toUpperCase().trim() },
+                { id: partnerCookie },
+              ],
+              status: "ACTIVE",
+            },
+          });
+          if (partner) {
+            partnerId = partner.id;
+            console.log(`[TurnoYa] Nuevo negocio asociado al embajador: ${partner.name} (${partner.referralCode})`);
+          }
+        } catch (partnerErr) {
+          console.warn("Error al buscar embajador asociado:", partnerErr);
+        }
+      }
+
       // 2. Si no existe, crear automáticamente un nuevo negocio registrado con Gmail
       const baseName = userName ? userName.split(" ")[0] : "Mi Negocio";
       const cleanBase = baseName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() || "negocio";
@@ -112,6 +136,7 @@ export async function POST(req: NextRequest) {
           adminPin: "1234",
           category: "PENDIENTE",
           serviceModality: "LOCAL",
+          partnerId,
         },
       });
 
