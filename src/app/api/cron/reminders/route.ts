@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
           lte: endOfDay,
         },
         reminderSent: false,
-        status: { notIn: ["CANCELLED", "COMPLETED"] },
+        status: { notIn: ["CANCELLED", "COMPLETED", "IN_PROGRESS"] },
         business: {
           autoRemindersEnabled: true,
           active: true,

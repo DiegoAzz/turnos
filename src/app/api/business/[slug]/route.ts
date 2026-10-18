@@ -67,6 +67,7 @@ export async function GET(
     }
 
     let bookedSlots: string[] = [];
+    let bookedIntervals: { startTime: string; endTime: string }[] = [];
 
     if (dateQuery) {
       const targetDate = new Date(`${dateQuery}T00:00:00.000Z`);
@@ -81,6 +82,11 @@ export async function GET(
           endTime: true,
         },
       });
+
+      bookedIntervals = existingAppointments.map((app) => ({
+        startTime: app.startTime,
+        endTime: app.endTime,
+      }));
 
       for (const app of existingAppointments) {
         const [sH, sM] = app.startTime.split(":").map(Number);
@@ -119,6 +125,7 @@ export async function GET(
       workingHours: business.workingHours,
       products: business.products || [],
       bookedSlots,
+      bookedIntervals,
     });
   } catch (error) {
     console.error("Error al obtener negocio:", error);

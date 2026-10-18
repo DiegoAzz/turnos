@@ -162,6 +162,16 @@ export default function BarberQueueManager({
       return;
     }
 
+    const cleanPhone = walkInPhone.replace(/[^0-9]/g, "");
+    if (cleanPhone.length > 0 && cleanPhone.length !== 10) {
+      alert("El número de WhatsApp debe tener exactamente 10 dígitos (o déjalo vacío si no tiene).");
+      return;
+    }
+
+    const finalWalkInPhone = cleanPhone
+      ? (cleanPhone.startsWith("57") ? cleanPhone : `57${cleanPhone}`)
+      : undefined;
+
     setActionLoading(true);
     try {
       const res = await fetch("/api/queue/actions", {
@@ -171,7 +181,7 @@ export default function BarberQueueManager({
           action: "ADD_WALK_IN",
           businessId: business.id,
           clientName: walkInName.trim(),
-          clientPhone: walkInPhone.trim() || undefined,
+          clientPhone: finalWalkInPhone,
           serviceId: walkInServiceId || business.services?.[0]?.id,
           startImmediately: walkInImmediate,
         }),
@@ -713,11 +723,16 @@ export default function BarberQueueManager({
                 </label>
                 <input
                   type="tel"
-                  placeholder="ej. 310 123 4567"
+                  maxLength={10}
+                  inputMode="numeric"
+                  placeholder="ej. 310 123 4567 (10 dígitos)"
                   value={walkInPhone}
-                  onChange={(e) => setWalkInPhone(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
+                  onChange={(e) => setWalkInPhone(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
+                  className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-emerald-500 focus:outline-none font-mono"
                 />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  10 dígitos para enviar confirmación automática por WhatsApp.
+                </p>
               </div>
 
               <div className="flex items-center gap-2 pt-2">

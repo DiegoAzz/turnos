@@ -374,7 +374,12 @@ export default function DashboardClientActions({
 
     const checkReminders = () => {
       for (const app of appointments) {
-        if (app.status === "CANCELLED" || app.status === "COMPLETED" || app.reminderSent) {
+        if (
+          app.status === "CANCELLED" ||
+          app.status === "COMPLETED" ||
+          app.status === "IN_PROGRESS" ||
+          app.reminderSent
+        ) {
           continue;
         }
 

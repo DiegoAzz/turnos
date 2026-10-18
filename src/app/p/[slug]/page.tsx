@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useCallback } from "react";
 import Link from "next/link";
 import {
   Calendar as CalendarIcon,
@@ -47,6 +47,106 @@ interface BusinessData {
   serviceModality?: string;
 }
 
+interface CountryConfig {
+  code: string;
+  name: string;
+  flag: string;
+  digits: number;
+  placeholder: string;
+  hint: string;
+}
+
+const COUNTRY_CONFIGS: Record<string, CountryConfig> = {
+  "+57": {
+    code: "+57",
+    name: "Colombia",
+    flag: "🇨🇴",
+    digits: 10,
+    placeholder: "310 601 7261",
+    hint: "10 dígitos (inicia por 3)",
+  },
+  "+52": {
+    code: "+52",
+    name: "México",
+    flag: "🇲🇽",
+    digits: 10,
+    placeholder: "55 1234 5678",
+    hint: "10 dígitos",
+  },
+  "+1": {
+    code: "+1",
+    name: "USA / Canadá",
+    flag: "🇺🇸",
+    digits: 10,
+    placeholder: "202 555 0123",
+    hint: "10 dígitos",
+  },
+  "+34": {
+    code: "+34",
+    name: "España",
+    flag: "🇪🇸",
+    digits: 9,
+    placeholder: "612 345 678",
+    hint: "9 dígitos",
+  },
+  "+54": {
+    code: "+54",
+    name: "Argentina",
+    flag: "🇦🇷",
+    digits: 10,
+    placeholder: "11 2345 6789",
+    hint: "10 dígitos",
+  },
+  "+56": {
+    code: "+56",
+    name: "Chile",
+    flag: "🇨🇱",
+    digits: 9,
+    placeholder: "9 1234 5678",
+    hint: "9 dígitos",
+  },
+  "+51": {
+    code: "+51",
+    name: "Perú",
+    flag: "🇵🇪",
+    digits: 9,
+    placeholder: "912 345 678",
+    hint: "9 dígitos",
+  },
+  "+593": {
+    code: "+593",
+    name: "Ecuador",
+    flag: "🇪🇨",
+    digits: 9,
+    placeholder: "9 1234 5678",
+    hint: "9 dígitos",
+  },
+  "+58": {
+    code: "+58",
+    name: "Venezuela",
+    flag: "🇻🇪",
+    digits: 10,
+    placeholder: "412 123 4567",
+    hint: "10 dígitos",
+  },
+  "+507": {
+    code: "+507",
+    name: "Panamá",
+    flag: "🇵🇦",
+    digits: 8,
+    placeholder: "6123 4567",
+    hint: "8 dígitos",
+  },
+  "+506": {
+    code: "+506",
+    name: "Costa Rica",
+    flag: "🇨🇷",
+    digits: 8,
+    placeholder: "8123 4567",
+    hint: "8 dígitos",
+  },
+};
+
 export default function BookingPage({
   params,
 }: {
@@ -60,6 +160,7 @@ export default function BookingPage({
   const [services, setServices] = useState<Service[]>([]);
   const [workingHours, setWorkingHours] = useState<WorkingHour[]>([]);
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [bookedIntervals, setBookedIntervals] = useState<{ startTime: string; endTime: string }[]>([]);
   const [products, setProducts] = useState<any[]>([]);
 
   // Wizard state
@@ -79,6 +180,23 @@ export default function BookingPage({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState<any | null>(null);
+
+  const currentConfig = COUNTRY_CONFIGS[countryCode] || COUNTRY_CONFIGS["+57"];
+
+  const handleCountryChange = (newCode: string) => {
+    setCountryCode(newCode);
+    const config = COUNTRY_CONFIGS[newCode] || COUNTRY_CONFIGS["+57"];
+    const onlyDigits = clientPhone.replace(/[^0-9]/g, "");
+    if (onlyDigits.length > config.digits) {
+      setClientPhone(onlyDigits.slice(0, config.digits));
+    }
+  };
+
+  const handlePhoneChange = (val: string) => {
+    const config = COUNTRY_CONFIGS[countryCode] || COUNTRY_CONFIGS["+57"];
+    const onlyDigits = val.replace(/[^0-9]/g, "").slice(0, config.digits);
+    setClientPhone(onlyDigits);
+  };
 
   // Cargar datos previos de cliente frecuente guardados en el navegador
   useEffect(() => {
@@ -187,22 +305,53 @@ export default function BookingPage({
     fetchBusiness();
   }, [slug]);
 
-  // Actualizar slots ocupados al cambiar fecha
-  useEffect(() => {
+  // Actualizar slots ocupados en tiempo real
+  const fetchSlots = useCallback(async () => {
     if (!selectedDate || !slug) return;
-    async function fetchSlots() {
-      try {
-        const res = await fetch(`/api/business/${slug}?date=${selectedDate}`);
-        if (res.ok) {
-          const data = await res.json();
-          setBookedSlots(data.bookedSlots || []);
-        }
-      } catch (err) {
-        console.error("Error al obtener slots:", err);
+    try {
+      const res = await fetch(`/api/business/${slug}?date=${selectedDate}`);
+      if (res.ok) {
+        const data = await res.json();
+        setBookedSlots(data.bookedSlots || []);
+        setBookedIntervals(data.bookedIntervals || []);
       }
+    } catch (err) {
+      console.error("Error al obtener slots:", err);
     }
-    fetchSlots();
   }, [selectedDate, slug]);
+
+  // Actualizar slots al cambiar la fecha seleccionada
+  useEffect(() => {
+    fetchSlots();
+  }, [fetchSlots]);
+
+  // Polling silencioso en tiempo real cada 5s cuando el cliente está eligiendo fecha/hora (paso 3)
+  useEffect(() => {
+    if (step !== 3 || !selectedDate) return;
+    const interval = setInterval(() => {
+      fetchSlots();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [step, selectedDate, fetchSlots]);
+
+  // Detector inteligente de disponibilidad considerando duración del servicio e intervalos
+  const isSlotDisabled = (slot: string) => {
+    if (bookedSlots.includes(slot)) return true;
+    if (!selectedService) return false;
+
+    const [h, m] = slot.split(":").map(Number);
+    const slotStart = h * 60 + m;
+    const duration = selectedService.durationMinutes || 30;
+    const slotEnd = slotStart + duration;
+
+    return bookedIntervals.some((app) => {
+      const [asH, asM] = app.startTime.split(":").map(Number);
+      const [aeH, aeM] = app.endTime.split(":").map(Number);
+      const appStart = asH * 60 + asM;
+      const appEnd = aeH * 60 + aeM;
+      return slotStart < appEnd && slotEnd > appStart;
+    });
+  };
 
   // Generar franjas horarias del día seleccionado
   const generateSlotsForSelectedDate = () => {
@@ -283,15 +432,24 @@ export default function BookingPage({
       return;
     }
 
+    const cleanDigits = clientPhone.replace(/[^0-9]/g, "");
+
+    if (cleanDigits.length !== currentConfig.digits) {
+      alert(
+        `El número de WhatsApp para ${currentConfig.name} debe tener exactamente ${currentConfig.digits} dígitos.\nActualmente ingresaste ${cleanDigits.length} dígitos.`
+      );
+      return;
+    }
+
+    if (countryCode === "+57" && !cleanDigits.startsWith("3")) {
+      alert("En Colombia los números celulares de WhatsApp deben comenzar con el dígito 3 (ejemplo: 310 601 7261).");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
-      const cleanDigits = clientPhone.replace(/[^0-9]/g, "");
-      let finalPhone = cleanDigits;
-      if (cleanDigits.length === 10 && cleanDigits.startsWith("3")) {
-        finalPhone = "57" + cleanDigits;
-      } else if (!cleanDigits.startsWith("57") && !cleanDigits.startsWith("52") && !cleanDigits.startsWith("1")) {
-        finalPhone = countryCode.replace("+", "") + cleanDigits;
-      }
+      const cleanPrefix = countryCode.replace("+", "");
+      const finalPhone = cleanDigits.startsWith(cleanPrefix) ? cleanDigits : `${cleanPrefix}${cleanDigits}`;
 
       const res = await fetch("/api/bookings", {
         method: "POST",
@@ -311,7 +469,22 @@ export default function BookingPage({
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "No se pudo agendar la cita.");
+      if (!res.ok) {
+        if (
+          res.status === 409 ||
+          data.error?.toLowerCase().includes("cruza") ||
+          data.error?.toLowerCase().includes("reservada")
+        ) {
+          await fetchSlots();
+          setSelectedTime("");
+          alert(
+            "⚠️ Lo sentimos: ese horario acaba de ser reservado por otro cliente o se cruza con otra cita. Hemos actualizado la disponibilidad en tiempo real. Por favor selecciona otro horario."
+          );
+          setStep(3);
+          return;
+        }
+        throw new Error(data.error || "No se pudo agendar la cita.");
+      }
 
       // Guardar datos en el teléfono/navegador del cliente frecuente
       try {
@@ -704,7 +877,7 @@ export default function BookingPage({
               ) : (
                 <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
                   {timeSlots.map((slot) => {
-                    const isBooked = bookedSlots.includes(slot);
+                    const isBooked = isSlotDisabled(slot);
                     const isSelected = selectedTime === slot;
 
                     return (
@@ -712,7 +885,7 @@ export default function BookingPage({
                         key={slot}
                         disabled={isBooked}
                         onClick={() => setSelectedTime(slot)}
-                        className={`rounded-xl py-3 px-2 text-center text-xs font-semibold transition border ${
+                        className={`rounded-xl py-2.5 px-2 text-center text-xs font-semibold transition border ${
                           isBooked
                             ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 line-through"
                             : isSelected
@@ -720,7 +893,12 @@ export default function BookingPage({
                             : "border-gray-200 bg-white hover:border-emerald-500 hover:bg-emerald-50 text-gray-800"
                         }`}
                       >
-                        {slot}
+                        <div>{slot}</div>
+                        {isBooked && (
+                          <span className="block text-[9px] text-gray-400 no-underline font-normal leading-tight mt-0.5">
+                            Reservado
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -729,7 +907,7 @@ export default function BookingPage({
 
               <div className="mt-6 flex justify-end">
                 <button
-                  disabled={!selectedTime}
+                  disabled={!selectedTime || isSlotDisabled(selectedTime)}
                   onClick={() => setStep(4)}
                   className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 transition disabled:opacity-50"
                 >
@@ -809,30 +987,39 @@ export default function BookingPage({
                   <div className="flex rounded-xl border border-gray-300 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 overflow-hidden bg-white">
                     <select
                       value={countryCode}
-                      onChange={(e) => setCountryCode(e.target.value)}
+                      onChange={(e) => handleCountryChange(e.target.value)}
                       className="bg-gray-50 border-r border-gray-300 px-2.5 py-2.5 text-xs text-gray-700 font-bold focus:outline-none cursor-pointer"
                     >
-                      <option value="+57">🇨🇴 +57 (Colombia)</option>
-                      <option value="+52">🇲🇽 +52 (México)</option>
-                      <option value="+1">🇺🇸 +1 (USA)</option>
-                      <option value="+34">🇪🇸 +34 (España)</option>
-                      <option value="+54">🇦🇷 +54 (Argentina)</option>
-                      <option value="+56">🇨🇱 +56 (Chile)</option>
-                      <option value="+51">🇵🇪 +51 (Perú)</option>
-                      <option value="+593">🇪🇨 +593 (Ecuador)</option>
+                      {Object.values(COUNTRY_CONFIGS).map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.flag} {c.code} ({c.name})
+                        </option>
+                      ))}
                     </select>
                     <input
                       type="tel"
                       required
-                      placeholder="Ej. 310 601 7261"
+                      inputMode="numeric"
+                      maxLength={currentConfig.digits}
+                      placeholder={`Ej. ${currentConfig.placeholder}`}
                       value={clientPhone}
-                      onChange={(e) => setClientPhone(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none font-medium"
+                      onChange={(e) => handlePhoneChange(e.target.value)}
+                      className="w-full px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none font-mono font-medium"
                     />
                   </div>
-                  <p className="mt-1 text-[11px] text-gray-400">
-                    Ingresa tu número de 10 dígitos para recibir el recordatorio automático en WhatsApp.
-                  </p>
+                  <div className="mt-1.5 flex items-center justify-between text-[11px]">
+                    <span className="text-gray-500">{currentConfig.hint}</span>
+                    <span
+                      className={`font-mono font-semibold ${
+                        clientPhone.length === currentConfig.digits
+                          ? "text-emerald-600"
+                          : "text-amber-600"
+                      }`}
+                    >
+                      {clientPhone.length} / {currentConfig.digits} dígitos
+                      {clientPhone.length === currentConfig.digits && " ✓"}
+                    </span>
+                  </div>
                 </div>
 
                 <div>

@@ -17,7 +17,7 @@ import {
   Scissors,
   ArrowRight,
 } from "lucide-react";
-import { playTurnCall, unlockAudio } from "@/lib/sound";
+import { playTurnCall, playAlertChime, unlockAudio } from "@/lib/sound";
 
 interface QueueService {
   id: string;
@@ -78,6 +78,7 @@ export default function SmartTvTurneroPage({
   // Referencias para evitar alertas duplicadas
   const prevServingIdRef = useRef<string | null>(null);
   const isFirstLoadRef = useRef(true);
+  const announcedTurnsRef = useRef<Set<string>>(new Set());
 
   // Reloj en tiempo real
   useEffect(() => {
@@ -111,8 +112,8 @@ export default function SmartTvTurneroPage({
     unlockAudio();
     setAudioUnlocked(true);
     setSoundEnabled(true);
-    // Reproducir un ding inicial de confirmación
-    playTurnCall(currentServing?.turnNumber || "1", currentServing?.clientName);
+    // Reproducir solo un ding sutil de confirmación sin locución de voz repetitiva
+    playAlertChime();
   };
 
   // Toggle de pantalla completa para Smart TVs / monitores
@@ -147,17 +148,22 @@ export default function SmartTvTurneroPage({
 
         const newServing = data.currentServing || null;
 
-        // Si cambió el turno que está siendo atendido
-        if (newServing && newServing.id !== prevServingIdRef.current) {
-          if (!isFirstLoadRef.current && soundEnabled) {
-            // Sonar ding-dong y locución de voz
-            playTurnCall(newServing.turnNumber, newServing.clientName);
-            // Destello visual de llamada
-            setIsNewCallPulse(true);
-            setTimeout(() => setIsNewCallPulse(false), 3500);
+        // Anunciar por voz ÚNICAMENTE si es un turno nuevo que no ha sido llamado antes
+        if (newServing) {
+          if (isFirstLoadRef.current) {
+            // En carga inicial, el cliente ya está en la silla: no repetir anuncio
+            announcedTurnsRef.current.add(newServing.id);
+            prevServingIdRef.current = newServing.id;
+          } else if (newServing.id !== prevServingIdRef.current && !announcedTurnsRef.current.has(newServing.id)) {
+            announcedTurnsRef.current.add(newServing.id);
+            prevServingIdRef.current = newServing.id;
+            if (soundEnabled) {
+              playTurnCall(newServing.turnNumber, newServing.clientName);
+              setIsNewCallPulse(true);
+              setTimeout(() => setIsNewCallPulse(false), 3500);
+            }
           }
-          prevServingIdRef.current = newServing.id;
-        } else if (!newServing) {
+        } else {
           prevServingIdRef.current = null;
         }
 
