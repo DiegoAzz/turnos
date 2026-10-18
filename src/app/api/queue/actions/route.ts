@@ -41,17 +41,23 @@ export async function POST(req: NextRequest) {
 
     // 1. LLAMAR SIGUIENTE EN FILA
     if (action === "CALL_NEXT") {
-      // Si hay uno en progreso, completarlo
-      await prisma.appointment.updateMany({
+      // Verificar si ya hay un turno en atención en la silla
+      const activeInProgress = await prisma.appointment.findFirst({
         where: {
           businessId: business.id,
           date: { gte: startOfDay, lte: endOfDay },
           status: "IN_PROGRESS",
         },
-        data: {
-          status: "COMPLETED",
-        },
       });
+
+      if (activeInProgress) {
+        return NextResponse.json(
+          {
+            error: `La silla ya está ocupada atendiendo a ${activeInProgress.clientName}. Debes hacer clic en "Terminar Servicio" para finalizar el turno actual antes de llamar al siguiente.`,
+          },
+          { status: 400 }
+        );
+      }
 
       // Encontrar el siguiente turno confirmado o pendiente
       const nextAppointment = await prisma.appointment.findFirst({
@@ -102,16 +108,24 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Falta appointmentId" }, { status: 400 });
       }
 
-      // Si había alguien en progreso que no sea este mismo, marcarlo como completado
-      await prisma.appointment.updateMany({
+      // Validar si la silla ya está ocupada por otro turno en atención
+      const activeInProgress = await prisma.appointment.findFirst({
         where: {
           businessId: business.id,
           date: { gte: startOfDay, lte: endOfDay },
           status: "IN_PROGRESS",
           id: { not: appointmentId },
         },
-        data: { status: "COMPLETED" },
       });
+
+      if (activeInProgress) {
+        return NextResponse.json(
+          {
+            error: `La silla ya está ocupada atendiendo a ${activeInProgress.clientName}. Debes finalizar el servicio actual ("Terminar Servicio") antes de poder atender a otro cliente.`,
+          },
+          { status: 400 }
+        );
+      }
 
       const updated = await prisma.appointment.update({
         where: { id: appointmentId },
@@ -215,6 +229,26 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Falta appointmentId" }, { status: 400 });
       }
 
+      if (startImmediately) {
+        const activeInProgress = await prisma.appointment.findFirst({
+          where: {
+            businessId: business.id,
+            date: { gte: startOfDay, lte: endOfDay },
+            status: "IN_PROGRESS",
+            id: { not: appointmentId },
+          },
+        });
+
+        if (activeInProgress) {
+          return NextResponse.json(
+            {
+              error: `La silla ya está ocupada atendiendo a ${activeInProgress.clientName}. Debes finalizar el servicio actual antes de llamar a este cliente a la silla. O puedes usar "Reincorporar a Fila" para dejarlo en espera.`,
+            },
+            { status: 400 }
+          );
+        }
+      }
+
       const updated = await prisma.appointment.update({
         where: { id: appointmentId },
         data: {
@@ -222,19 +256,6 @@ export async function POST(req: NextRequest) {
         },
         include: { service: true },
       });
-
-      if (startImmediately) {
-        // Completar cualquier otro en progreso
-        await prisma.appointment.updateMany({
-          where: {
-            businessId: business.id,
-            date: { gte: startOfDay, lte: endOfDay },
-            status: "IN_PROGRESS",
-            id: { not: appointmentId },
-          },
-          data: { status: "COMPLETED" },
-        });
-      }
 
       return NextResponse.json({
         success: true,
@@ -294,16 +315,26 @@ export async function POST(req: NextRequest) {
         where: { id: chosenServiceId },
       });
 
-      // Si se atiende de inmediato, completar al que esté en progreso
+      // Si se solicita atender de inmediato, verificar que la silla no esté ocupada
+      let finalStatus = "CONFIRMED";
       if (startImmediately) {
-        await prisma.appointment.updateMany({
+        const activeInProgress = await prisma.appointment.findFirst({
           where: {
             businessId: business.id,
             date: { gte: startOfDay, lte: endOfDay },
             status: "IN_PROGRESS",
           },
-          data: { status: "COMPLETED" },
         });
+
+        if (activeInProgress) {
+          return NextResponse.json(
+            {
+              error: `La silla ya está ocupada atendiendo a ${activeInProgress.clientName}. Desmarca "Atender de inmediato" para que el cliente quede en la lista de espera, o finaliza el servicio actual primero.`,
+            },
+            { status: 400 }
+          );
+        }
+        finalStatus = "IN_PROGRESS";
       }
 
       const appointment = await prisma.appointment.create({
@@ -316,7 +347,7 @@ export async function POST(req: NextRequest) {
           date: startOfDay,
           startTime: nowTime,
           endTime: nowTime,
-          status: startImmediately ? "IN_PROGRESS" : "CONFIRMED",
+          status: finalStatus,
         },
         include: { service: true },
       });

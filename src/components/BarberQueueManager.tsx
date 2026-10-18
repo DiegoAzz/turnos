@@ -449,6 +449,18 @@ export default function BarberQueueManager({
         <div className="p-4 sm:p-6">
           {activeTab === "WAITING" && (
             <div>
+              {currentServing && waiting.length > 0 && (
+                <div className="mb-4 px-3.5 py-2.5 bg-amber-50 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex items-center gap-2.5 shadow-sm">
+                  <span className="text-lg">🪑</span>
+                  <div>
+                    <span className="font-bold">Silla en atención: </span>
+                    <span>
+                      Estás atendiendo a <strong>{currentServing.clientName}</strong>. Cuando termines su servicio, pulsa <strong>"Terminar Servicio"</strong> arriba para poder llamar al siguiente turno.
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {waiting.length === 0 ? (
                 <div className="py-8 text-center text-gray-400 text-xs">
                   No hay turnos en espera. Cuando los clientes saquen turno o registres uno presencial, aparecerán aquí.
@@ -482,16 +494,31 @@ export default function BarberQueueManager({
                       {/* Acciones por cada turno en espera */}
                       <div className="flex items-center gap-2 self-end sm:self-center">
                         <button
-                          disabled={actionLoading}
-                          onClick={() =>
+                          disabled={actionLoading || !!currentServing}
+                          onClick={() => {
+                            if (currentServing) {
+                              alert(
+                                `La silla ya está ocupada atendiendo a ${currentServing.clientName}. Debes hacer clic en "Terminar Servicio" antes de atender a otro cliente.`
+                              );
+                              return;
+                            }
                             handleQueueAction({
                               action: "CALL_SPECIFIC",
                               appointmentId: turn.id,
-                            })
+                            });
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm ${
+                            currentServing
+                              ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
+                              : "bg-emerald-600 text-white hover:bg-emerald-500"
+                          }`}
+                          title={
+                            currentServing
+                              ? `Silla ocupada atendiendo a ${currentServing.clientName}. Finaliza el servicio actual primero.`
+                              : "Atender a este cliente ahora"
                           }
-                          className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 transition shadow-sm"
                         >
-                          Atender Ya
+                          {currentServing ? "Silla Ocupada" : "Atender Ya"}
                         </button>
 
                         <button
@@ -592,17 +619,32 @@ export default function BarberQueueManager({
 
                       <div className="flex items-center gap-2 self-end sm:self-center">
                         <button
-                          disabled={actionLoading}
-                          onClick={() =>
+                          disabled={actionLoading || !!currentServing}
+                          onClick={() => {
+                            if (currentServing) {
+                              alert(
+                                `La silla ya está ocupada atendiendo a ${currentServing.clientName}. Debes hacer clic en "Terminar Servicio" antes de atender a otro cliente en la silla, o puedes presionar "Reincorporar a Fila" para ponerlo en espera.`
+                              );
+                              return;
+                            }
                             handleQueueAction({
                               action: "RECALL_POSTPONED",
                               appointmentId: turn.id,
                               startImmediately: true,
-                            })
+                            });
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm ${
+                            currentServing
+                              ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
+                              : "bg-emerald-600 text-white hover:bg-emerald-500"
+                          }`}
+                          title={
+                            currentServing
+                              ? `Silla ocupada atendiendo a ${currentServing.clientName}. Usa "Reincorporar a Fila" para dejarlo en espera.`
+                              : "Llamar directamente a la silla"
                           }
-                          className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 transition shadow-sm"
                         >
-                          Atender en Silla
+                          {currentServing ? "Silla Ocupada" : "Atender en Silla"}
                         </button>
 
                         <button
@@ -735,21 +777,33 @@ export default function BarberQueueManager({
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 pt-2">
-                <input
-                  type="checkbox"
-                  id="startImmediate"
-                  checked={walkInImmediate}
-                  onChange={(e) => setWalkInImmediate(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                />
-                <label
-                  htmlFor="startImmediate"
-                  className="text-xs font-semibold text-gray-700 cursor-pointer"
-                >
-                  ⚡ Atender de inmediato en la silla ahora
-                </label>
-              </div>
+              {currentServing ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+                  <span className="text-base shrink-0">🪑</span>
+                  <div>
+                    <span className="font-bold">Silla en atención: </span>
+                    <span>
+                      Actualmente estás atendiendo a <strong>{currentServing.clientName}</strong>. Este turno presencial entrará directamente a la <strong>lista de espera</strong>.
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 pt-2">
+                  <input
+                    type="checkbox"
+                    id="startImmediate"
+                    checked={walkInImmediate}
+                    onChange={(e) => setWalkInImmediate(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <label
+                    htmlFor="startImmediate"
+                    className="text-xs font-semibold text-gray-700 cursor-pointer"
+                  >
+                    ⚡ Atender de inmediato en la silla ahora
+                  </label>
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
                 <button
