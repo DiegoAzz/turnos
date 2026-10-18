@@ -109,22 +109,50 @@ export async function POST(req: NextRequest) {
       }
 
       // Validar si la silla ya está ocupada por otro turno en atención
-      const activeInProgress = await prisma.appointment.findFirst({
-        where: {
-          businessId: business.id,
-          date: { gte: startOfDay, lte: endOfDay },
-          status: "IN_PROGRESS",
-          id: { not: appointmentId },
-        },
-      });
+      if (business.multiBarberEnabled) {
+        const targetTurn = await prisma.appointment.findUnique({
+          where: { id: appointmentId },
+          include: { staffMember: true },
+        });
 
-      if (activeInProgress) {
-        return NextResponse.json(
-          {
-            error: `La silla ya está ocupada atendiendo a ${activeInProgress.clientName}. Debes finalizar el servicio actual ("Terminar Servicio") antes de poder atender a otro cliente.`,
+        if (targetTurn?.staffMemberId) {
+          const barberBusy = await prisma.appointment.findFirst({
+            where: {
+              businessId: business.id,
+              date: { gte: startOfDay, lte: endOfDay },
+              status: "IN_PROGRESS",
+              staffMemberId: targetTurn.staffMemberId,
+              id: { not: appointmentId },
+            },
+          });
+
+          if (barberBusy) {
+            return NextResponse.json(
+              {
+                error: `La silla de ${targetTurn.staffMember?.name || "este barbero"} ya está ocupada atendiendo a ${barberBusy.clientName}. Finaliza su servicio actual primero.`,
+              },
+              { status: 400 }
+            );
+          }
+        }
+      } else {
+        const activeInProgress = await prisma.appointment.findFirst({
+          where: {
+            businessId: business.id,
+            date: { gte: startOfDay, lte: endOfDay },
+            status: "IN_PROGRESS",
+            id: { not: appointmentId },
           },
-          { status: 400 }
-        );
+        });
+
+        if (activeInProgress) {
+          return NextResponse.json(
+            {
+              error: `La silla ya está ocupada atendiendo a ${activeInProgress.clientName}. Debes finalizar el servicio actual ("Terminar Servicio") antes de poder atender a otro cliente.`,
+            },
+            { status: 400 }
+          );
+        }
       }
 
       const updated = await prisma.appointment.update({
@@ -407,6 +435,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         message: `El cliente con teléfono ${target.clientPhone} ha sido bloqueado y no podrá volver a solicitar turnos en este establecimiento.`,
+      });
+    }
+
+    // 9. ASIGNAR O CAMBIAR BARBERO A UN TURNO EN COLA
+    if (action === "ASSIGN_BARBER") {
+      const { staffMemberId } = body;
+      if (!appointmentId) {
+        return NextResponse.json({ error: "Falta appointmentId" }, { status: 400 });
+      }
+
+      const updated = await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: {
+          staffMemberId: staffMemberId || null,
+        },
+        include: {
+          service: true,
+          staffMember: true,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        appointment: updated,
+      });
+    }
+
+    // 10. REINICIAR CONTEO DE TURNOS A #01
+    if (action === "RESET_QUEUE_COUNTER") {
+      const now = new Date();
+      await prisma.business.update({
+        where: { id: business.id },
+        data: { queueResetAt: now },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: "Conteo de turnos reiniciado con éxito a #01 a partir de este momento.",
+        resetAt: now.toISOString(),
       });
     }
 

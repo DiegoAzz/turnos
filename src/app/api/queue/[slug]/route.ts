@@ -41,6 +41,7 @@ export async function GET(
         statusMessage: true,
         currency: true,
         multiBarberEnabled: true,
+        queueResetAt: true,
       },
     });
 
@@ -84,6 +85,13 @@ export async function GET(
     });
 
     // Asignar número de turno secuencial de hoy (#01, #02...) a los que no estén cancelados
+    // Si hubo un reinicio hoy (queueResetAt), las citas posteriores comienzan desde #01
+    const resetTime = business.queueResetAt ? new Date(business.queueResetAt).getTime() : 0;
+    const resetDayStr = business.queueResetAt
+      ? new Date(business.queueResetAt).toISOString().split("T")[0]
+      : null;
+    const isResetToday = resetDayStr === dateStr;
+
     let turnCounter = 0;
     const turnsWithNumbers = appointments.map((app) => {
       if (app.status === "CANCELLED") {
@@ -91,15 +99,30 @@ export async function GET(
           ...app,
           turnNumber: null,
           turnLabel: "Cancelado",
+          isPreReset: false,
         };
       }
-      turnCounter++;
-      const numFormatted = String(turnCounter).padStart(2, "0");
-      return {
-        ...app,
-        turnNumber: turnCounter,
-        turnLabel: `#${numFormatted}`,
-      };
+
+      const appTime = new Date(app.createdAt).getTime();
+      const isPreReset = isResetToday && appTime < resetTime;
+
+      if (!isPreReset) {
+        turnCounter++;
+        const numFormatted = String(turnCounter).padStart(2, "0");
+        return {
+          ...app,
+          turnNumber: turnCounter,
+          turnLabel: `#${numFormatted}`,
+          isPreReset: false,
+        };
+      } else {
+        return {
+          ...app,
+          turnNumber: null,
+          turnLabel: "Anterior",
+          isPreReset: true,
+        };
+      }
     });
 
     const activeTurns = turnsWithNumbers.filter((t) => t.status !== "CANCELLED");
@@ -147,6 +170,7 @@ export async function GET(
       currentServing,
       allServing: inProgressTurns,
       staffChairs,
+      staffMembers,
       multiBarberEnabled: business.multiBarberEnabled,
       nextUp: waiting[0] || null,
       waiting,

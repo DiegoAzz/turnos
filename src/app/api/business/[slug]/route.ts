@@ -36,6 +36,17 @@ export async function GET(
           where: { active: true, stock: { gt: 0 } },
           orderBy: { name: "asc" },
         },
+        staffMembers: {
+          where: { active: true },
+          select: {
+            id: true,
+            name: true,
+            chairNumber: true,
+            chairLabel: true,
+            avatarUrl: true,
+          },
+          orderBy: { chairNumber: "asc" },
+        },
       },
     });
 
@@ -66,6 +77,8 @@ export async function GET(
       );
     }
 
+    const staffMemberIdQuery = searchParams.get("staffMemberId");
+
     let bookedSlots: string[] = [];
     let bookedIntervals: { startTime: string; endTime: string }[] = [];
 
@@ -80,27 +93,78 @@ export async function GET(
         select: {
           startTime: true,
           endTime: true,
+          staffMemberId: true,
         },
       });
 
-      bookedIntervals = existingAppointments.map((app) => ({
-        startTime: app.startTime,
-        endTime: app.endTime,
-      }));
+      if (business.multiBarberEnabled) {
+        const activeStaffCount = Math.max(1, (business.staffMembers || []).length);
 
-      for (const app of existingAppointments) {
-        const [sH, sM] = app.startTime.split(":").map(Number);
-        const [eH, eM] = app.endTime.split(":").map(Number);
-        let cur = sH * 60 + sM;
-        const end = eH * 60 + eM;
-        while (cur < end) {
-          const h = Math.floor(cur / 60);
-          const m = cur % 60;
-          const slotStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-          if (!bookedSlots.includes(slotStr)) {
-            bookedSlots.push(slotStr);
+        if (staffMemberIdQuery) {
+          // El cliente seleccionó un barbero específico: solo citas de ese barbero bloquean
+          const barberApps = existingAppointments.filter((a) => a.staffMemberId === staffMemberIdQuery);
+          bookedIntervals = barberApps.map((a) => ({ startTime: a.startTime, endTime: a.endTime }));
+
+          for (const app of barberApps) {
+            const [sH, sM] = app.startTime.split(":").map(Number);
+            const [eH, eM] = app.endTime.split(":").map(Number);
+            let cur = sH * 60 + sM;
+            const end = eH * 60 + eM;
+            while (cur < end) {
+              const h = Math.floor(cur / 60);
+              const m = cur % 60;
+              const slotStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+              if (!bookedSlots.includes(slotStr)) {
+                bookedSlots.push(slotStr);
+              }
+              cur += 30;
+            }
           }
-          cur += 30;
+        } else {
+          // El cliente eligió "Cualquier barbero":
+          // Un horario se bloquea ÚNICAMENTE si la cantidad de citas simultáneas alcanza el número de barberos activos
+          const slotOccupancy: Record<string, number> = {};
+          for (const app of existingAppointments) {
+            const [sH, sM] = app.startTime.split(":").map(Number);
+            const [eH, eM] = app.endTime.split(":").map(Number);
+            let cur = sH * 60 + sM;
+            const end = eH * 60 + eM;
+            while (cur < end) {
+              const h = Math.floor(cur / 60);
+              const m = cur % 60;
+              const slotStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+              slotOccupancy[slotStr] = (slotOccupancy[slotStr] || 0) + 1;
+              cur += 30;
+            }
+          }
+
+          for (const [slotStr, count] of Object.entries(slotOccupancy)) {
+            if (count >= activeStaffCount) {
+              bookedSlots.push(slotStr);
+            }
+          }
+        }
+      } else {
+        // Negocio clásico con 1 silla
+        bookedIntervals = existingAppointments.map((app) => ({
+          startTime: app.startTime,
+          endTime: app.endTime,
+        }));
+
+        for (const app of existingAppointments) {
+          const [sH, sM] = app.startTime.split(":").map(Number);
+          const [eH, eM] = app.endTime.split(":").map(Number);
+          let cur = sH * 60 + sM;
+          const end = eH * 60 + eM;
+          while (cur < end) {
+            const h = Math.floor(cur / 60);
+            const m = cur % 60;
+            const slotStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+            if (!bookedSlots.includes(slotStr)) {
+              bookedSlots.push(slotStr);
+            }
+            cur += 30;
+          }
         }
       }
     }
@@ -120,10 +184,12 @@ export async function GET(
         logoUrl: business.logoUrl || null,
         category: business.category || "BARBERIA",
         serviceModality: business.serviceModality || "LOCAL",
+        multiBarberEnabled: business.multiBarberEnabled,
       },
       services: business.services,
       workingHours: business.workingHours,
       products: business.products || [],
+      staffMembers: business.staffMembers || [],
       bookedSlots,
       bookedIntervals,
     });

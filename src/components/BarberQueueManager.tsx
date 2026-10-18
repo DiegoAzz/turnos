@@ -30,6 +30,13 @@ interface Service {
   durationMinutes: number;
 }
 
+interface StaffMember {
+  id: string;
+  name: string;
+  chairNumber: number;
+  chairLabel: string;
+}
+
 interface QueueTurn {
   id: string;
   turnNumber: number;
@@ -40,6 +47,8 @@ interface QueueTurn {
   startTime: string;
   status: string;
   service: Service;
+  staffMemberId?: string | null;
+  staffMember?: StaffMember | null;
 }
 
 interface Business {
@@ -66,6 +75,9 @@ export default function BarberQueueManager({
   const [postponed, setPostponed] = useState<QueueTurn[]>([]);
   const [completedCount, setCompletedCount] = useState(0);
   const [totalTurnsCount, setTotalTurnsCount] = useState(0);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [multiBarberEnabled, setMultiBarberEnabled] = useState(false);
+  const [staffChairs, setStaffChairs] = useState<any[]>([]);
 
   // Modal para añadir turno presencial / mostrador
   const [showWalkInModal, setShowWalkInModal] = useState(false);
@@ -97,11 +109,46 @@ export default function BarberQueueManager({
         setPostponed(data.postponed || []);
         setCompletedCount(data.completedCount || 0);
         setTotalTurnsCount(data.totalTurnsCount || 0);
+        setStaffMembers(data.staffMembers || []);
+        setMultiBarberEnabled(!!data.multiBarberEnabled);
+        setStaffChairs(data.staffChairs || []);
       }
     } catch (err) {
       console.error("Error al cargar fila del turnero:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Reiniciar el contador de turnos a #01 a partir de este momento
+  const handleResetCounter = async () => {
+    const ok = confirm(
+      "¿Deseas reiniciar el conteo de turnos a #01 a partir de este momento?\n\nLos turnos anteriores seguirán registrados en el historial y tus reportes, pero los nuevos turnos que entren comenzarán a numerarse desde el #01."
+    );
+    if (!ok) return;
+
+    setActionLoading(true);
+    try {
+      const res = await fetch("/api/queue/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "RESET_QUEUE_COUNTER",
+          businessId: business.id,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("¡Conteo de turnos reiniciado a #01 con éxito!");
+        await fetchQueue();
+        if (onRefreshData) onRefreshData();
+      } else {
+        alert(data.error || "No se pudo reiniciar el conteo");
+      }
+    } catch (err) {
+      alert("Error al reiniciar conteo");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -229,8 +276,18 @@ export default function BarberQueueManager({
             </p>
           </div>
 
-          {/* Botones de Cabecera: + Presencial y Pantalla TV */}
+          {/* Botones de Cabecera: Reiniciar conteo, + Presencial y Pantalla TV */}
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleResetCounter}
+              disabled={actionLoading}
+              title="Reiniciar numeración de turnos a #01 a partir de este momento"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 border border-amber-500/40 text-xs font-semibold text-amber-300 hover:bg-slate-700 hover:border-amber-400 transition shadow-sm"
+            >
+              <RotateCcw className="h-3.5 w-3.5 text-amber-400" />
+              <span>Reiniciar a #01</span>
+            </button>
+
             <button
               onClick={() => setShowWalkInModal(true)}
               className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-600 text-xs font-semibold text-white hover:bg-slate-700 hover:border-slate-500 transition shadow-sm"
@@ -491,12 +548,46 @@ export default function BarberQueueManager({
                         </div>
                       </div>
 
+                      {/* ASIGNACIÓN DE BARBERO (MODO MULTI-BARBERO) */}
+                      {multiBarberEnabled && staffMembers.length > 0 && (
+                        <div className="flex items-center gap-2 self-start sm:self-center">
+                          <label className="text-[11px] font-bold text-gray-500 flex items-center gap-1">
+                            <Scissors className="h-3 w-3 text-emerald-600" />
+                            <span>Barbero:</span>
+                          </label>
+                          <select
+                            value={turn.staffMemberId || ""}
+                            disabled={actionLoading}
+                            onChange={(e) => {
+                              const newStaffId = e.target.value || null;
+                              handleQueueAction({
+                                action: "ASSIGN_BARBER",
+                                appointmentId: turn.id,
+                                staffMemberId: newStaffId,
+                              });
+                            }}
+                            className={`text-xs font-semibold rounded-lg px-2.5 py-1.5 border transition cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
+                              turn.staffMemberId
+                                ? "bg-emerald-50 border-emerald-300 text-emerald-900 font-bold"
+                                : "bg-gray-50 border-gray-300 text-gray-600 hover:border-gray-400"
+                            }`}
+                          >
+                            <option value="">⭐ Sin asignar (Cualquiera)</option>
+                            {staffMembers.map((staff) => (
+                              <option key={staff.id} value={staff.id}>
+                                ✂️ {staff.name} ({staff.chairLabel || `Silla ${staff.chairNumber}`})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
                       {/* Acciones por cada turno en espera */}
                       <div className="flex items-center gap-2 self-end sm:self-center">
                         <button
-                          disabled={actionLoading || !!currentServing}
+                          disabled={actionLoading || (!multiBarberEnabled && !!currentServing)}
                           onClick={() => {
-                            if (currentServing) {
+                            if (!multiBarberEnabled && currentServing) {
                               alert(
                                 `La silla ya está ocupada atendiendo a ${currentServing.clientName}. Debes hacer clic en "Terminar Servicio" antes de atender a otro cliente.`
                               );
@@ -508,17 +599,17 @@ export default function BarberQueueManager({
                             });
                           }}
                           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm ${
-                            currentServing
+                            !multiBarberEnabled && currentServing
                               ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
                               : "bg-emerald-600 text-white hover:bg-emerald-500"
                           }`}
                           title={
-                            currentServing
+                            !multiBarberEnabled && currentServing
                               ? `Silla ocupada atendiendo a ${currentServing.clientName}. Finaliza el servicio actual primero.`
                               : "Atender a este cliente ahora"
                           }
                         >
-                          {currentServing ? "Silla Ocupada" : "Atender Ya"}
+                          {!multiBarberEnabled && currentServing ? "Silla Ocupada" : "Atender Ya"}
                         </button>
 
                         <button

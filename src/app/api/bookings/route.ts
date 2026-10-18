@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       appointmentType = "LOCAL",
       clientAddress,
       paymentMethod = "EFECTIVO",
+      staffMemberId,
     } = body;
 
     if (!businessSlug || !serviceId || !date || !startTime || !clientName || !clientPhone) {
@@ -144,17 +145,64 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const hasCollision = existingAppointments.some((app) => {
-      const appStartMin = toMinutes(app.startTime);
-      const appEndMin = toMinutes(app.endTime);
-      return reqStartMin < appEndMin && reqEndMin > appStartMin;
-    });
+    if (business.multiBarberEnabled) {
+      // Contar barberos activos registrados en el negocio
+      const activeStaff = await prisma.staffMember.findMany({
+        where: { businessId: business.id, active: true },
+      });
+      const activeStaffCount = activeStaff.length;
 
-    if (hasCollision) {
-      return NextResponse.json(
-        { error: "Este horario se cruza con otra cita ya reservada. Por favor elige otro horario." },
-        { status: 409 }
-      );
+      if (staffMemberId) {
+        // El cliente eligió un barbero específico: verificar colisión únicamente con ese barbero
+        const barberAppointments = existingAppointments.filter((app) => app.staffMemberId === staffMemberId);
+        const hasBarberCollision = barberAppointments.some((app) => {
+          const appStartMin = toMinutes(app.startTime);
+          const appEndMin = toMinutes(app.endTime);
+          return reqStartMin < appEndMin && reqEndMin > appStartMin;
+        });
+
+        if (hasBarberCollision) {
+          const chosenBarber = activeStaff.find((s) => s.id === staffMemberId);
+          return NextResponse.json(
+            {
+              error: `Este horario ya está reservado con ${chosenBarber?.name || "este barbero"}. Por favor elige otra hora o selecciona "Cualquier barbero disponible".`,
+            },
+            { status: 409 }
+          );
+        }
+      } else {
+        // El cliente seleccionó "Cualquier barbero disponible":
+        // Permitir citas simultáneas hasta el número de barberos activos
+        const maxChairs = Math.max(1, activeStaffCount);
+        const overlappingAppointments = existingAppointments.filter((app) => {
+          const appStartMin = toMinutes(app.startTime);
+          const appEndMin = toMinutes(app.endTime);
+          return reqStartMin < appEndMin && reqEndMin > appStartMin;
+        });
+
+        if (overlappingAppointments.length >= maxChairs) {
+          return NextResponse.json(
+            {
+              error: "Todas las sillas y barberos disponibles se encuentran ocupados para este horario. Por favor elige otra hora.",
+            },
+            { status: 409 }
+          );
+        }
+      }
+    } else {
+      // Modo clásico (1 silla): colisión ante cualquier cita previa
+      const hasCollision = existingAppointments.some((app) => {
+        const appStartMin = toMinutes(app.startTime);
+        const appEndMin = toMinutes(app.endTime);
+        return reqStartMin < appEndMin && reqEndMin > appStartMin;
+      });
+
+      if (hasCollision) {
+        return NextResponse.json(
+          { error: "Este horario se cruza con otra cita ya reservada. Por favor elige otro horario." },
+          { status: 409 }
+        );
+      }
     }
 
     const formattedPhone = cleanPhoneNumber(clientPhone);
@@ -214,6 +262,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Crear cita con tipo (LOCAL o DOMICILIO) y dirección
+    // Crear cita con tipo (LOCAL o DOMICILIO), profesional asignado y dirección
     const appointment = await prisma.appointment.create({
       data: {
         businessId: business.id,
@@ -229,14 +278,16 @@ export async function POST(req: NextRequest) {
         startTime,
         endTime,
         status: "CONFIRMED",
+        staffMemberId: staffMemberId || null,
       },
       include: {
         service: true,
         business: true,
+        staffMember: true,
       },
     });
 
-    // Calcular posición y número de turno para el día según orden de hora
+    // Calcular posición y número de turno para el día según orden cronológico
     const allAppointmentsDay = await prisma.appointment.findMany({
       where: {
         businessId: business.id,
@@ -248,15 +299,36 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const turnIndex = allAppointmentsDay.findIndex((app) => app.id === appointment.id);
-    const turnNumber = turnIndex !== -1 ? turnIndex + 1 : allAppointmentsDay.length;
-    const aheadCount = Math.max(0, turnNumber - 1);
+    // Si el administrador reinició el conteo hoy, numerar a partir del reinicio
+    let turnsForCounting = allAppointmentsDay;
+    if (business.queueResetAt) {
+      const resetTime = new Date(business.queueResetAt).getTime();
+      const resetDayStr = new Date(business.queueResetAt).toISOString().split("T")[0];
+      const appDayStr = appointmentDate.toISOString().split("T")[0];
+      if (resetDayStr === appDayStr) {
+        turnsForCounting = allAppointmentsDay.filter(
+          (app) => new Date(app.createdAt).getTime() >= resetTime
+        );
+      }
+    }
+
+    const turnIndex = turnsForCounting.findIndex((app) => app.id === appointment.id);
+    const turnNumber = turnIndex !== -1 ? turnIndex + 1 : Math.max(1, turnsForCounting.length);
+
+    // Calcular cuántos turnos están ACTIVAMENTE esperando o en atención antes de este turno
+    // (Solo cuenta los activos: si los anteriores ya se fueron y la sala está libre, aheadCount es 0)
+    const activeWaitingAppointments = allAppointmentsDay.filter(
+      (app) => app.id !== appointment.id && ["CONFIRMED", "PENDING", "IN_PROGRESS"].includes(app.status)
+    );
+    const aheadCount = activeWaitingAppointments.length;
 
     // Dirección a mostrar en el comprobante: si es a domicilio, la del cliente; si no, la del local
     const displayAddress =
       appointmentType === "DOMICILIO" && clientAddress
         ? `${clientAddress} (A Domicilio)`
         : business.address;
+
+    const chosenBarberName = appointment.staffMember?.name || null;
 
     // Generar enlace de WhatsApp para confirmación inmediata con link de reagendamiento y turno asignado
     const whatsappUrl = generateBookingConfirmationUrl({
@@ -269,6 +341,8 @@ export async function POST(req: NextRequest) {
       address: displayAddress,
       rescheduleUrl: `https://turnos.appzplay.online/p/${business.slug}`,
       turnNumber,
+      aheadCount,
+      staffName: chosenBarberName,
     });
 
     return NextResponse.json({

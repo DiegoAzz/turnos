@@ -34,15 +34,29 @@ export function generateBookingConfirmationUrl(params: {
   address?: string | null;
   rescheduleUrl?: string;
   turnNumber?: number;
+  aheadCount?: number;
+  staffName?: string | null;
 }): string {
   const phone = cleanPhoneNumber(params.phone);
   const rescheduleLink = params.rescheduleUrl || "https://turnos.appzplay.online";
   const addressLine = params.address ? `\n📍 *Dirección / Lugar:* ${params.address}` : "";
-  const turnLine = params.turnNumber ? `\n🎫 *Turno Asignado:* #${params.turnNumber} del día` : "";
+  const barberLine = params.staffName ? `\n💈 *Profesional:* ${params.staffName}` : "";
+
+  let turnLine = "";
+  if (params.turnNumber) {
+    const formattedNum = String(params.turnNumber).padStart(2, "0");
+    if (params.aheadCount === 0) {
+      turnLine = `\n🎫 *Turno Asignado:* #${formattedNum} (🟢 ¡Sala despejada, eres el siguiente!)`;
+    } else if (params.aheadCount && params.aheadCount > 0) {
+      turnLine = `\n🎫 *Turno Asignado:* #${formattedNum} (${params.aheadCount} persona${params.aheadCount > 1 ? "s" : ""} en espera antes de ti)`;
+    } else {
+      turnLine = `\n🎫 *Turno Asignado:* #${formattedNum}`;
+    }
+  }
 
   const text = `¡Hola ${params.clientName}! 👋
 
-Tu turno en *${params.businessName}* ha sido confirmado con éxito:${turnLine}
+Tu turno en *${params.businessName}* ha sido confirmado con éxito:${turnLine}${barberLine}
 🗓️ *Fecha:* ${params.dateStr}
 ⏰ *Hora:* ${params.timeStr}
 ✂️ *Servicio:* ${params.serviceName}${addressLine}

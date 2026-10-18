@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   Sparkles,
   Ticket,
+  Scissors,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
@@ -45,6 +46,15 @@ interface BusinessData {
   statusMessage?: string | null;
   category?: string;
   serviceModality?: string;
+  multiBarberEnabled?: boolean;
+}
+
+interface StaffMember {
+  id: string;
+  name: string;
+  chairNumber: number;
+  chairLabel: string;
+  avatarUrl?: string | null;
 }
 
 interface CountryConfig {
@@ -162,6 +172,8 @@ export default function BookingPage({
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [bookedIntervals, setBookedIntervals] = useState<{ startTime: string; endTime: string }[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [selectedStaffMemberId, setSelectedStaffMemberId] = useState<string | null>(null);
 
   // Wizard state
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
@@ -277,6 +289,7 @@ export default function BookingPage({
         const data = await res.json();
         setBusiness(data.business);
         setServices(data.services);
+        setStaffMembers(data.staffMembers || []);
         const whList: WorkingHour[] = data.workingHours || [];
         setWorkingHours(whList);
         setProducts(data.products || []);
@@ -309,7 +322,8 @@ export default function BookingPage({
   const fetchSlots = useCallback(async () => {
     if (!selectedDate || !slug) return;
     try {
-      const res = await fetch(`/api/business/${slug}?date=${selectedDate}`);
+      const barberParam = selectedStaffMemberId ? `&staffMemberId=${selectedStaffMemberId}` : "";
+      const res = await fetch(`/api/business/${slug}?date=${selectedDate}${barberParam}`);
       if (res.ok) {
         const data = await res.json();
         setBookedSlots(data.bookedSlots || []);
@@ -318,7 +332,7 @@ export default function BookingPage({
     } catch (err) {
       console.error("Error al obtener slots:", err);
     }
-  }, [selectedDate, slug]);
+  }, [selectedDate, slug, selectedStaffMemberId]);
 
   // Actualizar slots al cambiar la fecha seleccionada
   useEffect(() => {
@@ -465,6 +479,7 @@ export default function BookingPage({
           clientNotes,
           appointmentType,
           clientAddress: appointmentType === "DOMICILIO" ? clientAddress : null,
+          staffMemberId: selectedStaffMemberId || null,
         }),
       });
 
@@ -708,6 +723,95 @@ export default function BookingPage({
                 <ArrowLeft className="h-4 w-4" />
                 Cambiar servicio ({selectedService?.name})
               </button>
+
+              {/* SELECTOR DE PROFESIONAL / BARBERO (MODO MULTI-BARBERO) */}
+              {business?.multiBarberEnabled && staffMembers.length > 0 && (
+                <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-50/70 via-teal-50/70 to-emerald-50/70 border border-emerald-200/80 shadow-sm">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                      <Scissors className="h-4 w-4 text-emerald-600" />
+                      ¿Con quién deseas atenderte?
+                    </h3>
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                      Opcional
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mb-3">
+                    Elige tu barbero favorito o deja la opción automática para pasar lo más rápido posible.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {/* Opción Automática / Cualquier barbero (Predeterminada) */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStaffMemberId(null)}
+                      className={`p-3 rounded-xl border text-left transition flex items-center gap-3 ${
+                        selectedStaffMemberId === null
+                          ? "border-emerald-600 bg-white ring-2 ring-emerald-500/20 shadow-sm"
+                          : "border-gray-200 bg-white/80 hover:bg-white text-gray-700"
+                      }`}
+                    >
+                      <div
+                        className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
+                          selectedStaffMemberId === null
+                            ? "bg-emerald-600 text-white shadow-sm"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        ⚡
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-xs text-gray-900 truncate">
+                            Cualquiera disponible
+                          </span>
+                          <span className="text-[9px] font-extrabold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full">
+                            Más rápido
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-gray-500 truncate">
+                          Te atiende el primer barbero libre
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Barberos registrados */}
+                    {staffMembers.map((staff) => {
+                      const isSelected = selectedStaffMemberId === staff.id;
+                      return (
+                        <button
+                          key={staff.id}
+                          type="button"
+                          onClick={() => setSelectedStaffMemberId(staff.id)}
+                          className={`p-3 rounded-xl border text-left transition flex items-center gap-3 ${
+                            isSelected
+                              ? "border-emerald-600 bg-white ring-2 ring-emerald-500/20 shadow-sm"
+                              : "border-gray-200 bg-white/80 hover:bg-white text-gray-700"
+                          }`}
+                        >
+                          <div
+                            className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                              isSelected
+                                ? "bg-emerald-600 text-white shadow-sm"
+                                : "bg-gray-100 text-gray-700 border border-gray-200"
+                            }`}
+                          >
+                            {staff.name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="font-bold text-xs text-gray-900 block truncate">
+                              {staff.name}
+                            </span>
+                            <span className="text-[10px] text-gray-500 block truncate">
+                              {staff.chairLabel || `Silla ${staff.chairNumber}`}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="mb-4">
                 <h2 className="text-lg font-bold text-gray-900">2. Elige el día</h2>
@@ -960,6 +1064,14 @@ export default function BookingPage({
                   <strong>Servicio:</strong> {selectedService?.name} (
                   {formatCurrency(selectedService?.price || 0, business.currency)})
                 </p>
+                {business?.multiBarberEnabled && staffMembers.length > 0 && (
+                  <p>
+                    <strong>Barbero / Profesional:</strong>{" "}
+                    {selectedStaffMemberId
+                      ? `${staffMembers.find((s) => s.id === selectedStaffMemberId)?.name} (${staffMembers.find((s) => s.id === selectedStaffMemberId)?.chairLabel || `Silla ${staffMembers.find((s) => s.id === selectedStaffMemberId)?.chairNumber}`})`
+                      : "Cualquier barbero disponible (Asignación automática)"}
+                  </p>
+                )}
                 <p>
                   <strong>Fecha y Hora:</strong> {selectedDate} a las {selectedTime}
                 </p>
@@ -1138,11 +1250,11 @@ export default function BookingPage({
                     <span>Tu Posición de Turno</span>
                   </div>
                   <p className="text-xs text-gray-700 font-medium mt-1">
-                    {(bookingSuccess?.turnNumber === 1 || !bookingSuccess?.aheadCount) ? (
-                      <span className="text-emerald-700 font-bold">🥇 ¡Eres el primer turno del día!</span>
+                    {(!bookingSuccess?.aheadCount || bookingSuccess?.aheadCount === 0) ? (
+                      <span className="text-emerald-700 font-bold">🟢 ¡Sala despejada! Eres el siguiente turno a atender.</span>
                     ) : (
                       <span>
-                        Tienes <strong className="text-gray-900">{bookingSuccess?.aheadCount} turno(s)</strong> programados antes que tú.
+                        Tienes <strong className="text-gray-900">{bookingSuccess?.aheadCount} turno(s)</strong> en espera antes que tú.
                       </span>
                     )}
                   </p>
@@ -1161,9 +1273,19 @@ export default function BookingPage({
                 <div className="flex justify-between border-b pb-2">
                   <span className="text-gray-500">Número de Turno:</span>
                   <span className="font-extrabold text-emerald-800 bg-emerald-100/90 px-2.5 py-0.5 rounded-lg text-xs">
-                    Turno #{bookingSuccess?.turnNumber || 1} del día
+                    Turno #{bookingSuccess?.turnNumber || 1}
                   </span>
                 </div>
+                {bookingSuccess?.appointment?.staffMember?.name && (
+                  <div className="flex justify-between border-b pb-2">
+                    <span className="text-gray-500">Barbero / Profesional:</span>
+                    <span className="font-bold text-gray-900">
+                      {bookingSuccess.appointment.staffMember.name} (
+                      {bookingSuccess.appointment.staffMember.chairLabel || `Silla ${bookingSuccess.appointment.staffMember.chairNumber}`}
+                      )
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between border-b pb-2">
                   <span className="text-gray-500">Cliente:</span>
                   <span className="font-semibold text-gray-900">{clientName}</span>
