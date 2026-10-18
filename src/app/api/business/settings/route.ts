@@ -76,6 +76,9 @@ export async function PATCH(req: NextRequest) {
     if (body.serviceModality) {
       dataToUpdate.serviceModality = body.serviceModality.trim();
     }
+    if (typeof body.multiBarberEnabled === "boolean") {
+      dataToUpdate.multiBarberEnabled = body.multiBarberEnabled;
+    }
 
     const updated = await prisma.business.update({
       where: { id: businessId },

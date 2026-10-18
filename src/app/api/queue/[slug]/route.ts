@@ -40,6 +40,7 @@ export async function GET(
         liveStatus: true,
         statusMessage: true,
         currency: true,
+        multiBarberEnabled: true,
       },
     });
 
@@ -65,6 +66,14 @@ export async function GET(
             name: true,
             durationMinutes: true,
             price: true,
+          },
+        },
+        staffMember: {
+          select: {
+            id: true,
+            name: true,
+            chairNumber: true,
+            chairLabel: true,
           },
         },
       },
@@ -95,9 +104,30 @@ export async function GET(
 
     const activeTurns = turnsWithNumbers.filter((t) => t.status !== "CANCELLED");
 
-    // Identificar el que está en silla (IN_PROGRESS)
-    const currentServing =
-      activeTurns.filter((t) => t.status === "IN_PROGRESS").pop() || null;
+    // Consultar barberos si el negocio tiene activo el módulo multi-barbero
+    const staffMembers = business.multiBarberEnabled
+      ? await prisma.staffMember.findMany({
+          where: { businessId: business.id, active: true },
+          orderBy: { chairNumber: "asc" },
+        })
+      : [];
+
+    const inProgressTurns = activeTurns.filter((t) => t.status === "IN_PROGRESS");
+
+    // Identificar el que está en silla (o el más reciente)
+    const currentServing = inProgressTurns.length > 0 ? inProgressTurns[inProgressTurns.length - 1] : null;
+
+    // Mapeo de sillas simultáneas para la pantalla de TV
+    const staffChairs = staffMembers.map((s) => {
+      const turnInChair = inProgressTurns.find((t) => t.staffMemberId === s.id);
+      return {
+        id: s.id,
+        name: s.name,
+        chairNumber: s.chairNumber || 1,
+        chairLabel: s.chairLabel || `Silla ${s.chairNumber || 1}`,
+        turn: turnInChair || null,
+      };
+    });
 
     // En espera (CONFIRMED o PENDING)
     const waiting = activeTurns.filter(
@@ -115,6 +145,9 @@ export async function GET(
       business,
       date: dateStr,
       currentServing,
+      allServing: inProgressTurns,
+      staffChairs,
+      multiBarberEnabled: business.multiBarberEnabled,
       nextUp: waiting[0] || null,
       waiting,
       postponed,

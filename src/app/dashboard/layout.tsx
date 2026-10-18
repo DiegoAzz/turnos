@@ -13,6 +13,7 @@ import {
   Wallet,
   Smartphone,
   ShoppingBag,
+  Users,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import BusinessSwitcher from "@/components/BusinessSwitcher";
@@ -163,6 +164,16 @@ export default async function DashboardLayout({
                 <span>Contabilidad</span>
               </div>
               <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">PRO</span>
+            </Link>
+            <Link
+              href="/dashboard/equipo"
+              className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
+            >
+              <div className="flex items-center gap-3">
+                <Users className="h-4 w-4 text-emerald-600" />
+                <span>Equipo & Barberos</span>
+              </div>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">NUEVO</span>
             </Link>
             <Link
               href="/dashboard/app-movil"

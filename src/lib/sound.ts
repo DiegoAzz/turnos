@@ -189,14 +189,23 @@ export function showSystemNotification(title: string, body: string) {
 }
 
 // Locución por voz usando SpeechSynthesis (Web Speech API)
-export function speakTurnAnnouncement(turnNumber: number | string, clientName?: string) {
+export function speakTurnAnnouncement(
+  turnNumber: number | string,
+  clientName?: string,
+  chairOrBarberName?: string
+) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
   try {
     window.speechSynthesis.cancel();
     const cleanTurn = String(turnNumber).replace(/^#/, "");
-    const text = clientName
-      ? `Turno número ${cleanTurn}. ${clientName}. Favor pasar a la silla.`
-      : `Turno número ${cleanTurn}. Favor pasar a la silla.`;
+    let text = "";
+    if (clientName && chairOrBarberName) {
+      text = `Turno número ${cleanTurn}. ${clientName}. Favor pasar a ${chairOrBarberName}.`;
+    } else if (clientName) {
+      text = `Turno número ${cleanTurn}. ${clientName}. Favor pasar a la silla.`;
+    } else {
+      text = `Turno número ${cleanTurn}. Favor pasar a la silla.`;
+    }
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "es-ES";
@@ -214,11 +223,15 @@ export function speakTurnAnnouncement(turnNumber: number | string, clientName?: 
 }
 
 // Llamar turno con campana Ding-Dong + locución de voz
-export function playTurnCall(turnNumber: number | string, clientName?: string) {
+export function playTurnCall(
+  turnNumber: number | string,
+  clientName?: string,
+  chairOrBarberName?: string
+) {
   playAlertChime();
   if (typeof window !== "undefined" && "speechSynthesis" in window) {
     setTimeout(() => {
-      speakTurnAnnouncement(turnNumber, clientName);
+      speakTurnAnnouncement(turnNumber, clientName, chairOrBarberName);
     }, 650);
   }
 }

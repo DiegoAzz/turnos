@@ -34,6 +34,7 @@ model Business {
   stripeCustomerId       String?
   stripeSubscriptionId   String?
   stripeCurrentPeriodEnd DateTime?
+  multiBarberEnabled     Boolean        @default(false) // Toggle configurable: servicio de valor agregado
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
 
@@ -47,6 +48,8 @@ model Business {
   products               Product[]
   productSales           ProductSale[]
   partnerCommissions     PartnerCommission[]
+  staffMembers           StaffMember[]
+  staffPayouts           StaffPayout[]
 
   @@index([partnerId])
   @@index([active])
@@ -97,6 +100,8 @@ model Appointment {
   endTime      String    // "15:00"
   status       String    @default("CONFIRMED") // "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"
   reminderSent Boolean   @default(false)
+  staffMemberId String?
+  staffMember   StaffMember? @relation(fields: [staffMemberId], references: [id], onDelete: SetNull)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -104,6 +109,7 @@ model Appointment {
   @@index([businessId, status])
   @@index([date, reminderSent])
   @@index([clientPhone])
+  @@index([staffMemberId])
 }
 
 model Expense {
@@ -249,5 +255,45 @@ model PlatformSettings {
   defaultFranchiseFeeUSD Float   @default(29)   // Mensualidad tecnológica sugerida en USD
   defaultFranchiseFeeCOP Float   @default(100000) // Mensualidad tecnológica sugerida en COP
   updatedAt             DateTime @updatedAt
+}
+
+model StaffMember {
+  id             String        @id @default(cuid())
+  businessId     String
+  business       Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name           String
+  phone          String?
+  email          String?
+  avatarUrl      String?
+  pin            String        @default("1234") // PIN de 4 dígitos para ingresar a su panel personal
+  commissionRate Float         @default(50.0)   // Porcentaje de comisión para el barbero (ej. 50% = 50%)
+  chairNumber    Int?          @default(1)      // 1, 2, 3, etc.
+  chairLabel     String?       @default("Silla 1") // "Silla 1 (Principal)", etc.
+  active         Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  appointments   Appointment[]
+  payouts        StaffPayout[]
+
+  @@index([businessId])
+  @@index([businessId, active])
+}
+
+model StaffPayout {
+  id            String      @id @default(cuid())
+  businessId    String
+  business      Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  staffMemberId String
+  staffMember   StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
+  amount        Float       // Monto liquidado
+  servicesCount Int         @default(0) // Cantidad de servicios incluidos
+  notes         String?     // Notas o comprobante
+  periodStart   DateTime
+  periodEnd     DateTime
+  paidAt        DateTime    @default(now())
+
+  @@index([businessId])
+  @@index([staffMemberId])
 }
 

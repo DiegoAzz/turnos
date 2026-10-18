@@ -66,6 +66,8 @@ export default function SmartTvTurneroPage({
   const [postponed, setPostponed] = useState<QueueTurn[]>([]);
   const [completedCount, setCompletedCount] = useState(0);
   const [totalTurnsCount, setTotalTurnsCount] = useState(0);
+  const [staffChairs, setStaffChairs] = useState<any[]>([]);
+  const [multiBarberEnabled, setMultiBarberEnabled] = useState(false);
 
   // Estados visuales y de TV
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -146,6 +148,9 @@ export default function SmartTvTurneroPage({
         setCompletedCount(data.completedCount || 0);
         setTotalTurnsCount(data.totalTurnsCount || 0);
 
+        setStaffChairs(data.staffChairs || []);
+        setMultiBarberEnabled(!!data.multiBarberEnabled);
+
         const newServing = data.currentServing || null;
 
         // Anunciar por voz ÚNICAMENTE si es un turno nuevo que no ha sido llamado antes
@@ -158,7 +163,10 @@ export default function SmartTvTurneroPage({
             announcedTurnsRef.current.add(newServing.id);
             prevServingIdRef.current = newServing.id;
             if (soundEnabled) {
-              playTurnCall(newServing.turnNumber, newServing.clientName);
+              const barberName = (newServing as any).staffMember?.name;
+              const chairLabel = (newServing as any).staffMember?.chairLabel || "la silla";
+              const targetDest = barberName ? `${chairLabel} con ${barberName}` : "la silla";
+              playTurnCall(newServing.turnNumber, newServing.clientName, targetDest);
               setIsNewCallPulse(true);
               setTimeout(() => setIsNewCallPulse(false), 3500);
             }
@@ -394,6 +402,65 @@ export default function SmartTvTurneroPage({
               </div>
             </div>
           </div>
+
+          {/* GRID MULTI-SILLAS CUANDO EL NEGOCIO TIENE MÁS DE UN BARBERO */}
+          {staffChairs.length > 1 && (
+            <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Scissors className="h-5 w-5 text-emerald-400" />
+                  <h3 className="text-base font-bold text-white uppercase tracking-wider">
+                    Sillas de Atención Simultánea ({staffChairs.length})
+                  </h3>
+                </div>
+                <span className="text-xs font-semibold text-slate-400">
+                  {staffChairs.filter((c) => c.turn).length} en corte •{" "}
+                  {staffChairs.filter((c) => !c.turn).length} disponibles
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {staffChairs.map((chair) => (
+                  <div
+                    key={chair.id}
+                    className={`p-4 rounded-2xl border transition-all ${
+                      chair.turn
+                        ? "bg-slate-900 border-emerald-500/50 shadow-md shadow-emerald-500/10"
+                        : "bg-slate-900/40 border-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                      <span className="text-xs font-bold text-slate-200 capitalize truncate">
+                        ✂️ {chair.name}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 shrink-0">
+                        {chair.chairLabel}
+                      </span>
+                    </div>
+
+                    {chair.turn ? (
+                      <div className="pt-3">
+                        <span className="text-3xl font-black font-mono text-emerald-400 block">
+                          {chair.turn.turnLabel}
+                        </span>
+                        <p className="text-sm font-bold text-white capitalize truncate mt-1">
+                          {chair.turn.clientName}
+                        </p>
+                        <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                          {chair.turn.service?.name}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="py-6 text-center text-slate-500 text-xs font-medium">
+                        <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 mr-1.5" />
+                        Silla Libre
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* TARJETA DE POSPUESTOS / POR LLEGAR (MUY IMPORTANTE) */}
           {postponed.length > 0 && (
