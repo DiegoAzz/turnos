@@ -48,6 +48,7 @@ export async function GET() {
         plan: b.plan,
         category: b.category || "BARBERIA",
         serviceModality: b.serviceModality || "LOCAL",
+        multiBarberEnabled: b.multiBarberEnabled,
         active: b.active,
         adminPin: b.adminPin,
         createdAt: b.createdAt,

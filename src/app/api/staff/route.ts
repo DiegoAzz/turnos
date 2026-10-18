@@ -15,6 +15,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "No autorizado o negocio no encontrado" }, { status: 401 });
     }
 
+    const currentBusiness = business || (await prisma.business.findUnique({
+      where: { id: targetBusinessId },
+    }));
+
     const { startOfDay, endOfDay } = getTodayUtcRange();
 
     // Inicio del mes actual en UTC
@@ -121,6 +125,15 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      business: currentBusiness
+        ? {
+            id: currentBusiness.id,
+            name: currentBusiness.name,
+            slug: currentBusiness.slug,
+            currency: currentBusiness.currency,
+            multiBarberEnabled: currentBusiness.multiBarberEnabled,
+          }
+        : null,
       staff: enrichedStaff,
     });
   } catch (error) {

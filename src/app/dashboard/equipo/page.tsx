@@ -85,15 +85,12 @@ export default function StaffManagementPage() {
   const fetchStaffData = async () => {
     try {
       setLoading(true);
-      // Obtener negocio actual
-      const bRes = await fetch("/api/admin/businesses");
-      const bData = await bRes.json();
-      const currentB = bData.businesses?.[0] || null;
-      setBusiness(currentB);
-
-      if (currentB) {
-        const sRes = await fetch(`/api/staff?businessId=${currentB.id}`);
+      const sRes = await fetch("/api/staff");
+      if (sRes.ok) {
         const sData = await sRes.json();
+        if (sData.business) {
+          setBusiness(sData.business);
+        }
         setStaff(sData.staff || []);
       }
     } catch (err) {
@@ -107,7 +104,7 @@ export default function StaffManagementPage() {
     fetchStaffData();
   }, []);
 
-  // Activar o desactivar el módulo Multi-Barbero en el negocio
+  // Activar o desactivar el módulo Multi-Barbero en el negocio (Persistente en DB)
   const handleToggleMultiBarber = async (enabled: boolean) => {
     if (!business) return;
     try {
@@ -119,11 +116,11 @@ export default function StaffManagementPage() {
           multiBarberEnabled: enabled,
         }),
       });
-      if (res.ok) {
-        setBusiness({ ...business, multiBarberEnabled: enabled });
-      }
-    } catch (err) {
-      alert("Error al actualizar la configuración.");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se pudo actualizar");
+      setBusiness((prev: any) => ({ ...prev, multiBarberEnabled: enabled }));
+    } catch (err: any) {
+      alert(err.message || "Error al actualizar la configuración.");
     }
   };
 
