@@ -890,7 +890,43 @@ export default function DashboardClientActions({
       </div>
 
       {viewMode === "QUEUE" ? (
-        <div className="mt-4">
+        <div className="mt-4 space-y-4">
+          {(() => {
+            const upcomingFuture = appointments.filter((a) => {
+              if (a.status === "CANCELLED" || a.status === "COMPLETED") return false;
+              return !isAppointmentToday(a.date);
+            });
+
+            if (upcomingFuture.length === 0) return null;
+
+            return (
+              <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-sky-100 text-sky-700 shrink-0 font-bold">
+                    <Calendar className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
+                      <span>Tienes {upcomingFuture.length} cita(s) agendada(s) para próximas fechas</span>
+                      <span className="bg-sky-200/80 text-sky-800 text-[10px] px-2 py-0.5 rounded-full font-extrabold">
+                        {formatAppointmentDate(upcomingFuture[0].date)}
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-sky-700 mt-0.5">
+                      Ej: <strong>{upcomingFuture[0].clientName}</strong> ({upcomingFuture[0].startTime}) para el {formatAppointmentDate(upcomingFuture[0].date)}. El turnero en vivo de abajo muestra únicamente las citas del día de hoy.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setViewMode("CALENDAR")}
+                  className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition shadow-sm shrink-0 whitespace-nowrap"
+                >
+                  Ver en Calendario Completo ({appointments.length}) →
+                </button>
+              </div>
+            );
+          })()}
+
           <BarberQueueManager
             business={currentBusiness}
             onRefreshData={refreshAppointments}
