@@ -226,7 +226,7 @@ export default function ProductsManager({ business }: { business: any }) {
   };
 
   // Si no tiene Plan PRO, mostrar banner de bloqueo para motivar la suscripción
-  const isPro = business?.plan === "PRO";
+  const isPro = business?.plan === "PRO" || business?.plan === "SUPERADMIN";
   if (!isPro) {
     return (
       <div className="rounded-3xl border border-amber-200 bg-gradient-to-b from-amber-50/60 to-white p-8 text-center max-w-2xl mx-auto shadow-sm my-6">

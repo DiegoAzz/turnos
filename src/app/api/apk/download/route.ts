@@ -20,10 +20,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
     }
 
-    // Comprobar que el negocio tenga Plan PRO
-    if (business.plan !== "PRO") {
+    // Comprobar que el negocio tenga Plan PRO o Super Admin
+    if (business.plan !== "PRO" && business.plan !== "SUPERADMIN") {
       return NextResponse.json(
-        { error: "La descarga de APK personalizada está disponible exclusivamente en el Plan PRO." },
+        { error: "La descarga de APK personalizada está disponible exclusivamente en el Plan PRO o Licencia Super Admin." },
         { status: 403 }
       );
     }

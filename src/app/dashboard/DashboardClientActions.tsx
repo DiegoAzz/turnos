@@ -231,6 +231,23 @@ export default function DashboardClientActions({
   // Modo de visualización: Turnero en Vivo vs Agenda Calendario
   const [viewMode, setViewMode] = useState<"QUEUE" | "CALENDAR">("QUEUE");
 
+  // Modo de especialidad activo (BARBERIA / MANICURA_SPA / CITAS_GENERALES / ALL)
+  const [nicheMode, setNicheMode] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("turnoya_view_mode");
+      if (saved) return saved;
+    }
+    return business?.category || "BARBERIA";
+  });
+
+  useEffect(() => {
+    const handleMode = (e: any) => {
+      if (e.detail) setNicheMode(e.detail);
+    };
+    window.addEventListener("turnoya_view_mode_change", handleMode);
+    return () => window.removeEventListener("turnoya_view_mode_change", handleMode);
+  }, []);
+
   // Refrescar citas para sincronizar turnero y tabla
   const refreshAppointments = async () => {
     try {
@@ -674,7 +691,7 @@ export default function DashboardClientActions({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* BOTÓN ESTADO EN VIVO */}
+          {/* BOTÓN ESTADO EN VIVO (COMÚN) */}
           <button
             onClick={() => setIsStatusOpen(true)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border transition shadow-sm ${
@@ -699,37 +716,54 @@ export default function DashboardClientActions({
             </span>
           </button>
 
-          {/* BOTÓN EDITAR PERFIL & LOGO */}
-          <button
-            onClick={() => setIsProfileOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition shadow-sm"
-            title="Personalizar logo, nombre, WhatsApp y dirección del negocio"
-          >
-            <Palette className="h-3.5 w-3.5 text-emerald-600" />
-            <span>Perfil & Logo</span>
-          </button>
+          {/* HERRAMIENTAS EXCLUSIVAS DE BARBERÍA */}
+          {(nicheMode === "BARBERIA" || nicheMode === "ALL") && (
+            <>
+              <Link
+                href="/dashboard/equipo"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-slate-700 bg-slate-900 text-white hover:bg-slate-800 transition shadow-sm"
+                title="Equipo de barberos, asignación de sillas y reinicio de turnero"
+              >
+                <Users className="h-3.5 w-3.5 text-amber-400" />
+                <span>💈 Barberos & Sillas</span>
+              </Link>
 
-          {/* BOTÓN HORARIOS DE ATENCIÓN */}
-          <button
-            onClick={() => setIsHoursOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-teal-200 bg-teal-50 text-teal-900 hover:bg-teal-100 transition shadow-sm"
-            title="Configurar qué días abre el negocio y qué días descansa"
-          >
-            <Clock className="h-3.5 w-3.5 text-teal-600" />
-            <span>Horarios</span>
-          </button>
+              <Link
+                href="/dashboard/botonera"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-teal-300 bg-teal-50 text-teal-900 hover:bg-teal-100 transition shadow-sm"
+                title="Botonera física de 3 botones para tocador (1-Toque)"
+              >
+                <Tv className="h-3.5 w-3.5 text-teal-600" />
+                <span>🔴🟡🟢 Botonera</span>
+              </Link>
+            </>
+          )}
 
-          {/* BOTÓN CLIENTES & CRM */}
-          <Link
-            href="/dashboard/clientes"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 transition shadow-sm"
-            title="Base de datos de clientes, cumpleaños y referidos"
-          >
-            <Users className="h-3.5 w-3.5 text-rose-600" />
-            <span>Clientes CRM</span>
-          </Link>
+          {/* HERRAMIENTAS EXCLUSIVAS DE MANICURA & SPA */}
+          {(nicheMode === "MANICURA_SPA" || nicheMode === "ALL") && (
+            <Link
+              href="/dashboard/clientes"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 transition shadow-sm"
+              title="Base de datos de clientes, cumpleaños y referidos"
+            >
+              <Users className="h-3.5 w-3.5 text-rose-600" />
+              <span>💅 Clientas VIP & CRM</span>
+            </Link>
+          )}
 
-          {/* BOTÓN INFORMES & MÉTRICAS */}
+          {/* HERRAMIENTAS DE CITAS GENERALES */}
+          {nicheMode === "CITAS_GENERALES" && (
+            <Link
+              href="/dashboard/clientes"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100 transition shadow-sm"
+              title="Directorio de clientes"
+            >
+              <Users className="h-3.5 w-3.5 text-teal-600" />
+              <span>👥 Clientes</span>
+            </Link>
+          )}
+
+          {/* INFORMES & MÉTRICAS (COMÚN) */}
           <Link
             href="/dashboard/reportes"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition shadow-sm"
@@ -739,36 +773,24 @@ export default function DashboardClientActions({
             <span>Informes</span>
           </Link>
 
-          {/* BOTÓN BOTONERA 1-TOQUE */}
-          <Link
-            href="/dashboard/botonera"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-slate-700 bg-slate-900 text-white hover:bg-slate-800 transition shadow-sm"
-            title="Control de turnos con 1 toque sin sacar el celular"
-          >
-            <Tv className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Botonera 1-Toque</span>
-          </Link>
-
-          {/* BOTÓN CONFIGURAR RUBRO & ESPECIALIDAD */}
+          {/* BOTÓN HORARIOS DE ATENCIÓN */}
           <button
-            onClick={() => setIsOnboardingOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-purple-200 bg-purple-50 text-purple-900 hover:bg-purple-100 transition shadow-sm"
-            title="Cambiar rubro, profesión o servicios sugeridos de tu negocio"
+            onClick={() => setIsHoursOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition shadow-sm"
+            title="Configurar qué días abre el negocio y qué días descansa"
           >
-            <Sparkles className="h-3.5 w-3.5 text-purple-600" />
-            <span>
-              {currentBusiness.category === "MANICURA_SPA"
-                ? "💅 Manicura & Spa"
-                : currentBusiness.category === "SALUD_CONSULTORIO"
-                ? "🩺 Salud & Consultorio"
-                : currentBusiness.category === "LAVADERO"
-                ? "🚗 Lavadero & Autos"
-                : currentBusiness.category === "VETERINARIA"
-                ? "🐾 Veterinaria"
-                : currentBusiness.category === "OTRO"
-                ? "⚡ Servicios"
-                : "💈 Barbería"}
-            </span>
+            <Clock className="h-3.5 w-3.5 text-gray-500" />
+            <span>Horarios</span>
+          </button>
+
+          {/* BOTÓN EDITAR PERFIL & LOGO */}
+          <button
+            onClick={() => setIsProfileOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition shadow-sm"
+            title="Personalizar logo, nombre, WhatsApp y dirección del negocio"
+          >
+            <Palette className="h-3.5 w-3.5 text-gray-500" />
+            <span>Perfil</span>
           </button>
 
           {/* BOTÓN CONFIGURACIÓN RECORDATORIOS */}
@@ -791,7 +813,7 @@ export default function DashboardClientActions({
             title="Probar sonido de notificación"
           >
             <Volume2 className="h-3.5 w-3.5 text-amber-400" />
-            <span>{soundEnabled ? "Sonido: Activado (Probar 🔔)" : "Sonido Desactivado"}</span>
+            <span>{soundEnabled ? "🔔 Sonido Activo" : "Sonido OFF"}</span>
           </button>
         </div>
       </div>

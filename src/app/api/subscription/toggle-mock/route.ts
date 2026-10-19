@@ -8,22 +8,26 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { businessId, plan } = body;
 
-    if (!businessId || !["FREE", "INDEPENDIENTE", "PRO"].includes(plan)) {
+    if (!businessId || !["FREE", "INDEPENDIENTE", "PRO", "SUPERADMIN"].includes(plan)) {
       return NextResponse.json(
         { error: "Parámetros inválidos." },
         { status: 400 }
       );
     }
 
+    const periodEnd =
+      plan === "SUPERADMIN"
+        ? new Date("2099-12-31")
+        : plan !== "FREE"
+        ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        : null;
+
     const updatedBusiness = await prisma.business.update({
       where: { id: businessId },
       data: {
         plan,
         stripeSubscriptionId: plan !== "FREE" ? "sub_mock_active" : null,
-        stripeCurrentPeriodEnd:
-          plan !== "FREE"
-            ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-            : null,
+        stripeCurrentPeriodEnd: periodEnd,
       },
     });
 

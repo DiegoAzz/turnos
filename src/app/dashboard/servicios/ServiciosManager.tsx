@@ -22,8 +22,9 @@ export default function ServiciosManager({
   const [price, setPrice] = useState("20");
   const [loading, setLoading] = useState(false);
 
-  const isPro = business.plan === "PRO";
-  const limitReached = !isPro && services.length >= 2;
+  const isPro = business.plan === "PRO" || business.plan === "SUPERADMIN";
+  const isIndependiente = business.plan === "INDEPENDIENTE";
+  const limitReached = !isPro && !isIndependiente && services.length >= 2;
 
   const handleCreateService = async (e: React.FormEvent) => {
     e.preventDefault();

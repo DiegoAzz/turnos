@@ -17,7 +17,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 
 export default function ContabilidadManager({ business }: { business: any }) {
-  const isPro = business.plan === "PRO";
+  const isPro = business.plan === "PRO" || business.plan === "SUPERADMIN";
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 

@@ -169,7 +169,8 @@ export default function AdminDashboardPage() {
     const cycle: Record<string, string> = {
       FREE: "INDEPENDIENTE",
       INDEPENDIENTE: "PRO",
-      PRO: "FREE",
+      PRO: "SUPERADMIN",
+      SUPERADMIN: "FREE",
     };
     const nextPlan = cycle[business.plan] || "PRO";
     try {
@@ -522,10 +523,12 @@ export default function AdminDashboardPage() {
                       <td className="py-4 px-4">
                         <button
                           onClick={() => togglePlan(b)}
-                          title="Clic para cambiar de plan (FREE -> INDEPENDIENTE -> PRO)"
+                          title="Clic para rotar de plan (FREE -> INDEPENDIENTE -> PRO -> SUPERADMIN)"
                           disabled={actionLoading === b.id}
                           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border transition ${
-                            b.plan === "PRO"
+                            b.plan === "SUPERADMIN"
+                              ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 border-amber-300 font-black shadow-sm"
+                              : b.plan === "PRO"
                               ? "bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20"
                               : b.plan === "INDEPENDIENTE"
                               ? "bg-teal-500/10 text-teal-400 border-teal-500/30 hover:bg-teal-500/20"
@@ -533,7 +536,7 @@ export default function AdminDashboardPage() {
                           }`}
                         >
                           <Sparkles className="h-3 w-3" />
-                          {b.plan}
+                          {b.plan === "SUPERADMIN" ? "👑 SUPER ADMIN" : b.plan}
                         </button>
                       </td>
 
@@ -776,6 +779,7 @@ export default function AdminDashboardPage() {
                     onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                   >
+                    <option value="SUPERADMIN">👑 SUPER ADMIN (Demo / Ventas Ilimitada - Sin Cobros)</option>
                     <option value="PRO">PRO ($19 USD - Contabilidad & APK)</option>
                     <option value="INDEPENDIENTE">INDEPENDIENTE ($9 USD - Domicilio)</option>
                     <option value="FREE">FREE ($0)</option>

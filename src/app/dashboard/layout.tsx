@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import BusinessSwitcher from "@/components/BusinessSwitcher";
+import DashboardSidebarNav from "@/components/DashboardSidebarNav";
 import DashboardLogoutButton from "@/components/DashboardLogoutButton";
 import { getVerifiedBusinessSlug, verifyAdminSession } from "@/lib/auth-security";
 
@@ -36,7 +37,7 @@ export default async function DashboardLayout({
   const allBusinesses = isAdmin
     ? await prisma.business.findMany({
         orderBy: { createdAt: "asc" },
-        select: { id: true, name: true, slug: true, plan: true, active: true, stripeCurrentPeriodEnd: true },
+        select: { id: true, name: true, slug: true, plan: true, category: true, active: true, stripeCurrentPeriodEnd: true },
       })
     : [];
 
@@ -61,6 +62,8 @@ export default async function DashboardLayout({
   // Si venció el periodo pagado (30 días) y no ha renovado, degradar automáticamente a FREE sin intervención manual
   if (
     business.plan !== "FREE" &&
+    business.plan !== "SUPERADMIN" &&
+    !isAdmin &&
     business.stripeCurrentPeriodEnd &&
     new Date(business.stripeCurrentPeriodEnd) < new Date()
   ) {
@@ -97,15 +100,16 @@ export default async function DashboardLayout({
     );
   }
 
-  const isPro = business.plan === "PRO";
+  const isSuperAdmin = business.plan === "SUPERADMIN" || isAdmin;
+  const isPro = business.plan === "PRO" || isSuperAdmin;
 
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* SIDEBAR */}
       <aside className="w-64 border-r border-gray-200 bg-white flex flex-col justify-between hidden md:flex">
-        <div>
+        <div className="flex-1 flex flex-col min-h-0">
           {/* LOGO */}
-          <div className="flex h-16 items-center gap-2 border-b border-gray-100 px-6">
+          <div className="flex h-16 items-center gap-2 border-b border-gray-100 px-6 shrink-0">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm shadow-emerald-600/30">
               <Calendar className="h-5 w-5" />
             </div>
@@ -124,107 +128,14 @@ export default async function DashboardLayout({
             isAdmin={isAdmin}
           />
 
-          {/* MENU LINKS */}
-          <nav className="p-4 space-y-1">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              Resumen
-            </Link>
-            <Link
-              href="/dashboard/citas"
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
-            >
-              <Clock className="h-4 w-4" />
-              Citas y Turnos
-            </Link>
-            <Link
-              href="/dashboard/clientes"
-              className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
-            >
-              <div className="flex items-center gap-3">
-                <Users className="h-4 w-4 text-rose-500" />
-                <span>Clientes & CRM</span>
-              </div>
-              <span className="text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.2 rounded-full font-bold">🎂 Cumples</span>
-            </Link>
-            <Link
-              href="/dashboard/reportes"
-              className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
-            >
-              <div className="flex items-center gap-3">
-                <BarChart3 className="h-4 w-4 text-emerald-600" />
-                <span>Informes & Métricas</span>
-              </div>
-              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">En Vivo</span>
-            </Link>
-            <Link
-              href="/dashboard/botonera"
-              className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
-            >
-              <div className="flex items-center gap-3">
-                <Tv className="h-4 w-4 text-teal-600" />
-                <span>Botonera Rápida</span>
-              </div>
-              <span className="text-[10px] bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded-full font-bold">1-Toque</span>
-            </Link>
-            <Link
-              href="/dashboard/servicios"
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
-            >
-              <Scissors className="h-4 w-4" />
-              Servicios
-            </Link>
-            <Link
-              href="/dashboard/productos"
-              className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
-            >
-              <div className="flex items-center gap-3">
-                <ShoppingBag className="h-4 w-4 text-emerald-600" />
-                <span>Productos & Tienda</span>
-              </div>
-              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">PRO</span>
-            </Link>
-            <Link
-              href="/dashboard/contabilidad"
-              className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
-            >
-              <div className="flex items-center gap-3">
-                <Wallet className="h-4 w-4 text-emerald-600" />
-                <span>Contabilidad</span>
-              </div>
-              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">PRO</span>
-            </Link>
-            <Link
-              href="/dashboard/equipo"
-              className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
-            >
-              <div className="flex items-center gap-3">
-                <Users className="h-4 w-4 text-emerald-600" />
-                <span>Equipo & Barberos</span>
-              </div>
-              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">NUEVO</span>
-            </Link>
-            <Link
-              href="/dashboard/app-movil"
-              className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
-            >
-              <div className="flex items-center gap-3">
-                <Smartphone className="h-4 w-4 text-emerald-600" />
-                <span>App Móvil (APK)</span>
-              </div>
-              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">PRO</span>
-            </Link>
-            <Link
-              href="/dashboard/suscripcion"
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
-            >
-              <CreditCard className="h-4 w-4" />
-              Suscripción & Plan
-            </Link>
-          </nav>
+          {/* NAVEGACIÓN ESPECIALIZADA POR RUBRO (BARBERÍA / MANICURA / CITAS) */}
+          <DashboardSidebarNav
+            category={business.category || "BARBERIA"}
+            isAdmin={isAdmin}
+            isSuperAdmin={isSuperAdmin}
+            isPro={isPro}
+            plan={business.plan}
+          />
         </div>
 
         {/* FOOTER DEL SIDEBAR */}

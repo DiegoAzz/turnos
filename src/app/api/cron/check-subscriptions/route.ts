@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
     const expiredBusinesses = await prisma.business.findMany({
       where: {
-        plan: { not: "FREE" },
+        plan: { notIn: ["FREE", "SUPERADMIN"] },
         stripeCurrentPeriodEnd: { lt: now },
       },
       select: { id: true, name: true, plan: true, stripeCurrentPeriodEnd: true },

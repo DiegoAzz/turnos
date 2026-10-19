@@ -52,7 +52,8 @@ export default function BusinessSwitcher({
     }
   };
 
-  const isPro = currentBusiness?.plan === "PRO";
+  const isSuperAdmin = currentBusiness?.plan === "SUPERADMIN";
+  const isPro = currentBusiness?.plan === "PRO" || isSuperAdmin;
 
   return (
     <div className="p-4 border-b border-gray-100">
@@ -119,13 +120,15 @@ export default function BusinessSwitcher({
         <div className="mt-2.5 flex items-center justify-between pt-1">
           <span
             className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-              isPro
+              isSuperAdmin
+                ? "bg-amber-100 text-amber-900 border border-amber-300 font-black"
+                : isPro
                 ? "bg-emerald-100 text-emerald-800"
                 : "bg-gray-200 text-gray-700"
             }`}
           >
             <Sparkles className="h-3 w-3" />
-            {isPro ? "Plan Pro" : "Plan Free"}
+            {isSuperAdmin ? "👑 Super Admin" : isPro ? "Plan Pro" : "Plan Free"}
           </span>
 
           {currentBusiness && (

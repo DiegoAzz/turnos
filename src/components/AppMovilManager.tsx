@@ -20,7 +20,7 @@ import {
 
 export default function AppMovilManager({ business }: { business: any }) {
   const [copied, setCopied] = useState(false);
-  const isPro = business.plan === "PRO";
+  const isPro = business.plan === "PRO" || business.plan === "SUPERADMIN";
 
   const publicUrl = `https://turnos.appzplay.online/p/${business.slug}`;
   const apkDownloadUrl = `/api/apk/download?slug=${business.slug}`;

@@ -60,6 +60,7 @@ export async function GET(
     // Comprobación autónoma de vigencia del plan
     if (
       business.plan !== "FREE" &&
+      business.plan !== "SUPERADMIN" &&
       business.stripeCurrentPeriodEnd &&
       new Date(business.stripeCurrentPeriodEnd) < new Date()
     ) {

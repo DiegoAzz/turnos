@@ -306,10 +306,12 @@ export async function PATCH(req: NextRequest) {
 
     const dataToUpdate: any = {};
     if (typeof active === "boolean") dataToUpdate.active = active;
-    if (plan && (plan === "FREE" || plan === "INDEPENDIENTE" || plan === "PRO")) {
+    if (plan && (plan === "FREE" || plan === "INDEPENDIENTE" || plan === "PRO" || plan === "SUPERADMIN")) {
       dataToUpdate.plan = plan;
       if (plan === "FREE") {
         dataToUpdate.stripeCurrentPeriodEnd = null;
+      } else if (plan === "SUPERADMIN") {
+        dataToUpdate.stripeCurrentPeriodEnd = new Date("2099-12-31");
       } else {
         dataToUpdate.stripeCurrentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       }

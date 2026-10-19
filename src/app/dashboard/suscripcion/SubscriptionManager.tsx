@@ -222,7 +222,8 @@ export default function SubscriptionManager({ business }: { business: any }) {
     setTimeout(() => setCopiedAccount(null), 2500);
   };
 
-  const isPro = currentPlan === "PRO";
+  const isSuperAdmin = currentPlan === "SUPERADMIN";
+  const isPro = currentPlan === "PRO" || isSuperAdmin;
   const isIndependiente = currentPlan === "INDEPENDIENTE";
   const isFree = currentPlan === "FREE";
 
@@ -240,6 +241,32 @@ export default function SubscriptionManager({ business }: { business: any }) {
         </div>
       )}
 
+      {/* BANNER ESPECIAL DE SUPER ADMINISTRADOR / DEMO ILIMITADA */}
+      {isSuperAdmin && (
+        <div className="rounded-3xl border-2 border-amber-400 bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 p-6 text-white shadow-xl">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/30 shadow-inner">
+                <Crown className="h-8 w-8 text-amber-200" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xl font-black tracking-tight">
+                    LICENCIA SUPER ADMINISTRADOR
+                  </span>
+                  <span className="bg-slate-950 text-amber-400 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-amber-400/40 uppercase">
+                    👑 Acceso Total Ilimitado (Modo Ventas & Demo)
+                  </span>
+                </div>
+                <p className="text-xs text-amber-100 mt-1 max-w-2xl leading-relaxed">
+                  Esta cuenta tiene permisos de <strong>Super Administrador</strong> para demostraciones y ventas a clientes. Todos los planes y funciones están 100% desbloqueados de por vida sin cobros, pasarelas ni avisos de vencimiento.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* CARD DEL PLAN ACTUAL */}
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -249,7 +276,9 @@ export default function SubscriptionManager({ business }: { business: any }) {
                 Estado de tu Cuenta
               </span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                {settings.paymentMode === "GATEWAY"
+                {isSuperAdmin
+                  ? "👑 Acceso VIP Ilimitado"
+                  : settings.paymentMode === "GATEWAY"
                   ? "💳 Pasarela Online Activa"
                   : settings.paymentMode === "HYBRID"
                   ? "⚡ Pago Online & Transferencia"
@@ -259,7 +288,9 @@ export default function SubscriptionManager({ business }: { business: any }) {
 
             <div className="mt-1 flex items-center gap-3">
               <h2 className="text-2xl font-extrabold text-gray-900">
-                {isPro
+                {isSuperAdmin
+                  ? "Licencia Super Administrador (Ilimitada)"
+                  : isPro
                   ? "Plan Pro Ilimitado + APK"
                   : isIndependiente
                   ? "Plan Manicurista / Domicilio"
@@ -267,18 +298,22 @@ export default function SubscriptionManager({ business }: { business: any }) {
               </h2>
               <span
                 className={`rounded-full px-3 py-1 text-xs font-bold ${
-                  isPro
+                  isSuperAdmin
+                    ? "bg-amber-100 text-amber-900 border border-amber-300 font-black"
+                    : isPro
                     ? "bg-emerald-100 text-emerald-800"
                     : isIndependiente
                     ? "bg-teal-100 text-teal-800"
                     : "bg-gray-100 text-gray-700"
                 }`}
               >
-                {isPro ? "PRO Activo" : isIndependiente ? "Independiente" : "Básico"}
+                {isSuperAdmin ? "👑 SUPER ADMIN" : isPro ? "PRO Activo" : isIndependiente ? "Independiente" : "Básico"}
               </span>
             </div>
             <p className="mt-2 text-xs text-gray-500">
-              {isPro
+              {isSuperAdmin
+                ? "Todos los módulos desbloqueados para clientes y presentaciones comerciales."
+                : isPro
                 ? "Disfrutas de citas ilimitadas, Módulo Contable, APK móvil propia instalable y marca personalizada."
                 : isIndependiente
                 ? "Citas ilimitadas, atención a domicilio y servicios de 30 a 120 minutos."
@@ -289,23 +324,35 @@ export default function SubscriptionManager({ business }: { business: any }) {
           {/* SIMULADOR / TEST TOGGLE */}
           <div className="rounded-xl bg-gray-50 p-3.5 border border-gray-200 text-right sm:max-w-md">
             <span className="text-[11px] font-bold text-gray-500 uppercase block">
-              Pruebas de Desarrollo / Demo
+              Simulador de Demostración para Ventas
             </span>
             <p className="text-[11px] text-gray-400 mb-2">
-              Cambia el plan al instante para probar el bloqueo y desbloqueo de funciones:
+              Alterna en vivo lo que verá tu cliente en su demostración comercial:
             </p>
             <div className="flex flex-wrap justify-end gap-1.5">
               <button
                 type="button"
-                disabled={loading || isFree}
-                onClick={() => handleToggleMockPlan("FREE")}
+                disabled={loading || isSuperAdmin}
+                onClick={() => handleToggleMockPlan("SUPERADMIN" as any)}
                 className={`rounded-lg px-2.5 py-1 text-xs font-semibold border transition ${
-                  isFree
-                    ? "bg-gray-200 text-gray-500 cursor-default"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                  isSuperAdmin
+                    ? "bg-amber-400 text-slate-950 border-amber-500 cursor-default font-black shadow-sm"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-amber-50"
                 }`}
               >
-                Free ($0)
+                👑 Super Admin
+              </button>
+              <button
+                type="button"
+                disabled={loading || (currentPlan === "PRO" && !isSuperAdmin)}
+                onClick={() => handleToggleMockPlan("PRO")}
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold border transition ${
+                  currentPlan === "PRO" && !isSuperAdmin
+                    ? "bg-emerald-100 text-emerald-800 border-emerald-300 cursor-default font-bold"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-emerald-50"
+                }`}
+              >
+                Pro (${(proPrice / 1000).toFixed(0)}k)
               </button>
               <button
                 type="button"
@@ -321,15 +368,15 @@ export default function SubscriptionManager({ business }: { business: any }) {
               </button>
               <button
                 type="button"
-                disabled={loading || isPro}
-                onClick={() => handleToggleMockPlan("PRO")}
+                disabled={loading || isFree}
+                onClick={() => handleToggleMockPlan("FREE")}
                 className={`rounded-lg px-2.5 py-1 text-xs font-semibold border transition ${
-                  isPro
-                    ? "bg-emerald-100 text-emerald-800 border-emerald-300 cursor-default font-bold"
-                    : "bg-emerald-600 text-white hover:bg-emerald-500"
+                  isFree
+                    ? "bg-gray-200 text-gray-500 cursor-default"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
                 }`}
               >
-                Pro (${(proPrice / 1000).toFixed(0)}k)
+                Free ($0)
               </button>
             </div>
           </div>
@@ -427,23 +474,29 @@ export default function SubscriptionManager({ business }: { business: any }) {
           </div>
 
           <div className="mt-8">
-            <button
-              onClick={() => handleSelectPlan("INDEPENDIENTE")}
-              disabled={isIndependiente || wompiLoading}
-              className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-white shadow-md transition ${
-                isIndependiente
-                  ? "bg-teal-800 opacity-80 cursor-default"
-                  : "bg-teal-600 hover:bg-teal-500 shadow-teal-600/25"
-              }`}
-            >
-              {isIndependiente
-                ? "Plan Independiente Activo ✓"
-                : settings.paymentMode === "GATEWAY"
-                ? `Pagar con PSE / Tarjeta ($${indepPrice.toLocaleString("es-CO")})`
-                : settings.paymentMode === "HYBRID"
-                ? `Activar Plan ($${indepPrice.toLocaleString("es-CO")})`
-                : `Pagar por Transferencia ($${indepPrice.toLocaleString("es-CO")})`}
-            </button>
+            {isSuperAdmin ? (
+              <div className="w-full text-center rounded-xl border border-teal-200 py-3 text-xs font-bold text-teal-800 bg-teal-50 cursor-default">
+                ✓ Desbloqueado en Licencia Super Admin
+              </div>
+            ) : (
+              <button
+                onClick={() => handleSelectPlan("INDEPENDIENTE")}
+                disabled={isIndependiente || wompiLoading}
+                className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-white shadow-md transition ${
+                  isIndependiente
+                    ? "bg-teal-800 opacity-80 cursor-default"
+                    : "bg-teal-600 hover:bg-teal-500 shadow-teal-600/25"
+                }`}
+              >
+                {isIndependiente
+                  ? "Plan Independiente Activo ✓"
+                  : settings.paymentMode === "GATEWAY"
+                  ? `Pagar con PSE / Tarjeta ($${indepPrice.toLocaleString("es-CO")})`
+                  : settings.paymentMode === "HYBRID"
+                  ? `Activar Plan ($${indepPrice.toLocaleString("es-CO")})`
+                  : `Pagar por Transferencia ($${indepPrice.toLocaleString("es-CO")})`}
+              </button>
+            )}
           </div>
         </div>
 
@@ -499,24 +552,31 @@ export default function SubscriptionManager({ business }: { business: any }) {
           </div>
 
           <div className="mt-8">
-            <button
-              onClick={() => handleSelectPlan("PRO")}
-              disabled={isPro || wompiLoading}
-              className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-white shadow-md transition ${
-                isPro
-                  ? "bg-emerald-800 opacity-80 cursor-default"
-                  : "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/25"
-              }`}
-            >
-              <Wallet className="h-4 w-4" />
-              {isPro
-                ? "Plan Pro Activo ✓"
-                : settings.paymentMode === "GATEWAY"
-                ? `Pagar con PSE / Tarjeta ($${proPrice.toLocaleString("es-CO")})`
-                : settings.paymentMode === "HYBRID"
-                ? `Activar Plan ($${proPrice.toLocaleString("es-CO")})`
-                : `Pagar por Transferencia ($${proPrice.toLocaleString("es-CO")})`}
-            </button>
+            {isSuperAdmin ? (
+              <div className="w-full text-center rounded-xl border border-emerald-300 py-3 text-xs font-black text-emerald-900 bg-emerald-100 cursor-default flex items-center justify-center gap-1.5 shadow-xs">
+                <Crown className="h-4 w-4 text-amber-500" />
+                <span>👑 Desbloqueado en Licencia Super Admin</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => handleSelectPlan("PRO")}
+                disabled={isPro || wompiLoading}
+                className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-white shadow-md transition ${
+                  isPro
+                    ? "bg-emerald-800 opacity-80 cursor-default"
+                    : "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/25"
+                }`}
+              >
+                <Wallet className="h-4 w-4" />
+                {isPro
+                  ? "Plan Pro Activo ✓"
+                  : settings.paymentMode === "GATEWAY"
+                  ? `Pagar con PSE / Tarjeta ($${proPrice.toLocaleString("es-CO")})`
+                  : settings.paymentMode === "HYBRID"
+                  ? `Activar Plan ($${proPrice.toLocaleString("es-CO")})`
+                  : `Pagar por Transferencia ($${proPrice.toLocaleString("es-CO")})`}
+              </button>
+            )}
           </div>
         </div>
       </div>
