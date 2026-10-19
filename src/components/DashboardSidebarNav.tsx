@@ -155,17 +155,21 @@ export default function DashboardSidebarNav({
 
             <Link
               href="/dashboard/super-control"
-              className={`mt-2.5 flex items-center justify-between rounded-xl px-3 py-2 text-xs font-black transition border shadow-sm ${
+              className={`mt-2.5 flex items-center justify-between rounded-xl px-3 py-2 text-xs font-black transition border-2 shadow-md ${
                 isActive("/dashboard/super-control")
-                  ? "bg-amber-600 text-white border-amber-700 shadow"
-                  : "bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-white hover:opacity-95 border-amber-600"
+                  ? "bg-amber-500 text-slate-950 border-amber-400 ring-2 ring-amber-400/30"
+                  : "bg-slate-950 text-amber-300 border-amber-500/80 hover:bg-slate-900 hover:border-amber-400 shadow-amber-950/20"
               }`}
             >
               <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-amber-200" />
+                <Sparkles className="h-4 w-4 text-amber-400" />
                 <span>⚡ Super Control Maestro</span>
               </div>
-              <span className="text-[9px] bg-black/30 px-1.5 py-0.5 rounded font-black uppercase tracking-wider text-amber-100">
+              <span className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider ${
+                isActive("/dashboard/super-control")
+                  ? "bg-slate-950 text-amber-400"
+                  : "bg-amber-500 text-slate-950"
+              }`}>
                 VIP
               </span>
             </Link>

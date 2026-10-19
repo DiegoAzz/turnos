@@ -376,6 +376,123 @@ export default function SuperAdminControlCenter({
     }
   };
 
+  // Registrar barbero rápido directamente desde este panel
+  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [quickStaffName, setQuickStaffName] = useState("");
+  const [quickStaffChair, setQuickStaffChair] = useState("Silla 1");
+  const [addingStaff, setAddingStaff] = useState(false);
+
+  const handleCreateQuickStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickStaffName.trim()) return;
+
+    try {
+      setAddingStaff(true);
+      const res = await fetch("/api/staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId: business.id,
+          name: quickStaffName.trim(),
+          chairNumber: staff.length + 1,
+          chairLabel: quickStaffChair.trim() || `Silla ${staff.length + 1}`,
+          commissionRate: 50,
+          pin: "1234",
+        }),
+      });
+
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || "Error al crear personal");
+      }
+
+      await loadData();
+      showNotification(`✓ ${quickStaffName} agregado con éxito.`);
+      setShowAddStaffModal(false);
+      setQuickStaffName("");
+    } catch (err: any) {
+      showNotification(err.message || "Error al crear personal", true);
+    } finally {
+      setAddingStaff(false);
+    }
+  };
+
+  // Cargar datos de demostración con 1 Clic (2 barberos y 3 servicios si están vacíos)
+  const handleLoadDemoData = async () => {
+    try {
+      setAddingStaff(true);
+      showNotification("Creando barberos y servicios de prueba...");
+
+      // Si no hay servicios, crear 3 servicios básicos
+      if (services.length === 0) {
+        await fetch("/api/services", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            businessId: business.id,
+            name: "Corte Clásico",
+            durationMinutes: 30,
+            price: 20000,
+          }),
+        });
+        await fetch("/api/services", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            businessId: business.id,
+            name: "Barba & Perfilado",
+            durationMinutes: 20,
+            price: 15000,
+          }),
+        });
+        await fetch("/api/services", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            businessId: business.id,
+            name: "Combo Corte + Barba VIP",
+            durationMinutes: 45,
+            price: 32000,
+          }),
+        });
+      }
+
+      // Crear 2 barberos de prueba
+      await fetch("/api/staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId: business.id,
+          name: "Carlos Mendoza (Barbero 1)",
+          chairNumber: 1,
+          chairLabel: "Silla 1 - Principal",
+          commissionRate: 50,
+          pin: "1234",
+        }),
+      });
+
+      await fetch("/api/staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId: business.id,
+          name: "Andrés Restrepo (Barbero 2)",
+          chairNumber: 2,
+          chairLabel: "Silla 2",
+          commissionRate: 50,
+          pin: "1234",
+        }),
+      });
+
+      await loadData();
+      showNotification("🎉 ¡Listo! Se crearon 2 barberos y servicios de prueba. ¡Ya puedes usar los checsitos!");
+    } catch (err: any) {
+      showNotification(err.message || "Error al cargar datos de prueba", true);
+    } finally {
+      setAddingStaff(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* HEADER SUPER ADMIN */}
@@ -509,17 +626,58 @@ export default function SuperAdminControlCenter({
           </div>
 
           {staff.length === 0 ? (
-            <div className="bg-white p-8 rounded-2xl border border-gray-200 text-center space-y-3">
-              <Users className="h-8 w-8 text-gray-400 mx-auto" />
-              <h3 className="font-extrabold text-gray-800 text-sm">
-                No hay personal registrado en este negocio
-              </h3>
-              <p className="text-xs text-gray-500 max-w-md mx-auto">
-                Agrega barberos, manicuristas o estilistas desde la sección de Equipo para configurar sus servicios disponibles.
-              </p>
+            <div className="bg-white p-8 sm:p-12 rounded-3xl border border-gray-200 text-center space-y-4 shadow-sm max-w-2xl mx-auto my-4">
+              <div className="h-16 w-16 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+                <Users className="h-8 w-8" />
+              </div>
+              <div>
+                <h3 className="font-black text-gray-900 text-base sm:text-lg">
+                  ¿Por qué no se ven los checsitos todavía?
+                </h3>
+                <p className="text-xs text-gray-500 max-w-md mx-auto mt-1 leading-relaxed">
+                  Para poder asignar qué servicios realiza cada persona, primero necesitamos registrar al menos a un barbero o profesional en este negocio.
+                </p>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleLoadDemoData}
+                  disabled={addingStaff}
+                  className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/25 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>{addingStaff ? "Creando..." : "⚡ Cargar 2 Barberos de Prueba en 1 Clic"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAddStaffModal(true)}
+                  disabled={addingStaff}
+                  className="w-full sm:w-auto px-5 py-3 rounded-2xl border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-bold text-xs transition flex items-center justify-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>+ Escribir Nombre de mi Barbero</span>
+                </button>
+              </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-1">
+                <p className="text-xs font-bold text-gray-500">
+                  Equipo activo ({staff.length}):
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowAddStaffModal(true)}
+                  className="px-3 py-1.5 rounded-xl border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>+ Agregar Otro Barbero</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {staff.map((person) => {
                 const allowedList = staffPermissions[person.id];
                 const isAllAllowed = allowedList === null || allowedList === undefined;
@@ -639,6 +797,7 @@ export default function SuperAdminControlCenter({
                   </div>
                 );
               })}
+              </div>
             </div>
           )}
         </div>
@@ -929,6 +1088,78 @@ export default function SuperAdminControlCenter({
                 Reiniciar a Turno #01
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL REGISTRAR BARBERO RÁPIDO */}
+      {showAddStaffModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-gray-100">
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <span className="p-2 bg-amber-50 text-amber-600 rounded-xl">
+                  <Users className="h-5 w-5" />
+                </span>
+                <h3 className="font-extrabold text-base text-gray-900">
+                  Registrar Personal / Barbero
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddStaffModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateQuickStaff} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Nombre del Barbero / Profesional *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej. Carlos Mendoza, Laura Martínez..."
+                  value={quickStaffName}
+                  onChange={(e) => setQuickStaffName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Nombre o Número de Silla / Tocador
+                </label>
+                <input
+                  type="text"
+                  placeholder={`Ej. Silla ${staff.length + 1} (Principal)`}
+                  value={quickStaffChair}
+                  onChange={(e) => setQuickStaffChair(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddStaffModal(false)}
+                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={addingStaff}
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-md transition disabled:opacity-50"
+                >
+                  {addingStaff ? "Guardando..." : "Guardar Personal"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
