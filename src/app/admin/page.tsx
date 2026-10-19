@@ -23,6 +23,7 @@ import {
   Copy,
   MessageCircle,
   CreditCard,
+  Crown,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import AdminPartnersManager from "@/components/AdminPartnersManager";
@@ -267,6 +268,20 @@ export default function AdminDashboardPage() {
         body: JSON.stringify({ slug }),
       });
       router.push("/dashboard");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Entrar directo al Super Control Maestro de esa empresa
+  const handleAccessSuperControl = async (slug: string) => {
+    try {
+      await fetch("/api/admin/switch-business", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug }),
+      });
+      router.push("/dashboard/super-control");
     } catch (err) {
       console.error(err);
     }
@@ -594,6 +609,15 @@ export default function AdminDashboardPage() {
                       {/* Acciones */}
                       <td className="py-4 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleAccessSuperControl(b.slug)}
+                            className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black px-2.5 py-1.5 rounded-lg text-xs shadow-sm flex items-center gap-1 transition"
+                            title="Entrar al Super Control Maestro (Servicios con checsitos y asignación express de turnos)"
+                          >
+                            <Crown className="h-3 w-3" />
+                            <span>Control</span>
+                          </button>
+
                           <button
                             onClick={() => handleAccessDashboard(b.slug)}
                             className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs shadow-sm flex items-center gap-1 transition"

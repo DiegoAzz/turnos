@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/current-business";
 import { getTodayUtcRange } from "@/lib/date-utils";
+import { parseStaffServices, encodeStaffServices } from "@/lib/staff-service-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -103,6 +104,7 @@ export async function GET(req: NextRequest) {
         chairNumber: barber.chairNumber,
         chairLabel: barber.chairLabel || `Silla ${barber.chairNumber || 1}`,
         active: barber.active,
+        allowedServiceIds: parseStaffServices(barber.avatarUrl),
         createdAt: barber.createdAt,
         currentServing,
         stats: {

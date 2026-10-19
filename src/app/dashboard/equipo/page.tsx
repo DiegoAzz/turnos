@@ -19,6 +19,7 @@ import {
   Sparkles,
   ShieldCheck,
   Award,
+  Crown,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
@@ -279,7 +280,16 @@ export default function StaffManagementPage() {
         </div>
 
         {/* BOTONES DE CABECERA */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Link
+            href="/dashboard/super-control"
+            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 hover:opacity-95 transition"
+            title="Habilitar servicios por persona con checsitos y control total"
+          >
+            <Crown className="h-4 w-4" />
+            <span>⚡ Asignar Servicios (Checsitos)</span>
+          </Link>
+
           <Link
             href="/barbero"
             target="_blank"

@@ -25,6 +25,9 @@ export async function PATCH(
     if (body.startTime) dataToUpdate.startTime = body.startTime;
     if (body.endTime) dataToUpdate.endTime = body.endTime;
     if (body.clientNotes !== undefined) dataToUpdate.clientNotes = body.clientNotes;
+    if (body.staffMemberId !== undefined) {
+      dataToUpdate.staffMemberId = body.staffMemberId || null;
+    }
 
     const appointment = await prisma.appointment.update({
       where: { id },
@@ -32,6 +35,7 @@ export async function PATCH(
       include: {
         service: true,
         business: true,
+        staffMember: true,
       },
     });
 

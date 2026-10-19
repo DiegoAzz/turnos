@@ -5,6 +5,7 @@ import {
   Scissors,
   Users,
   Clock,
+  Check,
   CheckCircle2,
   AlertCircle,
   Tv,
@@ -388,6 +389,11 @@ export default function BarberQueueManager({
                       • <Phone className="h-3 w-3" /> {currentServing.clientPhone}
                     </span>
                   )}
+                  {currentServing.staffMember?.name && (
+                    <span className="text-emerald-800 font-bold bg-emerald-100 px-2 py-0.5 rounded-full text-[10px]">
+                      ✂️ Atiende: {currentServing.staffMember.name}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -548,37 +554,59 @@ export default function BarberQueueManager({
                         </div>
                       </div>
 
-                      {/* ASIGNACIÓN DE BARBERO (MODO MULTI-BARBERO) */}
-                      {multiBarberEnabled && staffMembers.length > 0 && (
-                        <div className="flex items-center gap-2 self-start sm:self-center">
-                          <label className="text-[11px] font-bold text-gray-500 flex items-center gap-1">
-                            <Scissors className="h-3 w-3 text-emerald-600" />
-                            <span>Barbero:</span>
-                          </label>
-                          <select
-                            value={turn.staffMemberId || ""}
-                            disabled={actionLoading}
-                            onChange={(e) => {
-                              const newStaffId = e.target.value || null;
-                              handleQueueAction({
-                                action: "ASSIGN_BARBER",
-                                appointmentId: turn.id,
-                                staffMemberId: newStaffId,
-                              });
-                            }}
-                            className={`text-xs font-semibold rounded-lg px-2.5 py-1.5 border transition cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
-                              turn.staffMemberId
-                                ? "bg-emerald-50 border-emerald-300 text-emerald-900 font-bold"
-                                : "bg-gray-50 border-gray-300 text-gray-600 hover:border-gray-400"
-                            }`}
-                          >
-                            <option value="">⭐ Sin asignar (Cualquiera)</option>
-                            {staffMembers.map((staff) => (
-                              <option key={staff.id} value={staff.id}>
-                                ✂️ {staff.name} ({staff.chairLabel || `Silla ${staff.chairNumber}`})
-                              </option>
-                            ))}
-                          </select>
+                      {/* ASIGNACIÓN DE BARBERO DIRECTA (1 CLIC / RÁPIDO) */}
+                      {staffMembers.length > 0 && (
+                        <div className="flex items-center gap-1.5 self-start sm:self-center flex-wrap">
+                          <span className="text-[10px] font-bold text-gray-400">
+                            Barbero:
+                          </span>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <button
+                              type="button"
+                              disabled={actionLoading}
+                              onClick={() => {
+                                handleQueueAction({
+                                  action: "ASSIGN_BARBER",
+                                  appointmentId: turn.id,
+                                  staffMemberId: null,
+                                });
+                              }}
+                              className={`px-2 py-1 rounded-lg text-[11px] font-bold transition ${
+                                !turn.staffMemberId
+                                  ? "bg-slate-900 text-white shadow-sm"
+                                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                              }`}
+                              title="Asignación automática al primer barbero libre"
+                            >
+                              Auto
+                            </button>
+                            {staffMembers.map((staff) => {
+                              const isSelected = turn.staffMemberId === staff.id;
+                              return (
+                                <button
+                                  key={staff.id}
+                                  type="button"
+                                  disabled={actionLoading}
+                                  onClick={() => {
+                                    handleQueueAction({
+                                      action: "ASSIGN_BARBER",
+                                      appointmentId: turn.id,
+                                      staffMemberId: staff.id,
+                                    });
+                                  }}
+                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border ${
+                                    isSelected
+                                      ? "bg-emerald-600 text-white border-emerald-700 shadow-sm"
+                                      : "bg-white text-gray-700 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/50"
+                                  }`}
+                                  title={`Asignar este turno con 1 clic a ${staff.name}`}
+                                >
+                                  {isSelected && <Check className="h-3 w-3" />}
+                                  <span>{staff.name}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
 

@@ -62,6 +62,7 @@ interface StaffMember {
   chairNumber: number;
   chairLabel: string;
   avatarUrl?: string | null;
+  allowedServiceIds?: string[] | null;
 }
 
 interface CountryConfig {
@@ -820,7 +821,13 @@ const currentConfig = COUNTRY_CONFIGS[countryCode] || COUNTRY_CONFIGS["+57"];
                     </button>
 
                     {/* Barberos registrados */}
-                    {staffMembers.map((staff) => {
+                    {staffMembers
+                      .filter((staff) => {
+                        if (!selectedService) return true;
+                        if (!staff.allowedServiceIds || staff.allowedServiceIds.length === 0) return true;
+                        return staff.allowedServiceIds.includes(selectedService.id);
+                      })
+                      .map((staff) => {
                       const isSelected = selectedStaffMemberId === staff.id;
                       return (
                         <button

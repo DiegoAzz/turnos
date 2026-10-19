@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parseStaffServices } from "@/lib/staff-service-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -190,7 +191,10 @@ export async function GET(
       services: business.services,
       workingHours: business.workingHours,
       products: business.products || [],
-      staffMembers: business.staffMembers || [],
+      staffMembers: (business.staffMembers || []).map((s) => ({
+        ...s,
+        allowedServiceIds: parseStaffServices(s.avatarUrl),
+      })),
       bookedSlots,
       bookedIntervals,
     });
