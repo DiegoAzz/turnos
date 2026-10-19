@@ -1257,18 +1257,30 @@ const currentConfig = COUNTRY_CONFIGS[countryCode] || COUNTRY_CONFIGS["+57"];
 
                 {/* 🎂 CAMPO DE CUMPLEAÑOS (FIDELIZACIÓN) */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    🎂 Tu Fecha de Cumpleaños (Opcional - ¡Recibe sorpresas y regalos!)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-gray-700">
+                      🎂 Tu Fecha de Cumpleaños (Opcional - ¡Recibe sorpresas y regalos!)
+                    </label>
+                    {clientBirthday && (
+                      <button
+                        type="button"
+                        onClick={() => setClientBirthday("")}
+                        className="text-[10px] text-gray-400 hover:text-rose-600 font-semibold"
+                      >
+                        Quitar
+                      </button>
+                    )}
+                  </div>
                   <input
-                    type="text"
-                    placeholder="Día y Mes (Ej. 18 de Mayo o 05-18)"
+                    type="date"
+                    max="2099-12-31"
+                    min="1920-01-01"
                     value={clientBirthday}
                     onChange={(e) => setClientBirthday(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
                   />
                   <p className="mt-1 text-[11px] text-gray-400">
-                    Te enviaremos promociones exclusivas y felicitaciones en tu mes especial.
+                    Selecciona tu fecha en el calendario para recibir promociones exclusivas y felicitaciones en tu cumpleaños.
                   </p>
                 </div>
 

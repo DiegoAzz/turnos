@@ -79,7 +79,8 @@ export async function GET(req: NextRequest) {
 
     const allCustomersForStats = await prisma.customer.findMany({
       where: { businessId: business.id },
-      select: { birthday: true, referralCount: true },
+      select: { id: true, name: true, phone: true, birthday: true, referralCount: true },
+      orderBy: { name: "asc" },
     });
 
     const birthdaysThisMonthCount = allCustomersForStats.filter((c) => {
@@ -94,6 +95,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       customers,
+      allReferrers: allCustomersForStats.map((c) => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+      })),
       stats: {
         totalCustomers,
         birthdaysThisMonthCount,
@@ -118,6 +124,7 @@ export async function POST(req: NextRequest) {
       birthday,
       notes,
       referredBy,
+      referrerCustomerId,
     } = body;
 
     let business = await getCurrentBusiness();
@@ -137,6 +144,51 @@ export async function POST(req: NextRequest) {
 
     const cleanPhone = phone.replace(/[^0-9]/g, "");
 
+    let finalReferredBy = referredBy ? String(referredBy).trim() : null;
+    let referrerToIncrementId: string | null = null;
+
+    if (referrerCustomerId) {
+      const referrerCust = await prisma.customer.findFirst({
+        where: { id: referrerCustomerId, businessId: business.id },
+      });
+      if (referrerCust) {
+        finalReferredBy = `${referrerCust.name} (${referrerCust.phone})`;
+        referrerToIncrementId = referrerCust.id;
+      }
+    } else if (finalReferredBy) {
+      // Intentar encontrar cliente en la BD por teléfono o nombre
+      const cleanRef = finalReferredBy.trim();
+      const matched = await prisma.customer.findFirst({
+        where: {
+          businessId: business.id,
+          OR: [
+            { name: { equals: cleanRef, mode: "insensitive" } },
+            { phone: { equals: cleanRef.replace(/[^0-9]/g, "") } },
+          ],
+          ...(customerId ? { id: { not: customerId } } : {}),
+        },
+      });
+      if (matched) {
+        referrerToIncrementId = matched.id;
+      }
+    }
+
+    let previousCustomer = null;
+    if (customerId) {
+      previousCustomer = await prisma.customer.findUnique({
+        where: { id: customerId },
+        select: { referredBy: true },
+      });
+    }
+
+    // Si hay un cliente referidor y es nuevo o cambió
+    if (referrerToIncrementId && (!customerId || (previousCustomer && previousCustomer.referredBy !== finalReferredBy))) {
+      await prisma.customer.update({
+        where: { id: referrerToIncrementId },
+        data: { referralCount: { increment: 1 } },
+      }).catch((e) => console.error("Error al incrementar referralCount:", e));
+    }
+
     let customer;
     if (customerId) {
       customer = await prisma.customer.update({
@@ -147,7 +199,7 @@ export async function POST(req: NextRequest) {
           email: email?.trim() || null,
           birthday: birthday?.trim() || null,
           notes: notes?.trim() || null,
-          referredBy: referredBy?.trim() || null,
+          referredBy: finalReferredBy,
         },
       });
     } else {
@@ -163,7 +215,7 @@ export async function POST(req: NextRequest) {
           email: email?.trim() || undefined,
           birthday: birthday?.trim() || undefined,
           notes: notes?.trim() || undefined,
-          referredBy: referredBy?.trim() || undefined,
+          referredBy: finalReferredBy || undefined,
         },
         create: {
           businessId: business.id,
@@ -172,7 +224,7 @@ export async function POST(req: NextRequest) {
           email: email?.trim() || null,
           birthday: birthday?.trim() || null,
           notes: notes?.trim() || null,
-          referredBy: referredBy?.trim() || null,
+          referredBy: finalReferredBy,
           totalVisits: 1,
         },
       });

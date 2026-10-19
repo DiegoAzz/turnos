@@ -49,17 +49,56 @@ export default function CustomersManager({ business }: { business: any }) {
     totalReferralsMade: 0,
   });
 
+  // Lista completa de clientes para el selector de referidos desde BD
+  const [allReferrers, setAllReferrers] = useState<{ id: string; name: string; phone: string }[]>([]);
+
   // Modal de Crear / Editar
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [formName, setFormName] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
-  const [formBirthday, setFormBirthday] = useState("");
+  const [formBirthday, setFormBirthday] = useState(""); // Formato ISO "YYYY-MM-DD"
   const [formNotes, setFormNotes] = useState("");
-  const [formReferredBy, setFormReferredBy] = useState("");
+  const [formReferrerSelection, setFormReferrerSelection] = useState(""); // ID del cliente o "__MANUAL__" o ""
+  const [formManualReferrer, setFormManualReferrer] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Helper para convertir fechas guardadas a formato ISO YYYY-MM-DD para el input type="date"
+  const parseToIsoDate = (dateStr?: string | null): string => {
+    if (!dateStr) return "";
+    const clean = dateStr.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+    if (/^\d{2}-\d{2}$/.test(clean)) return `2000-${clean}`;
+    const dmyMatch = clean.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+    if (dmyMatch) {
+      const day = dmyMatch[1].padStart(2, "0");
+      const month = dmyMatch[2].padStart(2, "0");
+      const year = dmyMatch[3];
+      return `${year}-${month}-${day}`;
+    }
+    return "";
+  };
+
+  // Helper para mostrar la fecha seleccionada en español amigable
+  const formatSelectedDateHuman = (isoDate: string): string => {
+    if (!isoDate) return "";
+    try {
+      const parts = isoDate.split("-");
+      if (parts.length === 3) {
+        const year = parts[0];
+        const monthIdx = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        const months = [
+          "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+          "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        ];
+        return `${day} de ${months[monthIdx] || parts[1]}${year !== "2000" ? ` (${year})` : ""}`;
+      }
+    } catch {}
+    return isoDate;
+  };
 
   // Modal de Promoción Masiva
   const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
@@ -77,6 +116,7 @@ export default function CustomersManager({ business }: { business: any }) {
         const data = await res.json();
         setCustomers(data.customers || []);
         if (data.stats) setStats(data.stats);
+        if (data.allReferrers) setAllReferrers(data.allReferrers);
       }
     } catch (err) {
       console.error("Error al cargar clientes:", err);
@@ -96,7 +136,8 @@ export default function CustomersManager({ business }: { business: any }) {
     setFormEmail("");
     setFormBirthday("");
     setFormNotes("");
-    setFormReferredBy("");
+    setFormReferrerSelection("");
+    setFormManualReferrer("");
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -106,9 +147,30 @@ export default function CustomersManager({ business }: { business: any }) {
     setFormName(customer.name);
     setFormPhone(customer.phone);
     setFormEmail(customer.email || "");
-    setFormBirthday(customer.birthday || "");
+    setFormBirthday(parseToIsoDate(customer.birthday));
     setFormNotes(customer.notes || "");
-    setFormReferredBy(customer.referredBy || "");
+
+    // Detectar si el referido coincide con un cliente en BD
+    if (customer.referredBy) {
+      const match = allReferrers.find(
+        (r) =>
+          r.id !== customer.id &&
+          (customer.referredBy?.includes(r.phone) ||
+            r.name.toLowerCase() === customer.referredBy?.toLowerCase() ||
+            customer.referredBy?.toLowerCase().startsWith(r.name.toLowerCase()))
+      );
+      if (match) {
+        setFormReferrerSelection(match.id);
+        setFormManualReferrer("");
+      } else {
+        setFormReferrerSelection("__MANUAL__");
+        setFormManualReferrer(customer.referredBy);
+      }
+    } else {
+      setFormReferrerSelection("");
+      setFormManualReferrer("");
+    }
+
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -123,6 +185,20 @@ export default function CustomersManager({ business }: { business: any }) {
     try {
       setSaving(true);
       setFormError(null);
+
+      let finalReferredBy: string | null = null;
+      let finalReferrerId: string | null = null;
+
+      if (formReferrerSelection === "__MANUAL__") {
+        finalReferredBy = formManualReferrer.trim() || null;
+      } else if (formReferrerSelection) {
+        const selectedRef = allReferrers.find((r) => r.id === formReferrerSelection);
+        if (selectedRef) {
+          finalReferredBy = `${selectedRef.name} (${selectedRef.phone})`;
+          finalReferrerId = selectedRef.id;
+        }
+      }
+
       const res = await fetch("/api/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -134,7 +210,8 @@ export default function CustomersManager({ business }: { business: any }) {
           email: formEmail.trim() || null,
           birthday: formBirthday.trim() || null,
           notes: formNotes.trim() || null,
-          referredBy: formReferredBy.trim() || null,
+          referredBy: finalReferredBy,
+          referrerCustomerId: finalReferrerId,
         }),
       });
 
@@ -547,31 +624,99 @@ Reserva tu espacio fácilmente aquí:
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                    🎂 Fecha de Cumpleaños
+                  <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between">
+                    <span>🎂 Fecha de Cumpleaños</span>
+                    {formBirthday && (
+                      <button
+                        type="button"
+                        onClick={() => setFormBirthday("")}
+                        className="text-[10px] text-gray-400 hover:text-rose-600 font-semibold"
+                      >
+                        Quitar fecha
+                      </button>
+                    )}
                   </label>
                   <input
-                    type="text"
-                    placeholder="MM-DD (ej: 10-24)"
+                    type="date"
+                    max="2099-12-31"
+                    min="1920-01-01"
                     value={formBirthday}
                     onChange={(e) => setFormBirthday(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
                   />
-                  <span className="text-[10px] text-gray-400 mt-0.5 block">Mes-Día (ej: 05-18)</span>
+                  {formBirthday ? (
+                    <span className="text-[11px] text-emerald-700 font-bold mt-1 block flex items-center gap-1">
+                      <span>🎉</span>
+                      <span>{formatSelectedDateHuman(formBirthday)}</span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-gray-400 mt-0.5 block">
+                      Toca para seleccionar el día y mes en el calendario
+                    </span>
+                  )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  ¿Quién la recomendó? (Referido por)
+                <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between">
+                  <span>🎁 ¿Quién la recomendó? (Referido por)</span>
+                  <span className="text-[10px] font-normal text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    Tomado de Base de Datos
+                  </span>
                 </label>
-                <input
-                  type="text"
-                  placeholder="Ej. Laura Restrepo (Amiga)"
-                  value={formReferredBy}
-                  onChange={(e) => setFormReferredBy(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                />
+
+                <select
+                  value={formReferrerSelection}
+                  onChange={(e) => setFormReferrerSelection(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white text-gray-800 font-medium"
+                >
+                  <option value="">⭐ Ninguno / Directo (Sin recomendación previa)</option>
+
+                  {allReferrers.filter((r) => r.id !== editingCustomer?.id).length > 0 && (
+                    <optgroup label="📋 Clientes en tu Base de Datos">
+                      {allReferrers
+                        .filter((r) => r.id !== editingCustomer?.id)
+                        .map((r) => (
+                          <option key={r.id} value={r.id}>
+                            👤 {r.name} — 📞 {r.phone}
+                          </option>
+                        ))}
+                    </optgroup>
+                  )}
+
+                  <optgroup label="✏️ Escribir otra fuente">
+                    <option value="__MANUAL__">➕ Escribir manualmente (Otro origen / persona)...</option>
+                  </optgroup>
+                </select>
+
+                {formReferrerSelection === "__MANUAL__" && (
+                  <div className="mt-2">
+                    <input
+                      type="text"
+                      placeholder="Ej. Instagram, Volante, Vecina Martha, etc."
+                      value={formManualReferrer}
+                      onChange={(e) => setFormManualReferrer(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl border border-purple-300 text-xs focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 bg-purple-50/30"
+                      autoFocus
+                    />
+                    <span className="text-[10px] text-purple-700 mt-1 block">
+                      Escribe el nombre o canal que recomendó a esta clienta.
+                    </span>
+                  </div>
+                )}
+
+                {formReferrerSelection && formReferrerSelection !== "__MANUAL__" && (
+                  <div className="mt-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>
+                      ¡Excelente! Se sumará automáticamente <strong>+1 referido</strong> a{" "}
+                      <strong>
+                        {allReferrers.find((r) => r.id === formReferrerSelection)?.name}
+                      </strong>{" "}
+                      en la base de datos para sus recompensas.
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div>
