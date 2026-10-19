@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import {
   MessageCircle,
   Check,
@@ -25,6 +26,8 @@ import {
   RotateCcw,
   Scissors,
   Tv,
+  Users,
+  BarChart3,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import ReminderSettingsModal from "@/components/ReminderSettingsModal";
@@ -715,6 +718,36 @@ export default function DashboardClientActions({
             <Clock className="h-3.5 w-3.5 text-teal-600" />
             <span>Horarios</span>
           </button>
+
+          {/* BOTÓN CLIENTES & CRM */}
+          <Link
+            href="/dashboard/clientes"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 transition shadow-sm"
+            title="Base de datos de clientes, cumpleaños y referidos"
+          >
+            <Users className="h-3.5 w-3.5 text-rose-600" />
+            <span>Clientes CRM</span>
+          </Link>
+
+          {/* BOTÓN INFORMES & MÉTRICAS */}
+          <Link
+            href="/dashboard/reportes"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition shadow-sm"
+            title="Informes en tiempo real y descarga en Excel"
+          >
+            <BarChart3 className="h-3.5 w-3.5 text-emerald-600" />
+            <span>Informes</span>
+          </Link>
+
+          {/* BOTÓN BOTONERA 1-TOQUE */}
+          <Link
+            href="/dashboard/botonera"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border border-slate-700 bg-slate-900 text-white hover:bg-slate-800 transition shadow-sm"
+            title="Control de turnos con 1 toque sin sacar el celular"
+          >
+            <Tv className="h-3.5 w-3.5 text-emerald-400" />
+            <span>Botonera 1-Toque</span>
+          </Link>
 
           {/* BOTÓN CONFIGURAR RUBRO & ESPECIALIDAD */}
           <button

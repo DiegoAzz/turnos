@@ -36,6 +36,15 @@ model Business {
   stripeCurrentPeriodEnd DateTime?
   multiBarberEnabled     Boolean        @default(false) // Toggle configurable: servicio de valor agregado
   queueResetAt           DateTime?      // Fecha/hora del último reinicio manual de conteo de turnos
+
+  // Configuraciones de Manicura, Domicilios, Anticipos y Fidelización
+  homeServiceFee           Float          @default(0) // Recargo por servicio a domicilio
+  requireDepositForNew     Boolean        @default(false) // Cobrar anticipo a clientes nuevos
+  depositAmount            Float          @default(0) // Monto de anticipo sugerido
+  depositPaymentInfo       String?        // Datos para consignar anticipo (Nequi, Daviplata, etc.)
+  referralProgramEnabled   Boolean        @default(false) // Activar programa de referidos
+  referralRewardText       String?        // Beneficio o descuento por referir amigas
+  stationHardwarePin       String?        @default("0000") // PIN para conectar botoneras físicas o terminales de tocador
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
 
@@ -48,6 +57,7 @@ model Business {
   expenses               Expense[]
   products               Product[]
   productSales           ProductSale[]
+  customers              Customer[]
   partnerCommissions     PartnerCommission[]
   staffMembers           StaffMember[]
   staffPayouts           StaffPayout[]
@@ -95,6 +105,13 @@ model Appointment {
   clientNotes  String?
   appointmentType String @default("LOCAL") // "LOCAL", "DOMICILIO"
   clientAddress   String? // Dirección en caso de servicio a domicilio
+  homeFee         Float     @default(0) // Recargo de domicilio aplicado a esta cita
+  depositRequired Float     @default(0) // Anticipo exigido si aplicó
+  depositPaid     Boolean   @default(false) // Si el anticipo ya fue confirmado
+  clientBirthday  String?   // Fecha de cumpleaños (ej: "10-24" o "1995-10-24")
+  referredBy      String?   // Nombre o teléfono de quien la recomendó
+  cancellationReason String? // Motivo reportado en caso de cancelación o novedad
+  cancelledBy     String?   // "CLIENT" | "BUSINESS"
   paymentMethod   String?   @default("EFECTIVO") // "EFECTIVO", "NEQUI", "BANCOLOMBIA", "TARJETA"
   date         DateTime  // Dia de la cita (UTC midnight o fecha seleccionada)
   startTime    String    // "14:30"
@@ -111,6 +128,30 @@ model Appointment {
   @@index([date, reminderSent])
   @@index([clientPhone])
   @@index([staffMemberId])
+  @@index([businessId, clientPhone])
+}
+
+model Customer {
+  id            String    @id @default(cuid())
+  businessId    String
+  business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name          String
+  phone         String
+  email         String?
+  birthday      String?   // Formato "MM-DD" o "YYYY-MM-DD"
+  notes         String?   // Preferencias de la clienta (esmaltes favoritos, diseño, cutícula sensible)
+  referredBy    String?   // Quién la refirió
+  referralCount Int       @default(0) // Cuántos amigos/amigas ha traído
+  totalVisits   Int       @default(0)
+  totalSpent    Float     @default(0)
+  lastVisit     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([businessId, phone])
+  @@index([businessId, phone])
+  @@index([businessId, birthday])
+
 }
 
 model Expense {

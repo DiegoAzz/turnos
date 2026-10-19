@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
       clientPhone,
       clientEmail,
       clientNotes,
+      clientBirthday,
+      referredBy,
       appointmentType = "LOCAL",
       clientAddress,
       paymentMethod = "EFECTIVO",
@@ -261,8 +263,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Crear cita con tipo (LOCAL o DOMICILIO) y dirección
-    // Crear cita con tipo (LOCAL o DOMICILIO), profesional asignado y dirección
+// 4. Calcular Recargo por Domicilio y Requisito de Anticipo para Clientes Nuevos
+    const homeFee = appointmentType === "DOMICILIO" ? (business.homeServiceFee || 0) : 0;
+
+    const previousVisitsCount = await prisma.appointment.count({
+      where: {
+        businessId: business.id,
+        clientPhone: formattedPhone,
+        status: { in: ["COMPLETED", "CONFIRMED"] },
+      },
+    });
+    const isNewClient = previousVisitsCount === 0;
+
+    let depositRequired = 0;
+    if (isNewClient && business.requireDepositForNew && (business.depositAmount || 0) > 0) {
+      depositRequired = business.depositAmount || 0;
+    }
+
+    // Crear cita con tipo (LOCAL o DOMICILIO), recargos y datos de fidelización
     const appointment = await prisma.appointment.create({
       data: {
         businessId: business.id,
@@ -271,8 +289,13 @@ export async function POST(req: NextRequest) {
         clientPhone: formattedPhone,
         clientEmail: clientEmail || null,
         clientNotes: clientNotes || null,
+        clientBirthday: clientBirthday ? String(clientBirthday).trim() : null,
+        referredBy: referredBy ? String(referredBy).trim() : null,
         appointmentType: appointmentType === "DOMICILIO" ? "DOMICILIO" : "LOCAL",
         clientAddress: clientAddress || null,
+        homeFee,
+        depositRequired,
+        depositPaid: false,
         paymentMethod: paymentMethod || "EFECTIVO",
         date: appointmentDate,
         startTime,
@@ -286,6 +309,71 @@ export async function POST(req: NextRequest) {
         staffMember: true,
       },
     });
+
+// Sincronizar automáticamente en la Base de Datos de Clientes (CRM)
+    try {
+      const existingCustomer = await prisma.customer.findUnique({
+        where: {
+          businessId_phone: {
+            businessId: business.id,
+            phone: formattedPhone,
+          },
+        },
+      });
+
+      if (existingCustomer) {
+        await prisma.customer.update({
+          where: { id: existingCustomer.id },
+          data: {
+            name: clientName,
+            email: clientEmail || existingCustomer.email,
+            birthday: clientBirthday ? String(clientBirthday).trim() : existingCustomer.birthday,
+            notes: clientNotes ? (existingCustomer.notes ? `${existingCustomer.notes} | ${clientNotes}` : clientNotes) : existingCustomer.notes,
+            lastVisit: appointmentDate,
+            totalVisits: { increment: 1 },
+          },
+        });
+      } else {
+        await prisma.customer.create({
+          data: {
+            businessId: business.id,
+            name: clientName,
+            phone: formattedPhone,
+            email: clientEmail || null,
+            birthday: clientBirthday ? String(clientBirthday).trim() : null,
+            notes: clientNotes ? String(clientNotes).trim() : null,
+            referredBy: referredBy ? String(referredBy).trim() : null,
+            totalVisits: 1,
+            lastVisit: appointmentDate,
+          },
+        });
+
+        // Si llegó con referido, buscar si quien lo recomendó está en la base de clientes y sumarle 1 al contador
+        if (referredBy && referredBy.trim()) {
+          const refClean = referredBy.replace(/[^0-9]/g, "");
+          const referringCust = await prisma.customer.findFirst({
+            where: {
+              businessId: business.id,
+              OR: [
+                refClean.length >= 7 ? { phone: { contains: refClean } } : undefined,
+                { name: { contains: referredBy.trim(), mode: "insensitive" } },
+              ].filter(Boolean) as any,
+            },
+          });
+
+          if (referringCust) {
+            await prisma.customer.update({
+              where: { id: referringCust.id },
+              data: { referralCount: { increment: 1 } },
+            });
+          }
+        }
+      }
+    } catch (crmErr) {
+      console.error("Error sincronizando CRM de cliente:", crmErr);
+    }
+
+    // Calcular posición y número de turno para el día según orden de hora
 
     // Calcular posición y número de turno para el día según orden cronológico
     const allAppointmentsDay = await prisma.appointment.findMany({
@@ -352,6 +440,11 @@ export async function POST(req: NextRequest) {
       aheadCount,
       totalTurnsDay: allAppointmentsDay.length,
       whatsappUrl,
+      isNewClient,
+      depositRequired,
+      depositPaymentInfo: business.depositPaymentInfo,
+      homeFee,
+      totalToPay: service.price + homeFee,
     });
   } catch (error) {
     console.error("Error al crear cita:", error);

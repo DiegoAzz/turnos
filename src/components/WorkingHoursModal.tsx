@@ -65,6 +65,36 @@ export default function WorkingHoursModal({
     );
   };
 
+  const applyPreset = (presetType: "MON_SAT" | "WED_SUN" | "WEEKEND" | "ALL") => {
+    setHours((prev) =>
+      prev.map((h) => {
+        let isClosed = false;
+        if (presetType === "MON_SAT") {
+          isClosed = h.dayOfWeek === 0; // Domingo cerrado
+        } else if (presetType === "WED_SUN") {
+          isClosed = h.dayOfWeek === 1 || h.dayOfWeek === 2; // Lunes y Martes cerrado
+        } else if (presetType === "WEEKEND") {
+          isClosed = ![5, 6, 0].includes(h.dayOfWeek); // Solo Viernes, Sábado y Domingo
+        } else if (presetType === "ALL") {
+          isClosed = false;
+        }
+        return { ...h, isClosed };
+      })
+    );
+  };
+
+  const copyFirstDayHoursToAll = () => {
+    const firstOpen = hours.find((h) => !h.isClosed) || hours[0];
+    if (!firstOpen) return;
+    setHours((prev) =>
+      prev.map((h) => ({
+        ...h,
+        openTime: firstOpen.openTime,
+        closeTime: firstOpen.closeTime,
+      }))
+    );
+  };
+
   const handleTimeChange = (
     dayOfWeek: number,
     field: "openTime" | "closeTime",
@@ -145,12 +175,61 @@ export default function WorkingHoursModal({
           </div>
         )}
 
+        {/* PLANTILLAS RÁPIDAS PARA DEFINIR SEMANALMENTE (IDEAL PARA MANICURISTAS Y BARBEROS) */}
+        {!loading && (
+          <div className="mt-4 p-3 bg-teal-50/70 border border-teal-100 rounded-2xl">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-bold text-teal-900 flex items-center gap-1">
+                <Sparkles className="h-3.5 w-3.5 text-teal-600" />
+                <span>Ajuste Rápido de Esta Semana:</span>
+              </span>
+              <button
+                type="button"
+                onClick={copyFirstDayHoursToAll}
+                className="text-[10px] text-teal-800 font-bold hover:underline"
+              >
+                Copiar horas a todos los abiertos
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+              <button
+                type="button"
+                onClick={() => applyPreset("MON_SAT")}
+                className="px-2.5 py-1 bg-white border border-teal-200 text-teal-900 hover:bg-teal-100/70 rounded-lg text-[10px] font-bold shadow-xs shrink-0"
+              >
+                Lun a Sáb (Dom cerrado)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset("WED_SUN")}
+                className="px-2.5 py-1 bg-white border border-teal-200 text-teal-900 hover:bg-teal-100/70 rounded-lg text-[10px] font-bold shadow-xs shrink-0"
+              >
+                Mié a Dom (Lun/Mar descanso)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset("WEEKEND")}
+                className="px-2.5 py-1 bg-white border border-teal-200 text-teal-900 hover:bg-teal-100/70 rounded-lg text-[10px] font-bold shadow-xs shrink-0"
+              >
+                Vie a Dom (Fin de semana)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset("ALL")}
+                className="px-2.5 py-1 bg-white border border-teal-200 text-teal-900 hover:bg-teal-100/70 rounded-lg text-[10px] font-bold shadow-xs shrink-0"
+              >
+                Todos los días
+              </button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="py-12 text-center text-xs text-gray-500">
             Cargando configuración de horarios...
           </div>
         ) : (
-          <form onSubmit={handleSave} className="mt-5 space-y-3">
+          <form onSubmit={handleSave} className="mt-4 space-y-3">
             {DAY_LABELS.map(({ dayOfWeek, label }) => {
               const dayData = hours.find((h) => h.dayOfWeek === dayOfWeek) || {
                 dayOfWeek,

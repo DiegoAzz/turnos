@@ -36,6 +36,13 @@ export default function BusinessProfileModal({
   const [serviceModality, setServiceModality] = useState(business.serviceModality || "LOCAL");
   const [liveStatus, setLiveStatus] = useState(business.liveStatus || "OPEN");
   const [statusMessage, setStatusMessage] = useState(business.statusMessage || "");
+  const [homeServiceFee, setHomeServiceFee] = useState<number>(business.homeServiceFee || 0);
+  const [requireDepositForNew, setRequireDepositForNew] = useState<boolean>(Boolean(business.requireDepositForNew));
+  const [depositAmount, setDepositAmount] = useState<number>(business.depositAmount || 0);
+  const [depositPaymentInfo, setDepositPaymentInfo] = useState<string>(business.depositPaymentInfo || "");
+  const [referralProgramEnabled, setReferralProgramEnabled] = useState<boolean>(Boolean(business.referralProgramEnabled));
+  const [referralRewardText, setReferralRewardText] = useState<string>(business.referralRewardText || "");
+  const [stationHardwarePin, setStationHardwarePin] = useState<string>(business.stationHardwarePin || "0000");
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +100,13 @@ export default function BusinessProfileModal({
           currency: currency.trim() || "COP",
           liveStatus,
           statusMessage: statusMessage.trim() || null,
+          homeServiceFee: Number(homeServiceFee) || 0,
+          requireDepositForNew,
+          depositAmount: Number(depositAmount) || 0,
+          depositPaymentInfo: depositPaymentInfo.trim() || null,
+          referralProgramEnabled,
+          referralRewardText: referralRewardText.trim() || null,
+          stationHardwarePin: stationHardwarePin.trim() || "0000",
         }),
       });
 
@@ -423,6 +437,136 @@ export default function BusinessProfileModal({
                 className="mt-2 w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
               />
             )}
+          </div>
+
+          {/* RECARGO POR SERVICIO A DOMICILIO */}
+          <div className="p-4 bg-purple-50/60 rounded-2xl border border-purple-100 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                  <span>🛵 Recargo por Servicio a Domicilio</span>
+                </label>
+                <p className="text-[11px] text-purple-800 mt-0.5">
+                  Si vas a la casa o trabajo del cliente, este valor se suma automáticamente al precio del servicio.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <span className="text-xs font-bold text-gray-500">{currency} $</span>
+              <input
+                type="number"
+                min="0"
+                step="1000"
+                placeholder="Ej. 15000"
+                value={homeServiceFee || ""}
+                onChange={(e) => setHomeServiceFee(Number(e.target.value) || 0)}
+                className="w-36 bg-white border border-purple-200 rounded-xl px-3 py-1.5 text-xs text-gray-900 font-bold focus:outline-none focus:border-purple-500"
+              />
+              <span className="text-[11px] text-gray-400">(0 = sin recargo)</span>
+            </div>
+          </div>
+
+          {/* ANTICIPO A CLIENTES NUEVOS */}
+          <div className="p-4 bg-amber-50/70 rounded-2xl border border-amber-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                  <span>🛡️ Exigir Anticipo / Seña a Clientes Nuevos</span>
+                </label>
+                <p className="text-[11px] text-amber-900 mt-0.5">
+                  Garantiza que la clienta nueva no te deje plantada y no pierdas tiempo ni dinero.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={requireDepositForNew}
+                onChange={(e) => setRequireDepositForNew(e.target.checked)}
+                className="h-5 w-5 text-amber-600 rounded-lg border-gray-300 focus:ring-amber-500 cursor-pointer"
+              />
+            </div>
+
+            {requireDepositForNew && (
+              <div className="space-y-2.5 pt-2 border-t border-amber-200/60 animate-in fade-in duration-150">
+                <div>
+                  <label className="block text-[11px] font-bold text-amber-900 mb-1">
+                    Monto de anticipo requerido ({currency})
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    placeholder="Ej. 10000"
+                    value={depositAmount || ""}
+                    onChange={(e) => setDepositAmount(Number(e.target.value) || 0)}
+                    className="w-full sm:w-48 bg-white border border-amber-300 rounded-xl px-3 py-1.5 text-xs text-gray-900 font-bold focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-amber-900 mb-1">
+                    Datos para pago (Nequi, Daviplata, Bancolombia)
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Ej. Nequi o Daviplata al 310 601 7261. Envía el comprobante de tu anticipo por WhatsApp para confirmar tu cupo."
+                    value={depositPaymentInfo}
+                    onChange={(e) => setDepositPaymentInfo(e.target.value)}
+                    className="w-full bg-white border border-amber-300 rounded-xl px-3 py-2 text-xs text-gray-900 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* PROGRAMA DE AMIGAS / CLIENTES REFERIDOS */}
+          <div className="p-4 bg-pink-50/70 rounded-2xl border border-pink-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-xs font-bold text-pink-950 flex items-center gap-1.5">
+                  <span>🎁 Programa de Amigas Referidas</span>
+                </label>
+                <p className="text-[11px] text-pink-900 mt-0.5">
+                  Premia a tus clientas cuando te recomienden amigas y llenen tu agenda.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={referralProgramEnabled}
+                onChange={(e) => setReferralProgramEnabled(e.target.checked)}
+                className="h-5 w-5 text-pink-600 rounded-lg border-gray-300 focus:ring-pink-500 cursor-pointer"
+              />
+            </div>
+
+            {referralProgramEnabled && (
+              <div className="pt-2 border-t border-pink-200/60 animate-in fade-in duration-150">
+                <label className="block text-[11px] font-bold text-pink-900 mb-1">
+                  Beneficio / Premio por invitar
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej. ¡Por cada 2 amigas que invites, recibe un 20% de descuento en tu próximo servicio!"
+                  value={referralRewardText}
+                  onChange={(e) => setReferralRewardText(e.target.value)}
+                  className="w-full bg-white border border-pink-300 rounded-xl px-3.5 py-2 text-xs text-gray-900 focus:outline-none focus:border-pink-500"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* PIN DE BOTONERA DE ESTACIÓN / HARDWARE */}
+          <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 space-y-1">
+            <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+              <span>🔌 PIN de Botonera de Estación / Hardware</span>
+            </label>
+            <p className="text-[11px] text-gray-500">
+              PIN de 4 dígitos para proteger tu botonera física o tablet de pared (por defecto 0000 = sin PIN).
+            </p>
+            <input
+              type="text"
+              maxLength={6}
+              value={stationHardwarePin}
+              onChange={(e) => setStationHardwarePin(e.target.value)}
+              className="w-28 bg-white border border-gray-300 rounded-xl px-3 py-1.5 text-xs text-gray-900 font-mono font-bold text-center focus:outline-none focus:border-emerald-500 mt-1"
+            />
           </div>
 
           {/* BOTONES DE GUARDADO */}

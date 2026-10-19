@@ -79,6 +79,27 @@ export async function PATCH(req: NextRequest) {
     if (typeof body.multiBarberEnabled === "boolean") {
       dataToUpdate.multiBarberEnabled = body.multiBarberEnabled;
     }
+    if (body.homeServiceFee !== undefined) {
+      dataToUpdate.homeServiceFee = Number(body.homeServiceFee) || 0;
+    }
+    if (typeof body.requireDepositForNew === "boolean") {
+      dataToUpdate.requireDepositForNew = body.requireDepositForNew;
+    }
+    if (body.depositAmount !== undefined) {
+      dataToUpdate.depositAmount = Number(body.depositAmount) || 0;
+    }
+    if (body.depositPaymentInfo !== undefined) {
+      dataToUpdate.depositPaymentInfo = body.depositPaymentInfo ? String(body.depositPaymentInfo).trim() : null;
+    }
+    if (typeof body.referralProgramEnabled === "boolean") {
+      dataToUpdate.referralProgramEnabled = body.referralProgramEnabled;
+    }
+    if (body.referralRewardText !== undefined) {
+      dataToUpdate.referralRewardText = body.referralRewardText ? String(body.referralRewardText).trim() : null;
+    }
+    if (body.stationHardwarePin !== undefined) {
+      dataToUpdate.stationHardwarePin = body.stationHardwarePin ? String(body.stationHardwarePin).trim() : "0000";
+    }
 
     const updated = await prisma.business.update({
       where: { id: businessId },

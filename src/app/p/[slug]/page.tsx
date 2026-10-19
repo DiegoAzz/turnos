@@ -46,7 +46,14 @@ interface BusinessData {
   statusMessage?: string | null;
   category?: string;
   serviceModality?: string;
-  multiBarberEnabled?: boolean;
+multiBarberEnabled?: boolean;
+
+homeServiceFee?: number;
+  requireDepositForNew?: boolean;
+  depositAmount?: number;
+  depositPaymentInfo?: string | null;
+  referralProgramEnabled?: boolean;
+  referralRewardText?: string | null;
 }
 
 interface StaffMember {
@@ -186,6 +193,8 @@ export default function BookingPage({
   const [clientPhone, setClientPhone] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [clientNotes, setClientNotes] = useState("");
+  const [clientBirthday, setClientBirthday] = useState("");
+  const [referredBy, setReferredBy] = useState("");
   const [appointmentType, setAppointmentType] = useState<"LOCAL" | "DOMICILIO">("LOCAL");
   const [clientAddress, setClientAddress] = useState("");
   const [isReturningClient, setIsReturningClient] = useState(false);
@@ -193,7 +202,7 @@ export default function BookingPage({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState<any | null>(null);
 
-  const currentConfig = COUNTRY_CONFIGS[countryCode] || COUNTRY_CONFIGS["+57"];
+const currentConfig = COUNTRY_CONFIGS[countryCode] || COUNTRY_CONFIGS["+57"];
 
   const handleCountryChange = (newCode: string) => {
     setCountryCode(newCode);
@@ -209,6 +218,11 @@ export default function BookingPage({
     const onlyDigits = val.replace(/[^0-9]/g, "").slice(0, config.digits);
     setClientPhone(onlyDigits);
   };
+  // Modal de Cancelación / Novedad Mutua
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelResult, setCancelResult] = useState<{ notifyUrl?: string; notifyMessage?: string } | null>(null);
 
   // Cargar datos previos de cliente frecuente guardados en el navegador
   useEffect(() => {
@@ -477,6 +491,8 @@ export default function BookingPage({
           clientPhone: finalPhone,
           clientEmail,
           clientNotes,
+          clientBirthday: clientBirthday.trim() || null,
+          referredBy: referredBy.trim() || null,
           appointmentType,
           clientAddress: appointmentType === "DOMICILIO" ? clientAddress : null,
           staffMemberId: selectedStaffMemberId || null,
@@ -509,6 +525,7 @@ export default function BookingPage({
           if (clientEmail) localStorage.setItem("turnoya_client_email", clientEmail);
           if (countryCode) localStorage.setItem("turnoya_client_country", countryCode);
           if (clientAddress) localStorage.setItem("turnoya_client_address", clientAddress);
+          if (clientBirthday) localStorage.setItem("turnoya_client_birthday", clientBirthday);
         }
       } catch (_) {}
 
@@ -518,6 +535,33 @@ export default function BookingPage({
       alert(err.message || "Error al procesar la reserva.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleClientCancel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const apptId = bookingSuccess?.appointment?.id;
+    if (!apptId) return;
+
+    try {
+      setCancelling(true);
+      const res = await fetch("/api/appointments/novedad", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appointmentId: apptId,
+          reason: cancelReason.trim() || "Imprevisto de última hora",
+          cancelledBy: "CLIENT",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se pudo reportar la novedad.");
+      setCancelResult(data);
+    } catch (err: any) {
+      alert(err.message || "Error al cancelar.");
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -1182,23 +1226,68 @@ export default function BookingPage({
                     </div>
 
                     {appointmentType === "DOMICILIO" && (
-                      <div>
-                        <label className="block text-xs font-semibold text-teal-950 mb-1">
-                          Dirección exacta / Ubicación del servicio *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="Ej. Calle 45 # 12-34 Apto 402, Envigado"
-                          value={clientAddress}
-                          onChange={(e) => setClientAddress(e.target.value)}
-                          className="w-full rounded-xl border border-teal-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        />
-                        <p className="mt-1 text-[11px] text-teal-700">
-                          La profesional se desplazará hasta esta dirección en el horario confirmado.
-                        </p>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-xs font-semibold text-teal-950 mb-1">
+                            Dirección exacta / Ubicación del servicio *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Ej. Calle 45 # 12-34 Apto 402, Envigado"
+                            value={clientAddress}
+                            onChange={(e) => setClientAddress(e.target.value)}
+                            className="w-full rounded-xl border border-teal-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          />
+                          <p className="mt-1 text-[11px] text-teal-700">
+                            La profesional se desplazará hasta esta dirección en el horario confirmado.
+                          </p>
+                        </div>
+
+                        {business.homeServiceFee && business.homeServiceFee > 0 ? (
+                          <div className="flex items-center justify-between text-xs bg-purple-100/80 text-purple-950 p-2.5 rounded-xl border border-purple-200 font-bold">
+                            <span>🛵 Recargo por servicio a domicilio:</span>
+                            <span>+{formatCurrency(business.homeServiceFee, business.currency)}</span>
+                          </div>
+                        ) : null}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* 🎂 CAMPO DE CUMPLEAÑOS (FIDELIZACIÓN) */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    🎂 Tu Fecha de Cumpleaños (Opcional - ¡Recibe sorpresas y regalos!)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Día y Mes (Ej. 18 de Mayo o 05-18)"
+                    value={clientBirthday}
+                    onChange={(e) => setClientBirthday(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                  <p className="mt-1 text-[11px] text-gray-400">
+                    Te enviaremos promociones exclusivas y felicitaciones en tu mes especial.
+                  </p>
+                </div>
+
+                {/* 🎁 PROGRAMA DE REFERIDOS */}
+                {business.referralProgramEnabled && (
+                  <div className="p-3.5 bg-pink-50/70 border border-pink-200 rounded-2xl space-y-1">
+                    <label className="block text-xs font-bold text-pink-950">
+                      🎁 ¿Quién te recomendó? (Nombre o WhatsApp de tu amiga/amigo)
+                    </label>
+                    {business.referralRewardText && (
+                      <p className="text-[11px] text-pink-800 font-medium">{business.referralRewardText}</p>
+                    )}
+                    <input
+                      type="text"
+                      placeholder="Ej. Laura Restrepo (310...)"
+                      value={referredBy}
+                      onChange={(e) => setReferredBy(e.target.value)}
+                      className="w-full rounded-xl border border-pink-300 bg-white px-3 py-2 text-xs text-gray-900 focus:border-pink-500 focus:outline-none"
+                    />
                   </div>
                 )}
 
@@ -1208,7 +1297,7 @@ export default function BookingPage({
                   </label>
                   <textarea
                     rows={2}
-                    placeholder="Ej. Prefiero máquina baja en los laterales..."
+                    placeholder="Ej. Esmaltes tonos pastel, cutícula sensible..."
                     value={clientNotes}
                     onChange={(e) => setClientNotes(e.target.value)}
                     className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
@@ -1241,6 +1330,27 @@ export default function BookingPage({
               <p className="mt-1 text-sm text-gray-500">
                 Hemos reservado tu lugar en {business.name}.
               </p>
+
+              {/* AVISO DE ANTICIPO PARA CLIENTES NUEVOS */}
+              {bookingSuccess?.depositRequired > 0 && (
+                <div className="my-5 p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-left space-y-2">
+                  <div className="flex items-center gap-2 text-amber-950 font-black text-sm">
+                    <span className="text-lg">🛡️</span>
+                    <span>Anticipo requerido para clientes nuevos</span>
+                  </div>
+                  <p className="text-xs text-amber-900 leading-relaxed">
+                    Para asegurar tu cupo y garantizar el tiempo de tu especialista, se requiere un anticipo de <strong>{formatCurrency(bookingSuccess.depositRequired, business.currency)}</strong> (se descontará del valor total del servicio).
+                  </p>
+                  {bookingSuccess.depositPaymentInfo && (
+                    <div className="p-3 bg-white rounded-xl border border-amber-200 text-xs text-amber-950 font-bold whitespace-pre-line">
+                      {bookingSuccess.depositPaymentInfo}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-amber-800">
+                    Por favor envía tu comprobante de pago por WhatsApp para dejar tu espacio 100% apartado.
+                  </p>
+                </div>
+              )}
 
               {/* TICKET DEL TURNO ASIGNADO */}
               <div className="my-5 p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-2 border-emerald-500/40 shadow-sm flex items-center justify-between">
@@ -1306,10 +1416,19 @@ export default function BookingPage({
                     <span className="font-semibold text-emerald-800 text-right">{clientAddress} (A Domicilio)</span>
                   </div>
                 )}
+                {bookingSuccess?.homeFee > 0 && (
+                  <div className="flex justify-between border-b pb-2 text-purple-700 font-bold">
+                    <span>Recargo a Domicilio:</span>
+                    <span>+{formatCurrency(bookingSuccess.homeFee, business.currency)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Total:</span>
-                  <span className="font-bold text-gray-900">
-                    {formatCurrency(selectedService?.price || 0, business.currency)}
+                  <span className="text-gray-500">Total a Pagar:</span>
+                  <span className="font-black text-gray-900 text-base">
+                    {formatCurrency(
+                      (selectedService?.price || 0) + (bookingSuccess?.homeFee || 0),
+                      business.currency
+                    )}
                   </span>
                 </div>
               </div>
@@ -1335,17 +1454,96 @@ export default function BookingPage({
                 <span>📺 Ver Pantalla de Turnos en Vivo</span>
               </Link>
 
+              {/* BOTÓN PARA REPORTAR NOVEDAD O CANCELAR CITA MUTUA */}
+              {!cancelResult ? (
+                <button
+                  type="button"
+                  onClick={() => setIsCancelModalOpen(true)}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition border border-rose-200 mb-3"
+                >
+                  <span>⚠️ ¿Te surgió un imprevisto? Reportar novedad / cancelar cita</span>
+                </button>
+              ) : (
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-left space-y-2 mb-3">
+                  <p className="text-xs font-bold text-rose-900">
+                    ✓ Cita cancelada en el sistema.
+                  </p>
+                  <p className="text-xs text-rose-700">
+                    Avisa al establecimiento para que conozcan tu novedad:
+                  </p>
+                  {cancelResult.notifyUrl && (
+                    <a
+                      href={cancelResult.notifyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow hover:bg-emerald-700"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      <span>Avisar a {business.name} por WhatsApp</span>
+                    </a>
+                  )}
+                </div>
+              )}
+
               <button
                 onClick={() => {
                   setStep(1);
                   setSelectedService(null);
                   setSelectedTime("");
                   setBookingSuccess(null);
+                  setCancelResult(null);
                 }}
                 className="mt-2 text-xs font-semibold text-gray-500 hover:text-gray-900 underline"
               >
                 Agendar otra cita
               </button>
+            </div>
+          )}
+
+          {/* MODAL CANCELACIÓN POR PARTE DEL CLIENTE */}
+          {isCancelModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+              <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-gray-100 text-left">
+                <h3 className="font-extrabold text-base text-gray-900 mb-1">
+                  Reportar Novedad o Cancelar Turno
+                </h3>
+                <p className="text-xs text-gray-500 mb-4">
+                  Liberaremos tu turno para que otra persona pueda ser atendida y le avisaremos a {business.name}.
+                </p>
+
+                <form onSubmit={handleClientCancel} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      ¿Por qué necesitas cancelar o reprogramar?
+                    </label>
+                    <textarea
+                      required
+                      rows={3}
+                      placeholder="Ej. Me surgió una reunión de trabajo / Deseo aplazarlo para el fin de semana..."
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      className="w-full rounded-xl border border-gray-300 p-3 text-xs text-gray-900 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsCancelModalOpen(false)}
+                      className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-xl"
+                    >
+                      Volver
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={cancelling}
+                      className="px-5 py-2 text-xs font-bold bg-rose-600 text-white rounded-xl hover:bg-rose-700 shadow-md transition disabled:opacity-50"
+                    >
+                      {cancelling ? "Cancelando..." : "Confirmar Cancelación"}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
         </div>
