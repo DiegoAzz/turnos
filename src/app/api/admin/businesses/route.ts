@@ -180,102 +180,59 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 3. Crear servicios pre-configurados según el rubro de trabajo
-    let initialServices: Array<{
-      name: string;
-      description: string;
-      durationMinutes: number;
-      price: number;
-    }> = [];
+        // 3. Servicios: por defecto la cuenta se crea con 0 servicios para asignación con checsitos
+    if (body.autoCreateServices) {
+      let initialServices: Array<{
+        name: string;
+        description: string;
+        durationMinutes: number;
+        price: number;
+      }> = [];
 
-    if (category === "MANICURA_SPA") {
-      // Manicuristas: tiempos más largos (45 a 120 min) y servicios especializados
-      initialServices = [
-        {
-          name: "Semipermanente en Manos (Diseño & Ruso)",
-          description: "Limpieza profunda de cutícula, nivelación y esmaltado semipermanente de alta duración.",
-          durationMinutes: 90,
-          price: currency === "USD" ? 15.0 : 45000,
-        },
-        {
-          name: "Uñas Acrílicas / Polygel Esculpidas",
-          description: "Extensión completa, esculpido estructural y esmaltado.",
-          durationMinutes: 120,
-          price: currency === "USD" ? 25.0 : 80000,
-        },
-        {
-          name: "Pedicura Spa & Exfoliación Relajante",
-          description: "Limpieza profunda, arreglo de uñas, exfoliación e hidratación intensiva.",
-          durationMinutes: 60,
-          price: currency === "USD" ? 12.0 : 35000,
-        },
-        {
-          name: "Manicura Tradicional Express",
-          description: "Limpieza rápida y esmaltado tradicional.",
-          durationMinutes: 45,
-          price: currency === "USD" ? 8.0 : 25000,
-        },
-      ];
-    } else if (category === "BARBERIA") {
-      // Barberos: turnos dinámicos de 20 a 45 minutos
-      initialServices = [
-        {
-          name: "Corte Clásico / Fade Degradado",
-          description: "Corte moderno o clásico con asesoría de imagen y peinado.",
-          durationMinutes: 30,
-          price: currency === "USD" ? 8.0 : 20000,
-        },
-        {
-          name: "Corte + Ritual de Barba con Toalla Caliente",
-          description: "Corte completo y perfilado de barba con aceite hidratante y toalla caliente.",
-          durationMinutes: 45,
-          price: currency === "USD" ? 12.0 : 35000,
-        },
-        {
-          name: "Perfilado de Barba & Cejas",
-          description: "Marcación a navaja, exfoliación suave y acabado limpio.",
-          durationMinutes: 20,
-          price: currency === "USD" ? 5.0 : 15000,
-        },
-      ];
-    } else if (category === "LAVADERO") {
-      // Lavaderos: turnos de 45 a 90 minutos
-      initialServices = [
-        {
-          name: "Lavado General + Aspirado Express",
-          description: "Lavado exterior a presión con hidrófobo y aspirado de piso y asientos.",
-          durationMinutes: 45,
-          price: currency === "USD" ? 10.0 : 25000,
-        },
-        {
-          name: "Lavado Especial + Encerado + Detailing",
-          description: "Limpieza profunda de cojinería, encerado a máquina y brillo en llantas y rines.",
-          durationMinutes: 90,
-          price: currency === "USD" ? 22.0 : 65000,
-        },
-      ];
-    } else {
-      initialServices = [
-        {
-          name: "Servicio General / Consulta",
-          description: "Servicio predeterminado listo para personalizar.",
-          durationMinutes: 45,
-          price: currency === "USD" ? 15.0 : 35000,
-        },
-      ];
-    }
+      if (category === "MANICURA_SPA") {
+        initialServices = [
+          {
+            name: "Semipermanente en Manos (Diseño & Ruso)",
+            description: "Limpieza profunda de cutícula, nivelación y esmaltado semipermanente.",
+            durationMinutes: 90,
+            price: currency === "USD" ? 15.0 : 45000,
+          },
+          {
+            name: "Pedicura Spa & Exfoliación Relajante",
+            description: "Limpieza profunda, arreglo de uñas, exfoliación e hidratación intensiva.",
+            durationMinutes: 60,
+            price: currency === "USD" ? 12.0 : 35000,
+          },
+        ];
+      } else if (category === "BARBERIA") {
+        initialServices = [
+          {
+            name: "Corte Clásico / Fade Degradado",
+            description: "Corte moderno o clásico con asesoría de imagen.",
+            durationMinutes: 30,
+            price: currency === "USD" ? 8.0 : 20000,
+          },
+          {
+            name: "Corte + Ritual de Barba con Toalla Caliente",
+            description: "Corte completo y perfilado de barba con aceite y toalla caliente.",
+            durationMinutes: 45,
+            price: currency === "USD" ? 12.0 : 35000,
+          },
+        ];
+      }
 
-    for (const s of initialServices) {
-      await prisma.service.create({
-        data: {
-          businessId: business.id,
-          name: s.name,
-          description: s.description,
-          durationMinutes: s.durationMinutes,
-          price: s.price,
-          active: true,
-        },
-      });
+      for (const s of initialServices) {
+        await prisma.service.create({
+          data: {
+            businessId: business.id,
+            name: s.name,
+            description: s.description,
+            durationMinutes: s.durationMinutes,
+            price: s.price,
+            active: true,
+          },
+        });
+      }
     }
 
     return NextResponse.json({

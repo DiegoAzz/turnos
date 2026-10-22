@@ -160,17 +160,8 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // Crear servicio inicial de bienvenida
-      await prisma.service.create({
-        data: {
-          businessId: business.id,
-          name: "Servicio Inicial",
-          description: "Servicio de bienvenida creado automáticamente",
-          durationMinutes: 30,
-          price: 15,
-          active: true,
-        },
-      });
+      // Por regla de negocio SaaS: Cuentas nuevas inician con CERO (0) servicios.
+      // El Super Administrador es quien le asigna y activa los servicios autorizados con checsitos.
     }
 
     if (!business.active) {

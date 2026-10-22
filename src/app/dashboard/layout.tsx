@@ -21,6 +21,7 @@ import { prisma } from "@/lib/prisma";
 import BusinessSwitcher from "@/components/BusinessSwitcher";
 import DashboardSidebarNav from "@/components/DashboardSidebarNav";
 import DashboardLogoutButton from "@/components/DashboardLogoutButton";
+import ClientAwaitingServicesScreen from "@/components/ClientAwaitingServicesScreen";
 import { getVerifiedBusinessSlug, verifyAdminSession } from "@/lib/auth-security";
 
 export const dynamic = "force-dynamic";
@@ -102,6 +103,18 @@ export default async function DashboardLayout({
 
   const isSuperAdmin = business.plan === "SUPERADMIN" || isAdmin;
   const isPro = business.plan === "PRO" || isSuperAdmin;
+
+  // REGLA SAAS: Si el cliente NO es Super Admin y tiene CERO (0) servicios asignados,
+  // no ve nada de su dashboard habitual hasta que el Super Administrador le asigne sus servicios con checsitos.
+  if (!isSuperAdmin) {
+    const servicesCount = await prisma.service.count({
+      where: { businessId: business.id },
+    });
+
+    if (servicesCount === 0) {
+      return <ClientAwaitingServicesScreen business={business} />;
+    }
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">

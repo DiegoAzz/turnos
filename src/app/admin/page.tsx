@@ -28,6 +28,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import AdminPartnersManager from "@/components/AdminPartnersManager";
 import AdminPaymentSettings from "@/components/AdminPaymentSettings";
+import AdminServiceAssignModal from "@/components/AdminServiceAssignModal";
 
 interface BusinessAdmin {
   id: string;
@@ -53,6 +54,7 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [assigningBusiness, setAssigningBusiness] = useState<BusinessAdmin | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"BUSINESSES" | "PARTNERS" | "PAYMENTS">("BUSINESSES");
 
@@ -526,6 +528,29 @@ export default function AdminDashboardPage() {
                             <ExternalLink className="h-3 w-3" />
                           </Link>
                         </div>
+
+                        {/* ESTADO DE SERVICIOS / CHECSITOS */}
+                        <div className="mt-1.5">
+                          {b.totalServicios === 0 ? (
+                            <button
+                              onClick={() => setAssigningBusiness(b)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black bg-amber-400 hover:bg-amber-300 text-slate-950 animate-pulse shadow-md transition"
+                              title="Cuenta sin servicios. Clic para asignar servicios con checsitos y desbloquear el panel"
+                            >
+                              <Sparkles className="h-3 w-3" />
+                              <span>⚠️ 0 Servicios — ¡Asignar Checsitos!</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setAssigningBusiness(b)}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition"
+                              title="Ver o editar servicios asignados con checsitos"
+                            >
+                              <CheckCircle className="h-3 w-3" />
+                              <span>✓ {b.totalServicios} servicios asignados</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* Contacto */}
@@ -610,9 +635,18 @@ export default function AdminDashboardPage() {
                       <td className="py-4 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
+                            onClick={() => setAssigningBusiness(b)}
+                            className="bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black px-2.5 py-1.5 rounded-lg text-xs shadow-md flex items-center gap-1 transition"
+                            title="Asignar y activar servicios con checsitos [✓] a este negocio"
+                          >
+                            <Sparkles className="h-3.5 w-3.5" />
+                            <span>Checsitos</span>
+                          </button>
+
+                          <button
                             onClick={() => handleAccessSuperControl(b.slug)}
-                            className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black px-2.5 py-1.5 rounded-lg text-xs shadow-sm flex items-center gap-1 transition"
-                            title="Entrar al Super Control Maestro (Servicios con checsitos y asignación express de turnos)"
+                            className="bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-bold px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1 transition"
+                            title="Entrar al Super Control Maestro (Servicios por barbero y asignación express)"
                           >
                             <Crown className="h-3 w-3" />
                             <span>Control</span>
@@ -651,6 +685,23 @@ export default function AdminDashboardPage() {
           <AdminPaymentSettings />
         )}
       </main>
+
+      {/* MODAL ASIGNAR SERVICIOS CON CHECSITOS */}
+      {assigningBusiness && (
+        <AdminServiceAssignModal
+          business={assigningBusiness}
+          onClose={() => setAssigningBusiness(null)}
+          onSuccess={(updatedCount) => {
+            setBusinesses((prev) =>
+              prev.map((b) =>
+                b.id === assigningBusiness.id
+                  ? { ...b, totalServicios: updatedCount }
+                  : b
+              )
+            );
+          }}
+        />
+      )}
 
       {/* MODAL PARA DAR DE ALTA NUEVA EMPRESA */}
       {isModalOpen && (

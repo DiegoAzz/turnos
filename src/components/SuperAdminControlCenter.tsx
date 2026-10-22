@@ -63,7 +63,7 @@ interface SuperAdminControlCenterProps {
 export default function SuperAdminControlCenter({
   business,
 }: SuperAdminControlCenterProps) {
-  const [activeTab, setActiveTab] = useState<"SERVICES_MATRIX" | "QUICK_ASSIGN" | "BUSINESS_CONTROLS">("SERVICES_MATRIX");
+  const [activeTab, setActiveTab] = useState<"BUSINESS_SERVICES" | "SERVICES_MATRIX" | "QUICK_ASSIGN" | "BUSINESS_CONTROLS">("BUSINESS_SERVICES");
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savingAll, setSavingAll] = useState(false);
@@ -75,6 +75,16 @@ export default function SuperAdminControlCenter({
   const [staff, setStaff] = useState<StaffMember[]>([]);
   // Matriz de permisos en memoria: { [staffId]: string[] | null }
   const [staffPermissions, setStaffPermissions] = useState<{ [staffId: string]: string[] | null }>({});
+
+  // Asignación de servicios al negocio (Checsitos de arranque)
+  const [presetCatalog, setPresetCatalog] = useState<any[]>([]);
+  const [selectedPresets, setSelectedPresets] = useState<Record<string, boolean>>({});
+  const [editablePrices, setEditablePrices] = useState<Record<string, number>>({});
+  const [editableDurations, setEditableDurations] = useState<Record<string, number>>({});
+  const [assigningBizServices, setAssigningBizServices] = useState(false);
+  const [customBizName, setCustomBizName] = useState("");
+  const [customBizDuration, setCustomBizDuration] = useState(30);
+  const [customBizPrice, setCustomBizPrice] = useState(business.currency === "USD" ? 10 : 25000);
 
   // Turnos en vivo para asignación express
   const [turns, setTurns] = useState<QueueTurn[]>([]);
@@ -130,7 +140,106 @@ export default function SuperAdminControlCenter({
 
   useEffect(() => {
     loadData();
+    loadPresetCatalog();
   }, [business.id, business.slug]);
+
+  const loadPresetCatalog = async () => {
+    try {
+      const res = await fetch(`/api/admin/services/assign?businessId=${business.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPresetCatalog(data.presetCatalog || []);
+
+        const initialSelected: Record<string, boolean> = {};
+        const initialPrices: Record<string, number> = {};
+        const initialDurations: Record<string, number> = {};
+
+        (data.presetCatalog || []).forEach((p: any) => {
+          initialPrices[p.name] = p.price;
+          initialDurations[p.name] = p.durationMinutes;
+          if (!p.alreadyExists && (services.length === 0 || data.currentServices?.length === 0)) {
+            initialSelected[p.name] = true;
+          } else {
+            initialSelected[p.name] = false;
+          }
+        });
+
+        setSelectedPresets(initialSelected);
+        setEditablePrices(initialPrices);
+        setEditableDurations(initialDurations);
+      }
+    } catch (err) {
+      console.error("Error al cargar presets de servicios:", err);
+    }
+  };
+
+  const handleAssignBusinessServices = async () => {
+    const toAssign: any[] = [];
+    presetCatalog.forEach((p) => {
+      if (selectedPresets[p.name]) {
+        toAssign.push({
+          name: p.name,
+          description: p.description,
+          durationMinutes: editableDurations[p.name] || p.durationMinutes,
+          price: editablePrices[p.name] !== undefined ? editablePrices[p.name] : p.price,
+        });
+      }
+    });
+
+    if (customBizName.trim()) {
+      toAssign.push({
+        name: customBizName.trim(),
+        description: "Servicio asignado por Super Admin",
+        durationMinutes: customBizDuration,
+        price: customBizPrice,
+      });
+    }
+
+    if (toAssign.length === 0) {
+      showNotification("Por favor marca al menos un servicio con checsito [✓] para asignarle a este negocio.", true);
+      return;
+    }
+
+    try {
+      setAssigningBizServices(true);
+      const res = await fetch("/api/admin/services/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId: business.id,
+          servicesToAssign: toAssign,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al asignar servicios");
+
+      showNotification(`🎉 ¡${toAssign.length} servicios asignados con éxito! El panel del cliente ha sido desbloqueado.`);
+      setCustomBizName("");
+      await loadData();
+      await loadPresetCatalog();
+    } catch (err: any) {
+      showNotification(err.message || "Error al guardar servicios", true);
+    } finally {
+      setAssigningBizServices(false);
+    }
+  };
+
+  const handleDeleteBusinessService = async (serviceId: string) => {
+    if (!confirm("¿Eliminar este servicio del negocio?")) return;
+    try {
+      const res = await fetch(`/api/admin/services/assign?serviceId=${serviceId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        showNotification("✓ Servicio eliminado.");
+        await loadData();
+        await loadPresetCatalog();
+      }
+    } catch {
+      showNotification("Error al eliminar servicio", true);
+    }
+  };
 
   const showNotification = (msg: string, isError = false) => {
     if (isError) {
@@ -564,6 +673,27 @@ export default function SuperAdminControlCenter({
         {/* TABS NAVEGACIÓN */}
         <div className="mt-6 flex items-center gap-2 border-t border-white/10 pt-4 overflow-x-auto">
           <button
+            onClick={() => setActiveTab("BUSINESS_SERVICES")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
+              activeTab === "BUSINESS_SERVICES"
+                ? "bg-amber-500 text-slate-950 shadow-md font-black"
+                : "bg-white/5 text-gray-300 hover:bg-white/10"
+            }`}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>📦 1. Asignar Servicios a la Empresa</span>
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                services.length === 0
+                  ? "bg-red-500 text-white animate-pulse"
+                  : "bg-black/20 text-gray-300"
+              }`}
+            >
+              {services.length} Servicios
+            </span>
+          </button>
+
+          <button
             onClick={() => setActiveTab("SERVICES_MATRIX")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
               activeTab === "SERVICES_MATRIX"
@@ -571,7 +701,7 @@ export default function SuperAdminControlCenter({
                 : "bg-white/5 text-gray-300 hover:bg-white/10"
             }`}
           >
-            <span>☑️ Habilitar Servicios por Personal (Checsitos)</span>
+            <span>☑️ 2. Servicios por Barbero (Checsitos)</span>
             <span className="text-[10px] bg-black/20 px-2 py-0.5 rounded-full">
               {staff.length} Personas
             </span>
@@ -586,7 +716,7 @@ export default function SuperAdminControlCenter({
             }`}
           >
             <Zap className="h-3.5 w-3.5 text-amber-900" />
-            <span>⚡ Asignar Turno y Ya (1 Clic)</span>
+            <span>⚡ 3. Asignar Turno en Vivo (1 Clic)</span>
             <span className="text-[10px] bg-black/20 px-2 py-0.5 rounded-full">
               {turns.length} Turnos
             </span>
@@ -605,6 +735,249 @@ export default function SuperAdminControlCenter({
           </button>
         </div>
       </div>
+
+      {/* PESTAÑA 0: ASIGNAR SERVICIOS A LA EMPRESA (CHECSITOS) */}
+      {activeTab === "BUSINESS_SERVICES" && (
+        <div className="space-y-6">
+          {/* BANNER DE ESTADO */}
+          {services.length === 0 ? (
+            <div className="bg-amber-500/10 border-2 border-amber-500/50 p-5 rounded-3xl flex items-start gap-4 text-amber-950 shadow-md">
+              <AlertCircle className="h-7 w-7 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-base font-black text-amber-900">
+                  ⚠️ Esta empresa tiene CERO (0) servicios asignados
+                </h3>
+                <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                  El cliente cuando entra a su panel ve la pantalla de <strong>"Cuenta en Configuración"</strong> con el panel bloqueado.
+                  Marca los checsitos <span className="font-bold">[✓]</span> abajo con los servicios autorizados y haz clic en <strong>"Habilitar Servicios Seleccionados"</strong> para desbloquearlo de inmediato.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex items-center justify-between text-xs text-emerald-900">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>
+                  <strong>Panel Desbloqueado:</strong> Este negocio tiene <strong>{services.length} servicios activos</strong>.
+                </span>
+              </div>
+              <span className="font-bold bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full">
+                ✓ Operativo
+              </span>
+            </div>
+          )}
+
+          {/* LISTA DE SERVICIOS ACTUALES */}
+          {services.length > 0 && (
+            <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-3">
+              <h3 className="font-black text-sm text-gray-900 uppercase tracking-wider flex items-center justify-between">
+                <span>Servicios ya Habilitados en este Negocio ({services.length})</span>
+                <span className="text-xs font-normal text-gray-400">Clic en basura para remover</span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {services.map((s) => (
+                  <div
+                    key={s.id}
+                    className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-between text-xs hover:border-gray-300 transition"
+                  >
+                    <div className="min-w-0 pr-2">
+                      <p className="font-bold text-gray-900 truncate">{s.name}</p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        ⏱️ {s.durationMinutes} min • 💰 {formatCurrency(s.price, business.currency)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteBusinessService(s.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition shrink-0"
+                      title="Eliminar este servicio"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* CATÁLOGO DE CHECSITOS RECOMENDADOS SEGÚN RUBRO */}
+          <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+              <div>
+                <h3 className="font-black text-base text-gray-900 flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-amber-500" />
+                  <span>Catálogo de Servicios para Asignar con Checsitos [✓]</span>
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Marca los servicios que deseas habilitarle a este negocio ({business.category}). Puedes editar el tiempo y precio directamente en las casillas.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next: Record<string, boolean> = {};
+                    presetCatalog.forEach((p) => {
+                      next[p.name] = true;
+                    });
+                    setSelectedPresets(next);
+                  }}
+                  className="px-2.5 py-1 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg font-bold transition"
+                >
+                  Marcar Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next: Record<string, boolean> = {};
+                    presetCatalog.forEach((p) => {
+                      next[p.name] = false;
+                    });
+                    setSelectedPresets(next);
+                  }}
+                  className="px-2.5 py-1 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                >
+                  Desmarcar Todos
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              {presetCatalog.map((preset: any) => {
+                const isChecked = Boolean(selectedPresets[preset.name]);
+                const exists = preset.alreadyExists;
+
+                return (
+                  <div
+                    key={preset.name}
+                    onClick={() => {
+                      setSelectedPresets((prev) => ({
+                        ...prev,
+                        [preset.name]: !prev[preset.name],
+                      }));
+                    }}
+                    className={`p-4 rounded-2xl border transition cursor-pointer select-none flex items-start gap-4 ${
+                      isChecked
+                        ? "bg-amber-50/60 border-amber-400 shadow-sm"
+                        : exists
+                        ? "bg-gray-50 border-gray-200 opacity-60"
+                        : "bg-white border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    {/* CHECSITO VISIBLE Y GRANDE */}
+                    <div
+                      className={`h-6 w-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition ${
+                        isChecked
+                          ? "bg-amber-500 text-slate-950 font-black shadow-sm"
+                          : "border-2 border-gray-300 bg-white"
+                      }`}
+                    >
+                      {isChecked && <Check className="h-4 w-4 stroke-[3]" />}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="font-extrabold text-sm text-gray-900">{preset.name}</span>
+                        {exists && (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                            ✓ Ya está activo
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">{preset.description}</p>
+
+                      <div
+                        className="mt-2.5 flex items-center gap-3 text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center gap-1.5 bg-gray-100 rounded-lg px-2.5 py-1 border border-gray-200">
+                          <Clock className="h-3.5 w-3.5 text-gray-500" />
+                          <input
+                            type="number"
+                            min={5}
+                            step={5}
+                            value={editableDurations[preset.name] ?? preset.durationMinutes}
+                            onChange={(e) =>
+                              setEditableDurations((prev) => ({
+                                ...prev,
+                                [preset.name]: parseInt(e.target.value, 10) || 30,
+                              }))
+                            }
+                            className="w-12 bg-transparent text-gray-900 font-mono font-bold focus:outline-none"
+                          />
+                          <span className="text-gray-500 text-[11px]">min</span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 bg-gray-100 rounded-lg px-2.5 py-1 border border-gray-200">
+                          <span className="text-gray-500 font-bold">$</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={editablePrices[preset.name] ?? preset.price}
+                            onChange={(e) =>
+                              setEditablePrices((prev) => ({
+                                ...prev,
+                                [preset.name]: parseFloat(e.target.value) || 0,
+                              }))
+                            }
+                            className="w-20 bg-transparent text-gray-900 font-mono font-bold focus:outline-none"
+                          />
+                          <span className="text-gray-500 text-[11px]">{business.currency}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* SERVICIO PERSONALIZADO EXTRA */}
+            <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-3">
+              <h4 className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                <Plus className="h-4 w-4 text-emerald-600" />
+                <span>¿Deseas agregar otro servicio personalizado adicional?</span>
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <div className="sm:col-span-2">
+                  <input
+                    type="text"
+                    placeholder="Nombre del servicio (ej. Tratamiento Especial)"
+                    value={customBizName}
+                    onChange={(e) => setCustomBizName(e.target.value)}
+                    className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-gray-900 text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="number"
+                    placeholder="Precio"
+                    value={customBizPrice}
+                    onChange={(e) => setCustomBizPrice(parseFloat(e.target.value) || 0)}
+                    className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-gray-900 text-xs font-mono font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* BOTÓN MAESTRO DE HABILITACIÓN */}
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={handleAssignBusinessServices}
+                disabled={assigningBizServices}
+                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/30 flex items-center gap-2 transition active:scale-[0.98] disabled:opacity-50"
+              >
+                <Sparkles className="h-4 w-4" />
+                <span>
+                  {assigningBizServices
+                    ? "Habilitando servicios..."
+                    : "⚡ Habilitar Servicios Seleccionados a este Negocio"}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PESTAÑA 1: MATRIZ DE SERVICIOS POR PERSONAL CON CHECSITOS */}
       {activeTab === "SERVICES_MATRIX" && (
