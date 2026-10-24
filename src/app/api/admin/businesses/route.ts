@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAdminSession as verifyAdmin } from "@/lib/auth-security";
+import { getTrialStatus } from "@/lib/business-plan";
+import { getPlatformSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +40,8 @@ export async function GET() {
         0
       );
 
+      const trialInfo = getTrialStatus(b);
+
       return {
         id: b.id,
         name: b.name,
@@ -52,6 +56,12 @@ export async function GET() {
         active: b.active,
         adminPin: b.adminPin,
         createdAt: b.createdAt,
+        trialEndsAt: b.trialEndsAt,
+        isPro: trialInfo.isPro,
+        isTrialActive: trialInfo.isTrialActive,
+        isTrialExpired: trialInfo.isTrialExpired,
+        trialDaysLeft: trialInfo.trialDaysLeft,
+        planLabel: trialInfo.planLabel,
         totalCitas: b._count.appointments,
         totalServicios: b._count.services,
         totalIngresos,
@@ -133,7 +143,11 @@ export async function POST(req: NextRequest) {
       if (p) finalPartnerId = p.id;
     }
 
-    // 1. Crear el negocio con su rubro y modalidad
+    const settings = await getPlatformSettings();
+    const trialDays = typeof body.trialDays === "number" ? body.trialDays : (settings.defaultTrialDays ?? 7);
+    const trialEndsAt = trialDays > 0 ? new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000) : null;
+
+    // 1. Crear el negocio con su rubro, modalidad y período de prueba
     const business = await prisma.business.create({
       data: {
         name,
@@ -147,6 +161,7 @@ export async function POST(req: NextRequest) {
         active: true,
         adminPin: adminPin || "1234",
         partnerId: finalPartnerId,
+        trialEndsAt,
       },
     });
 
@@ -278,6 +293,14 @@ export async function PATCH(req: NextRequest) {
     if (adminPin) dataToUpdate.adminPin = adminPin;
     if (name) dataToUpdate.name = name;
     if (phone !== undefined) dataToUpdate.phone = phone;
+
+    if (typeof body.trialDays === "number") {
+      dataToUpdate.trialEndsAt = body.trialDays > 0
+        ? new Date(Date.now() + body.trialDays * 24 * 60 * 60 * 1000)
+        : null;
+    } else if (body.trialEndsAt !== undefined) {
+      dataToUpdate.trialEndsAt = body.trialEndsAt ? new Date(body.trialEndsAt) : null;
+    }
 
     const updated = await prisma.business.update({
       where: { id },

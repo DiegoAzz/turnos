@@ -30,6 +30,7 @@ export async function GET() {
       defaultFranchiseEntryFeeCOP: settings.defaultFranchiseEntryFeeCOP ?? 400000,
       defaultFranchiseFeeUSD: settings.defaultFranchiseFeeUSD ?? 29,
       defaultFranchiseFeeCOP: settings.defaultFranchiseFeeCOP ?? 100000,
+      defaultTrialDays: settings.defaultTrialDays ?? 7,
       hasWompiConfigured: Boolean(settings.wompiPublicKey && settings.wompiPublicKey.trim()),
     });
   } catch (error) {
@@ -99,6 +100,7 @@ export async function PATCH(req: NextRequest) {
     if (typeof body.defaultFranchiseEntryFeeCOP === "number") dataToUpdate.defaultFranchiseEntryFeeCOP = body.defaultFranchiseEntryFeeCOP;
     if (typeof body.defaultFranchiseFeeUSD === "number") dataToUpdate.defaultFranchiseFeeUSD = body.defaultFranchiseFeeUSD;
     if (typeof body.defaultFranchiseFeeCOP === "number") dataToUpdate.defaultFranchiseFeeCOP = body.defaultFranchiseFeeCOP;
+    if (typeof body.defaultTrialDays === "number") dataToUpdate.defaultTrialDays = Math.max(0, body.defaultTrialDays);
 
     const updated = await prisma.platformSettings.upsert({
       where: { id: "global" },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { setBusinessSessionCookie, clearAdminSessionCookie } from "@/lib/auth-security";
+import { getPlatformSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -124,6 +125,10 @@ export async function POST(req: NextRequest) {
         newSlug = `${cleanBase}-${Date.now().toString().slice(-4)}`;
       }
 
+      const settings = await getPlatformSettings();
+      const trialDays = settings.defaultTrialDays ?? 7;
+      const trialEndsAt = trialDays > 0 ? new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000) : null;
+
       business = await prisma.business.create({
         data: {
           name: `${baseName} (Turnos)`,
@@ -132,6 +137,7 @@ export async function POST(req: NextRequest) {
           logoUrl: userPicture || null,
           currency: "COP",
           plan: "FREE",
+          trialEndsAt,
           active: true,
           adminPin: "1234",
           category: "PENDIENTE",

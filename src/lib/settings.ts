@@ -26,6 +26,7 @@ export async function getPlatformSettings() {
         defaultFranchiseEntryFeeCOP: 400000,
         defaultFranchiseFeeUSD: 29,
         defaultFranchiseFeeCOP: 100000,
+        defaultTrialDays: 7,
       },
     });
   }

@@ -23,6 +23,7 @@ import DashboardSidebarNav from "@/components/DashboardSidebarNav";
 import DashboardLogoutButton from "@/components/DashboardLogoutButton";
 import ClientAwaitingServicesScreen from "@/components/ClientAwaitingServicesScreen";
 import { getVerifiedBusinessSlug, verifyAdminSession } from "@/lib/auth-security";
+import { isBusinessPro, getTrialStatus } from "@/lib/business-plan";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export default async function DashboardLayout({
   const allBusinesses = isAdmin
     ? await prisma.business.findMany({
         orderBy: { createdAt: "asc" },
-        select: { id: true, name: true, slug: true, plan: true, category: true, active: true, stripeCurrentPeriodEnd: true },
+select: { id: true, name: true, slug: true, plan: true, category: true, active: true, stripeCurrentPeriodEnd: true, trialEndsAt: true },
       })
     : [];
 
@@ -101,8 +102,9 @@ export default async function DashboardLayout({
     );
   }
 
+  const trialInfo = getTrialStatus(business);
   const isSuperAdmin = business.plan === "SUPERADMIN" || isAdmin;
-  const isPro = business.plan === "PRO" || isSuperAdmin;
+  const isPro = trialInfo.isPro || isSuperAdmin;
 
   // REGLA SAAS: Si el cliente NO es Super Admin y tiene CERO (0) servicios asignados,
   // no ve nada de su dashboard habitual hasta que el Super Administrador le asigne sus servicios con checsitos.
@@ -188,6 +190,42 @@ export default async function DashboardLayout({
             </span>
           </div>
         </header>
+
+        {/* BANNER INFORMATIVO DE PRUEBA GRATUITA / VENCIDA */}
+        {trialInfo.isTrialActive && (
+          <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white px-6 py-2.5 text-xs flex flex-wrap items-center justify-between gap-3 shadow-inner">
+            <div className="flex items-center gap-2">
+              <span className="text-base">⭐</span>
+              <span>
+                <strong>Prueba Gratuita PRO Activa:</strong> Te quedan{" "}
+                <strong className="underline underline-offset-2">{trialInfo.trialDaysLeft} día(s)</strong> con acceso total a todos los beneficios (Múltiples Barberos, Smart TV, Productos y Comisiones).
+              </span>
+            </div>
+            <Link
+              href="/dashboard/suscripcion"
+              className="px-3 py-1 rounded-lg bg-white text-emerald-800 font-bold hover:bg-emerald-50 transition shadow-sm shrink-0"
+            >
+              Activar Plan PRO →
+            </Link>
+          </div>
+        )}
+
+        {trialInfo.isTrialExpired && (
+          <div className="bg-amber-500 text-slate-950 px-6 py-2.5 text-xs flex flex-wrap items-center justify-between gap-3 border-b border-amber-600">
+            <div className="flex items-center gap-2">
+              <span className="text-base">🔒</span>
+              <span>
+                <strong>Tu período de prueba ha finalizado:</strong> Actualmente estás en el <strong>Plan FREE (1 solo barbero / funciones básicas)</strong>. Activa el Plan PRO para volver a disfrutar de múltiples barberos, pantallas Smart TV y comisiones de equipo.
+              </span>
+            </div>
+            <Link
+              href="/dashboard/suscripcion"
+              className="px-3 py-1 rounded-lg bg-slate-900 text-white font-bold hover:bg-slate-800 transition shadow-sm shrink-0"
+            >
+              Actualizar a PRO →
+            </Link>
+          </div>
+        )}
 
         <main className="flex-1 p-6 lg:p-8 max-w-7xl w-full mx-auto">{children}</main>
       </div>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isBusinessPro } from "@/lib/business-plan";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,22 @@ export async function PATCH(req: NextRequest) {
       dataToUpdate.serviceModality = body.serviceModality.trim();
     }
     if (typeof body.multiBarberEnabled === "boolean") {
+      if (body.multiBarberEnabled) {
+        const businessRecord = await prisma.business.findUnique({
+          where: { id: businessId },
+          select: { plan: true, stripeCurrentPeriodEnd: true, trialEndsAt: true },
+        });
+
+        if (!isBusinessPro(businessRecord)) {
+          return NextResponse.json(
+            {
+              error: "El módulo Multi-Barbero requiere el Plan PRO o un período de prueba activo. Tu plan actual es FREE o tu prueba ha vencido.",
+              requiresPro: true,
+            },
+            { status: 403 }
+          );
+        }
+      }
       dataToUpdate.multiBarberEnabled = body.multiBarberEnabled;
     }
     if (body.homeServiceFee !== undefined) {

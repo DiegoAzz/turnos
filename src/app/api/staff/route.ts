@@ -4,6 +4,9 @@ import { getCurrentBusiness } from "@/lib/current-business";
 import { getTodayUtcRange } from "@/lib/date-utils";
 import { parseStaffServices, encodeStaffServices } from "@/lib/staff-service-permissions";
 
+import { isBusinessPro, getTrialStatus } from "@/lib/business-plan";
+
+
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
@@ -134,6 +137,8 @@ export async function GET(req: NextRequest) {
             slug: currentBusiness.slug,
             currency: currentBusiness.currency,
             multiBarberEnabled: currentBusiness.multiBarberEnabled,
+            isPro: isBusinessPro(currentBusiness),
+            trial: getTrialStatus(currentBusiness),
           }
         : null,
       staff: enrichedStaff,
@@ -152,6 +157,28 @@ export async function POST(req: NextRequest) {
 
     if (!targetBusinessId) {
       return NextResponse.json({ error: "No autorizado o negocio no encontrado" }, { status: 401 });
+    }
+
+    // Comprobar si el negocio tiene Plan PRO o Período de Prueba activo para registrar más de 1 barbero
+    const businessRecord = await prisma.business.findUnique({
+      where: { id: targetBusinessId },
+      select: { plan: true, stripeCurrentPeriodEnd: true, trialEndsAt: true },
+    });
+
+    const isPro = isBusinessPro(businessRecord);
+    if (!isPro) {
+      const activeStaffCount = await prisma.staffMember.count({
+        where: { businessId: targetBusinessId, active: true },
+      });
+      if (activeStaffCount >= 1) {
+        return NextResponse.json(
+          {
+            error: "El Plan FREE permite únicamente 1 barbero/silla. Para registrar barberos adicionales, comisiones individuales y turnero multi-silla, activa el Plan PRO o solicita una extensión de tu prueba.",
+            requiresPro: true,
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const { name, phone, email, pin, commissionRate, chairNumber, chairLabel } = body;

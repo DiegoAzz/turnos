@@ -118,7 +118,13 @@ export default function StaffManagementPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "No se pudo actualizar");
+      if (!res.ok) {
+        if (data.requiresPro) {
+          alert("🔒 El módulo Multi-Barbero requiere el Plan PRO o un período de prueba activo.\n\nPara desbloquear múltiples sillas simultáneas, pantallas Smart TV y comisiones por barbero, actualiza tu plan en Suscripción & Plan.");
+          return;
+        }
+        throw new Error(data.error || "No se pudo actualizar");
+      }
       setBusiness((prev: any) => ({ ...prev, multiBarberEnabled: enabled }));
     } catch (err: any) {
       alert(err.message || "Error al actualizar la configuración.");
@@ -127,6 +133,13 @@ export default function StaffManagementPage() {
 
   // Abrir modal de creación
   const handleOpenAdd = () => {
+    if (business && !business.isPro && staff.length >= 1) {
+      alert(
+        "🔒 El Plan FREE permite registrar únicamente 1 barbero/silla.\n\nTu período de prueba ha finalizado. Para registrar múltiples barberos con su propio panel y liquidación de comisiones, activa el Plan PRO en la sección de Suscripción."
+      );
+      return;
+    }
+
     setEditingBarber(null);
     setFormName("");
     setFormPhone("");
@@ -310,31 +323,57 @@ export default function StaffManagementPage() {
       </div>
 
       {/* BANNER DE ACTIVACIÓN DEL SERVICIO MULTI-BARBERO */}
-      <div className="p-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className={`p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 border shadow-sm ${
+        business?.isPro
+          ? "bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 border-emerald-200"
+          : "bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-amber-200"
+      }`}>
         <div className="flex items-center gap-3">
-          <span className="text-2xl">💈</span>
+          <span className="text-2xl">{business?.isPro ? "💈" : "🔒"}</span>
           <div>
-            <h3 className="text-sm font-bold text-gray-900">
-              Módulo Multi-Barbero {business?.multiBarberEnabled ? "Activado" : "Desactivado"}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-gray-900">
+                Módulo Multi-Barbero {business?.multiBarberEnabled ? "Activado" : "Desactivado"}
+              </h3>
+              {!business?.isPro ? (
+                <span className="text-[10px] font-extrabold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">
+                  EXCLUSIVO PRO
+                </span>
+              ) : business?.trial?.isTrialActive ? (
+                <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                  ⭐ PRUEBA ACTIVA ({business.trial.trialDaysLeft}d)
+                </span>
+              ) : null}
+            </div>
             <p className="text-xs text-gray-600 mt-0.5">
-              {business?.multiBarberEnabled
+              {!business?.isPro
+                ? "El Plan FREE incluye 1 solo barbero. Actualiza a PRO para desbloquear múltiples sillas, turnero TV simultáneo y liquidación de comisiones."
+                : business?.multiBarberEnabled
                 ? "Las citas y la pantalla Smart TV se dividen en múltiples sillas simultáneas."
                 : "Activa este servicio para habilitar el turnero multi-silla y los paneles individuales para cada barbero."}
             </p>
           </div>
         </div>
 
-        <button
-          onClick={() => handleToggleMultiBarber(!business?.multiBarberEnabled)}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm ${
-            business?.multiBarberEnabled
-              ? "bg-emerald-600 text-white hover:bg-emerald-500"
-              : "bg-gray-800 text-white hover:bg-gray-700"
-          }`}
-        >
-          {business?.multiBarberEnabled ? "✓ Servicio Activo" : "Activar Módulo Multi-Barbero"}
-        </button>
+        {business?.isPro ? (
+          <button
+            onClick={() => handleToggleMultiBarber(!business?.multiBarberEnabled)}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm ${
+              business?.multiBarberEnabled
+                ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                : "bg-gray-800 text-white hover:bg-gray-700"
+            }`}
+          >
+            {business?.multiBarberEnabled ? "✓ Servicio Activo" : "Activar Módulo Multi-Barbero"}
+          </button>
+        ) : (
+          <Link
+            href="/dashboard/suscripcion"
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-600 text-white hover:bg-amber-500 transition shadow-sm text-center shrink-0"
+          >
+            Actualizar a Plan PRO →
+          </Link>
+        )}
       </div>
 
       {/* MÉTRICAS CONSOLIDADAS DEL DÍA */}

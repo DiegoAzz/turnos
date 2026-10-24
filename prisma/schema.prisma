@@ -36,7 +36,6 @@ model Business {
   stripeCurrentPeriodEnd DateTime?
   multiBarberEnabled     Boolean        @default(false) // Toggle configurable: servicio de valor agregado
   queueResetAt           DateTime?      // Fecha/hora del último reinicio manual de conteo de turnos
-
   // Configuraciones de Manicura, Domicilios, Anticipos y Fidelización
   homeServiceFee           Float          @default(0) // Recargo por servicio a domicilio
   requireDepositForNew     Boolean        @default(false) // Cobrar anticipo a clientes nuevos
@@ -45,6 +44,9 @@ model Business {
   referralProgramEnabled   Boolean        @default(false) // Activar programa de referidos
   referralRewardText       String?        // Beneficio o descuento por referir amigas
   stationHardwarePin       String?        @default("0000") // PIN para conectar botoneras físicas o terminales de tocador
+
+  trialEndsAt            DateTime?      // Fin del período de prueba con beneficios PRO completos
+
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
 
@@ -296,6 +298,7 @@ model PlatformSettings {
   defaultFranchiseEntryFeeCOP Float @default(400000) // Inscripción inicial sugerida en COP
   defaultFranchiseFeeUSD Float   @default(29)   // Mensualidad tecnológica sugerida en USD
   defaultFranchiseFeeCOP Float   @default(100000) // Mensualidad tecnológica sugerida en COP
+  defaultTrialDays      Int      @default(7)      // Días de prueba gratuita por defecto para nuevos negocios
   updatedAt             DateTime @updatedAt
 }
 
